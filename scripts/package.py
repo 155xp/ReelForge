@@ -157,7 +157,10 @@ def main() -> int:
         write_sums(args.out)
         return 0
     if v != version():
-        print(f"warning: packaging {v} but studio/__init__.py says {version()}", file=sys.stderr)
+        # Its files would say another version, so every copy's Updates tab would offer this release forever.
+        print(f"error: packaging {v} but studio/__init__.py says KIT_VERSION = {version()!r}: change that first",
+              file=sys.stderr)
+        return 1
     files = tracked()
     args.out.mkdir(parents=True, exist_ok=True)
     stage(args.out / "stage" / "ReelForge", files, extras("windows", v))
