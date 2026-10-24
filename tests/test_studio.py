@@ -14,6 +14,7 @@ from studio import formats, generate, jsonfmt, logo, questions, settings
 
 
 DEFAULTS_ONLY = Path(__file__).with_name("no-such-studio.toml")    # the defaults, whatever my-studio/ holds
+NO_MARKER = Path(__file__).with_name("no-such-marker.txt")         # a normal copy, even when run in a test copy
 
 
 def answers(**over):
@@ -148,8 +149,13 @@ class SystemChanges(unittest.TestCase):
     """The reelforge command and the background stats job never touch the system in tests (STUDIO_DRY_SYSTEM)."""
 
     def setUp(self):
+        from studio import paths as P
+
         self._old = os.environ.get("STUDIO_DRY_SYSTEM")
         os.environ["STUDIO_DRY_SYSTEM"] = "1"
+        patch = mock.patch.object(P, "TEST_COPY", NO_MARKER)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def tearDown(self):
         if self._old is None:
@@ -192,6 +198,7 @@ class StatsJobOwner(unittest.TestCase):
         (root / "pythonw.exe").write_text("", encoding="utf-8")
         self.calls: list[str] = []
         for patch in (mock.patch.dict(os.environ, {"STUDIO_DRY_SYSTEM": ""}),
+                      mock.patch.object(P, "TEST_COPY", NO_MARKER),
                       mock.patch.object(P, "WINDOWS", True), mock.patch.object(P, "MAC", False),
                       mock.patch.object(P, "ROOT", self.ours.parent), mock.patch.object(P, "DASHBOARD", self.ours),
                       mock.patch.object(stats_schedule, "_python", return_value=root / "pythonw.exe"),
