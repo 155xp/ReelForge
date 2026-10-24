@@ -5,6 +5,7 @@
 ; reelforge command, then runs setup.bat (the first-run screens). Uninstalling removes ReelForge, the tools setup
 ; downloaded, the hourly stats job and the reelforge command, but keeps your channel (my-studio, episodes,
 ; completed videos) and the dashboard's data. ReelForge's Updates tab runs a newer copy of this installer silently.
+; Once code signing is set up (.github/SIGNING.md), the workflow also passes /DSign and /Sreelforge=<sign command>.
 
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.1"
@@ -21,6 +22,14 @@ AppPublisher=ReelForge
 AppPublisherURL=https://github.com/dan2756/ReelForge
 AppSupportURL=https://github.com/dan2756/ReelForge/issues
 AppUpdatesURL=https://github.com/dan2756/ReelForge/releases
+AppCopyright=Copyright (c) 2026 the ReelForge authors
+; The installer's Properties > Details tab (company, description, product name and copyright come from the App* lines)
+VersionInfoVersion={#MyAppVersion}
+VersionInfoOriginalFileName=ReelForge-{#MyAppVersion}-Windows-Setup.exe
+#ifdef Sign
+; Signs the installer, the setup.tmp it unpacks while running and the uninstaller with the workflow's sign command
+SignTool=reelforge
+#endif
 DefaultDirName={%USERPROFILE}\ReelForge
 DisableProgramGroupPage=yes
 DefaultGroupName={#MyAppName}
