@@ -129,7 +129,7 @@ def change_text(n: float | None, suffix: str = "") -> Text:
     return Text(f"{fmt_delta(n)}{suffix}", style=GOOD if n > 0 else BAD)
 
 
-WHITE, RED = "#ffffff", "#f0362b"  # the logo's colours: "reel" white, "forge" red
+WHITE = "#ffffff"  # the anvil's colour
 
 
 def anvil_rows() -> list[Text]:
@@ -142,27 +142,11 @@ def anvil_rows() -> list[Text]:
         return [Text(row, style=WHITE) for row in ("▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀", "    ▀▀███████▀  ", "     ▄▄████▄▄▄  ")]
 
 
-def brand(channel: str = "") -> Text:
-    """The top-left corner: the anvil, "reelforge" in the logo's colours, and your channel's name under it."""
-    out = []
-    for i, row in enumerate(anvil_rows()):
-        line = Text(" ")
-        line.append_text(row)
-        line.append("  ")
-        if i == 1:
-            line.append("reel", style=f"bold {WHITE}")
-            line.append("forge", style=f"bold {RED}")
-        elif i == 2 and channel:
-            line.append(channel[:28], style=MUTED)
-        out.append(line)
-    return Text("\n").join(out)
-
-
 class Logo(Static):
-    """ReelForge's logo and your channel's name, in the top-left corner."""
+    """ReelForge's anvil in the top-left corner (just the anvil: no name beside or under it)."""
 
-    def __init__(self, name: str = "", **kwargs):
-        super().__init__(brand(name), **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(Text("\n").join(Text.assemble(" ", row, " ") for row in anvil_rows()), **kwargs)
 
 
 class Bell(Static):

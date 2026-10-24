@@ -142,7 +142,7 @@ class ReelForge(App):
     def compose(self) -> ComposeResult:
         ps = list(self.platforms.values())
         with Horizontal(id="header"):
-            yield Logo(config.channel_name(self.cfg), id="logo")
+            yield Logo(id="logo")
             yield ActionText(id="status")
             yield ActionText(chips(("Refresh", "refresh"), ("Help", "help"), ("Quit", "quit")), id="actions")
             yield Bell(id="bell")
