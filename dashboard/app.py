@@ -28,9 +28,9 @@ from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_num, fmt_pct
 from .platforms import Platform, PlatformError, PublishItem, browser
 from .platforms.base import Account, Post
 from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
-from .widgets import (BAD, GOOD, MUTED, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell, ChartPanel, Logo,
-                      PlatformCard, TotalCard, VideoList, change_text, chip, chips, clickable, legend, num,
-                      score_text, tag)
+from .widgets import (BAD, GOOD, MUTED, SCREENSHOTS, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell,
+                      ChartPanel, Logo, PlatformCard, TotalCard, VideoList, change_text, chip, chips, clickable,
+                      legend, num, score_text, tag)
 
 try:  # the ReelForge folder's own package: its version and the updater
     from studio import KIT_VERSION
@@ -444,7 +444,7 @@ class ReelForge(App):
 
     def update_header(self) -> None:
         t = Text()
-        if self.demo:
+        if self.demo and not SCREENSHOTS:
             t.append(" DEMO ", style="bold #0a0c0f on #ffcc33")
             t.append("   ")
         for p in self.platforms.values():
@@ -1569,10 +1569,11 @@ class ReelForge(App):
     def start_updates(self) -> None:
         """The Updates tab from the last check, a new check when that's old, and "Updated to ..." after a restart."""
         if self.demo:
-            from .demo import SAMPLE_UPDATE
+            from .demo import SAMPLE_UPDATE, SCREENSHOT_NOTES
 
             self.update_info = {"current": KIT_VERSION or "1.0.0", "latest": SAMPLE_UPDATE[0], "newer": True,
-                                "notes": SAMPLE_UPDATE[1], "url": "", "error": "", "checked": db.now_iso()}
+                                "notes": SCREENSHOT_NOTES if SCREENSHOTS else SAMPLE_UPDATE[1], "url": "", "error": "",
+                                "checked": db.now_iso()}
             self.show_update()
             return
         if kit_update is None:
@@ -1642,10 +1643,11 @@ class ReelForge(App):
         if info.get("checked"):
             out.append(f"\nchecked {fmt_ago(info['checked'])}", style=MUTED)
         status.update(out)
+        live = not self.demo or SCREENSHOTS  # the README's pictures show the tab as it looks for real
         apply.display = newer
-        apply.disabled = self.updating or self.demo
-        apply.label = "Update and restart" + (" (demo)" if self.demo else "")
-        check.disabled = self.updating or self.demo
+        apply.disabled = self.updating or not live
+        apply.label = "Update and restart" + ("" if live else " (demo)")
+        check.disabled = self.updating or not live
         self.query_one("#update-progress").display = self.updating
         if newer:
             notes.update(info.get("notes") or f"Release notes: {info.get('url')}")
@@ -1654,7 +1656,7 @@ class ReelForge(App):
                          "tells you, and this tab updates ReelForge in one click.")
         else:
             notes.update("ReelForge checks for a new version every few hours while it's open.")
-        kind = kit_update.install_kind() if kit_update else ""
+        kind = "installer" if self.demo and SCREENSHOTS else kit_update.install_kind() if kit_update else ""
         how.update(Text({
             "installer": "Installed with the Windows installer: an update runs the new installer quietly into this "
                          "folder.",

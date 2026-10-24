@@ -60,6 +60,10 @@ _SEEDED: dict[tuple[str, str], tuple[str, datetime, list[float], dict]] = {}
 _START: dict[str, float] = {}  # followers before the first post
 SAMPLE_UPDATE = ("1.1.0", "## What's new\n\n- Sample release notes: this is demo mode, so nothing is downloaded.\n"
                           "- A real update downloads the new version and restarts ReelForge in one click.")
+# The same, as the README's pictures show it (REELFORGE_SCREENSHOTS=1): notes like a real release's.
+SCREENSHOT_NOTES = ("## What's new\n\n- A sharper logo in Windows Terminal.\n"
+                    "- Charts that read right at every window size: narrow ones combine hours.\n"
+                    "- Notifications sit behind the bell at the top right.")
 
 
 def _schedule(now: datetime, count: int) -> list[datetime]:

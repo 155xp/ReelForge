@@ -25,7 +25,7 @@ maximised. Everything is a button on the page it applies to; the only keys are *
 
 | Tab | What's on it |
 |---|---|
-| **1 Overview** | A card per platform (and all of them added up): followers, views, likes, the change over 24 hours and views per hour. Under the cards, today's **badges** (below). Then **views**, **followers** and **likes** gained per hour (per 6 hours on 7D, per day on 30D), stacked by platform, with yellow ▼ marks where each video went up, your **top performers** and how your **latest video** is doing. |
+| **1 Overview** | A card per platform (and all of them added up): followers, views, likes, the change over 24 hours and views per hour. Under the cards, today's **badges** (below). Then **views**, **followers** and **likes** gained over time, stacked by platform: each bar is the shortest stretch the window has room for (an hour on 24H when it's wide enough, a few hours or a day on the longer ranges), with yellow ▼ marks where each video went up, your **top performers** and how your **latest video** is doing. |
 | **2 Videos** | Every video on every platform: views, likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet. |
 | **3 Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. |
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. |

@@ -3,6 +3,8 @@ platform cards and account panels."""
 
 from __future__ import annotations
 
+import os
+
 from rich.cells import cell_len
 from rich.style import Style
 from rich.text import Text
@@ -25,6 +27,9 @@ BAD = "#ff4d5e"
 TYPICAL = "#ffb020"  # the "typical video" line: amber, unlike any platform colour
 EIGHTHS = " ▏▎▍▌▋▊▉"
 SHORT = {"tiktok": "TT", "youtube": "YT", "instagram": "IG", "x": "X"}
+# REELFORGE_SCREENSHOTS=1 is for the README's pictures of the demo: no DEMO badge and no "demo data" lines, so they
+# show what a set-up account looks like. Trying the demo yourself always shows them.
+SCREENSHOTS = os.environ.get("REELFORGE_SCREENSHOTS", "").strip() == "1"
 
 def dim(hex_color: str, amount: float = 0.65) -> str:
     return Color.parse(hex_color).blend(Color.parse(BACKGROUND), amount).hex
@@ -442,6 +447,9 @@ class AccountPanel(Vertical):
     def __init__(self, platform: Platform, demo: bool):
         super().__init__(classes="account", id=f"acct-{platform.key}")
         self.platform, self.demo = platform, demo
+        # The README's pictures show the demo as a set-up account would look (see SCREENSHOTS).
+        self.pretend = demo and SCREENSHOTS
+        self.logs_in = platform.browser_stats and not demo or self.pretend and platform.key in ("instagram", "x")
         self.border_title = platform.name
 
     def compose(self) -> ComposeResult:
@@ -450,10 +458,11 @@ class AccountPanel(Vertical):
         key = self.platform.key
         yield Static(classes="acct-body")
         with Horizontal(classes="acct-buttons"):
-            if self.platform.browser_stats and not self.demo:
+            if self.logs_in:
                 yield Button("Log in", id=f"login-{key}", classes="login-btn", variant="primary")
             yield Button("Open profile", id=f"profile-{key}", classes="profile-btn")
-            yield Button("Refresh now", id=f"refresh-{key}", classes="refresh-btn", disabled=self.demo)
+            yield Button("Refresh now", id=f"refresh-{key}", classes="refresh-btn",
+                         disabled=self.demo and not self.pretend)
             # Only while ReelForge can't read this platform itself (see show()).
             yield Button("Type in stats", id=f"log-{key}", classes="log-btn")
         yield Static(classes="acct-note")
@@ -467,7 +476,9 @@ class AccountPanel(Vertical):
     def show(self, latest, info: dict) -> None:
         """info: posts (videos tracked), since (first reading), error (last failed read), due (next refresh)."""
         p = self.platform
-        source = "demo" if self.demo else p.stats_source
+        source = "demo" if self.demo and not self.pretend else p.stats_source
+        if self.pretend and self.logs_in:
+            source = "browser"  # what Instagram and X say once you've logged in
         body = Text()
         if source == "demo":
             body.append("● demo data\n", style=f"bold {GOOD}")
@@ -492,11 +503,11 @@ class AccountPanel(Vertical):
             body.append(f"last read failed: {info['error']}\n", style=BAD)
         body.rstrip()
         self.query_one(".acct-body", Static).update(body)
-        note = "Demo data, made up on this PC." if self.demo else p.setup_note
+        note = "Demo data, made up on this PC." if self.demo and not self.pretend else p.setup_note
         self.query_one(".acct-note", Static).update(Text(note, style=MUTED))
-        if p.browser_stats and not self.demo:
+        if self.logs_in:
             self.query_one(f"#login-{p.key}", Button).label = "Log in again" if source == "browser" else "Log in"
-        self.query_one(f"#profile-{p.key}", Button).disabled = not p.public_handle
+        self.query_one(f"#profile-{p.key}", Button).disabled = not p.public_handle and not self.pretend
         self.query_one(f"#log-{p.key}", Button).display = not p.has_stats
         # Followers over time, when there's enough history to draw: (heading, draw, slots, describe(slot)).
         plot, title = self.query_one(Plot), self.query_one(".acct-chart-title", Static)
