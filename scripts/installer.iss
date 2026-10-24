@@ -7,7 +7,7 @@
 ; completed videos) and the dashboard's data. ReelForge's Updates tab runs a newer copy of this installer silently.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.0.1"
 #endif
 #define MyAppName "ReelForge"
 #define Stage "..\dist\stage\ReelForge"
