@@ -220,7 +220,7 @@ class Logo(Static):
 
 class Bell(Static):
     """The notifications button at the header's right end: one line, the height of the header's text, with a red dot
-    while something is unread. Click it, or press n, to open the drawer."""
+    while something is unread. Click it to open the drawer."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -228,7 +228,7 @@ class Bell(Static):
 
     def show(self, unread: int) -> None:
         self.unread = unread
-        self.tooltip = f"{unread} new notification{'s' if unread != 1 else ''} (n)" if unread else "Notifications (n)"
+        self.tooltip = f"{unread} new notification{'s' if unread != 1 else ''}" if unread else "Notifications"
         self.update(self._draw())
 
     def _draw(self) -> Text:

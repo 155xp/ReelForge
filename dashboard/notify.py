@@ -1,4 +1,4 @@
-"""Notifications: what happened while you weren't looking, in the drawer on the left (n, or the bell).
+"""Notifications: what happened while you weren't looking, in the drawer the bell at the top right opens.
 
   an update        a newer ReelForge is out (once per version)
   a milestone      followers on a platform, views across every platform, or one video's views passing a round number

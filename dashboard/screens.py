@@ -147,8 +147,8 @@ class EpisodePicker(ModalScreen[str | None]):
         note = Text()
         note.append(f"{self.platform.name}  ", style=f"bold {self.platform.color}")
         note.append(self.post["title"] or "(no caption)", style="bold")
-        note.append("\nHQ matches posts to videos by their caption. If it got this one wrong, pick the right video; "
-                    "ReelForge keeps your choice from now on.", style=MUTED)
+        note.append("\nReelForge matches posts to videos by their caption. If it got this one wrong, pick the right "
+                    "video; ReelForge keeps your choice from now on.", style=MUTED)
         options = [Option(Text("Not one of my videos", style=MUTED), id="none")]
         for e in self.episodes:
             label = Text(("✓ " if e["id"] == self.post["episode_id"] else "  "), style=GOOD)

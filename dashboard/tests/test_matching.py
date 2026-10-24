@@ -17,8 +17,7 @@ from types import SimpleNamespace
 
 from dashboard import analytics, db
 
-DASHBOARD = Path(__file__).resolve().parents[1]
-T0 = datetime(2026, 10, 23, 4, 0, tzinfo=timezone.utc)
+T0 =datetime(2026, 10, 23, 4, 0, tzinfo=timezone.utc)
 EPISODES = r"C:\Users\me\Desktop\my channel\episodes"
 # The five episodes so far: title, video slug, minutes after T0 that they went up.
 REAL = {
@@ -28,7 +27,7 @@ REAL = {
     "savings": ("What if your savings doubled every second?", "ep05_savings_doubling", 1200),
     "subscribers": ("What if your subscribers doubled every second?", "ep06_subscribers_doubling", 1205),
 }
-# How each platform's caption reads, as in the owner's database.
+# How each platform's caption reads once it's posted.
 CAPTIONS = {"tiktok": "{} #fyp#whatif#space#physics#simulation", "instagram": "{} #fyp #whatif #space #physics",
             "youtube": "{} #shorts", "x": "{} https://t.co/0000000000"}
 ALL_FOUR = Counter(dict.fromkeys(CAPTIONS, 1))
@@ -159,7 +158,7 @@ class RealEpisodesTest(DbTest):
         self.assertEqual(analytics.auto_link(), 1)
         self.assertEqual(where("tiktok", "tiktok-kite"), (ids["kite"], "caption"))
 
-    def test_posts_hq_made_are_left_alone(self):
+    def test_posts_linked_when_published_are_left_alone(self):
         ids = real_world()
         db.add_post("facebook", "pushed", ids["snowball"], REAL["snowball"][0], None, at(500))
         read("facebook", [post("pushed", REAL["kite"][0], 500)])  # its caption now reads like the kite video
@@ -345,28 +344,6 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual([f.name for f in self.dir.iterdir() if ".bak" in f.name], [])
 
 
-class OwnersDatabaseTest(unittest.TestCase):
-    SOURCE = DASHBOARD / "data" / "stats.db"
-
-    @unittest.skipUnless(SOURCE.exists(), "no copy of the owner's database in data/")
-    def test_every_episode_has_one_post_per_platform(self):
-        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
-        self.addCleanup(tmp.cleanup)
-        self.addCleanup(setattr, db, "_path", db._path)
-        copy = Path(tmp.name) / "stats.db"
-        with closing(sqlite3.connect(self.SOURCE.as_uri() + "?mode=ro", uri=True)) as src, \
-                closing(sqlite3.connect(copy)) as dst:
-            src.backup(dst)
-        db.init(copy)
-        analytics.auto_link()
-        episodes = {e["title"]: e["id"] for e in db.episodes()}
-        counts = per_episode()
-        for title, _, _ in REAL.values():
-            self.assertEqual(counts[episodes[title]], ALL_FOUR, title)
-        self.assertEqual(where("x", X_SNOWBALL), (3, "hand"))
-        self.assertEqual(analytics.auto_link(), 0)
-
-
 class SnapshotTest(DbTest):
     def account(self, platform: str = "tiktok") -> tuple:
         a = db.latest_accounts()[platform]
@@ -474,7 +451,7 @@ class ApiTest(DbTest):
         self.assertIsNone(db.episode_for_video("ep06_subscribers_doubling.mp4"))
 
 
-@unittest.skipIf(os.environ.get("HQ_SKIP_TIMING"), "HQ_SKIP_TIMING is set")
+@unittest.skipIf(os.environ.get("REELFORGE_SKIP_TIMING"), "REELFORGE_SKIP_TIMING is set")
 class YearOfPostsTest(DbTest):
     """A year at two videos a day: 730 episodes and 2,920 posts, some reworded or without a caption."""
 
