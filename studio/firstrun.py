@@ -319,8 +319,11 @@ class DoneScreen(tui.Framed):
         try:
             if s["platforms"].get("background_stats", True):
                 msg = stats_schedule.enable()
-                ok = not msg.startswith(("Couldn't", "Background stats need"))
-                lines.append((ok, "Background stats: " + msg if ok else msg))
+                if msg.startswith(stats_schedule.ELSEWHERE):     # another copy's job, left alone
+                    lines.append((None, "Background stats: " + msg))
+                else:
+                    ok = not msg.startswith(("Couldn't", "Background stats need"))
+                    lines.append((ok, "Background stats: " + msg if ok else msg))
             elif stats_schedule.status() == "on":
                 lines.append((True, stats_schedule.disable()))
             else:

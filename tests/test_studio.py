@@ -151,6 +151,71 @@ class SystemChanges(unittest.TestCase):
         self.assertIs(generate.settings_from(a)["platforms"]["background_stats"], False)
 
 
+class StatsJobOwner(unittest.TestCase):
+    """The hourly job belongs to the folder whose refresh.pyw it runs: a second copy (a test install) never takes
+    it over or turns it off while that folder is there, and takes it over once that folder is gone."""
+
+    def setUp(self):
+        import tempfile
+
+        from studio import paths as P
+        from studio import stats_schedule
+
+        self.s = stats_schedule
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        self.ours, self.theirs = root / "Test copy" / "dashboard", root / "ReelForge" / "dashboard"
+        for d in (self.ours, self.theirs):
+            d.mkdir(parents=True)
+            (d / "refresh.pyw").write_text("", encoding="utf-8")
+        (root / "pythonw.exe").write_text("", encoding="utf-8")
+        self.calls: list[str] = []
+        for patch in (mock.patch.dict(os.environ, {"STUDIO_DRY_SYSTEM": ""}),
+                      mock.patch.object(P, "WINDOWS", True), mock.patch.object(P, "MAC", False),
+                      mock.patch.object(P, "ROOT", self.ours.parent), mock.patch.object(P, "DASHBOARD", self.ours),
+                      mock.patch.object(stats_schedule, "_python", return_value=root / "pythonw.exe"),
+                      mock.patch.object(stats_schedule, "_ps", side_effect=self._ps)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.job: Path | None = None
+
+    def _ps(self, script: str):
+        self.calls.append(script)
+        if "Get-ScheduledTask" in script:
+            out = f'job:"{self.job}"' if self.job is not None else ""
+        else:
+            out = "ok"
+        return mock.Mock(returncode=0, stdout=out + "\n", stderr="")
+
+    def changed(self) -> bool:
+        return any("Register-ScheduledTask" in c or "Unregister-ScheduledTask" in c for c in self.calls)
+
+    def test_no_job(self):
+        self.assertEqual(self.s.status(), "off")
+        self.assertIn("every 60 minutes", self.s.enable())
+        self.assertTrue(self.changed())
+
+    def test_our_job(self):
+        self.job = self.ours / "refresh.pyw"
+        self.assertEqual(self.s.status(), "on")
+        self.assertEqual(self.s.disable(), "Background stats are off.")
+        self.assertTrue(self.changed())
+
+    def test_another_copys_job_is_left_alone(self):
+        self.job = self.theirs / "refresh.pyw"
+        self.assertEqual(self.s.status(), "other")
+        self.assertTrue(self.s.enable().startswith(self.s.ELSEWHERE))
+        self.assertIn(str(self.theirs.parent), self.s.disable())
+        self.assertFalse(self.changed())
+
+    def test_a_gone_copys_job_moves_here(self):
+        self.job = self.theirs.parent.parent / "Deleted" / "dashboard" / "refresh.pyw"
+        self.assertEqual(self.s.status(), "other")
+        self.assertIn("every 60 minutes", self.s.enable())
+        self.assertTrue(self.changed())
+
+
 class SetupPlan(unittest.TestCase):
     def test_missing_tools_are_listed(self):
         from studio import setup_flow

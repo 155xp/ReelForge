@@ -8,11 +8,16 @@ Windows: a Task Scheduler task ("ReelForge stats") runs dashboard/refresh.pyw wi
 while you're signed in. macOS: a launchd agent. Linux: a crontab line. Your computer has to be on; hours it was off
 or asleep stay empty on the charts, and what was gained meanwhile still counts in the totals. Uninstalling ReelForge
 removes the job.
+
+A computer has one such job, and it belongs to the ReelForge folder whose refresh.pyw it runs. Another copy (a test
+install, say) never takes it over or turns it off while that folder is still there; once the folder is gone (moved
+or deleted), turning the job on from the new copy moves it there.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +27,7 @@ from . import paths as P
 TASK = "ReelForge stats"
 MAC_LABEL = "com.reelforge.stats"
 CRON_MARK = "# reelforge-stats"
+ELSEWHERE = "Another ReelForge folder"  # how enable() starts when the job belongs to another copy
 
 
 def _python(windowless: bool = True) -> Path:
@@ -50,20 +56,61 @@ def _q(text: str) -> str:
     return "'" + str(text).replace("'", "''") + "'"
 
 
+def _plist() -> Path:
+    return Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist"
+
+
+def _job() -> Path | None:
+    """The refresh script the hourly job runs, in whichever ReelForge folder turned it on (an empty Path() if that
+    can't be read), or None when there's no job. Raises OSError where there's no scheduler to ask (no crontab)."""
+    if P.WINDOWS:
+        r = _ps("[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; "   # paths may not be ASCII
+                f"$t = Get-ScheduledTask -TaskName {_q(TASK)} -ErrorAction SilentlyContinue; "
+                "if ($t) { 'job:' + $t.Actions[0].Arguments }")
+        out = r.stdout.strip().lstrip("﻿")
+        return Path(out[4:].strip().strip('"')) if out.startswith("job:") else None
+    if P.MAC:
+        if not _plist().exists():
+            return None
+        import plistlib
+
+        try:
+            args = plistlib.loads(_plist().read_bytes()).get("ProgramArguments") or []
+        except Exception:  # an unreadable plist is still a job
+            return Path()
+        return Path(args[-1]) if args else Path()
+    out = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
+    line = next((ln for ln in out.splitlines() if CRON_MARK in ln), None)
+    if line is None:
+        return None
+    m = re.search(r'"([^"]*refresh\.pyw)"', line)
+    return Path(m.group(1)) if m else Path()
+
+
+def _same(a: Path, b: Path) -> bool:
+    return os.path.normcase(os.path.normpath(str(a))) == os.path.normcase(os.path.normpath(str(b)))
+
+
+def _other_folder() -> Path | None:
+    """The other ReelForge folder the job belongs to, while that folder is still there. None when the job is this
+    folder's, when there's none, or when its folder has gone (then this copy may take the job over)."""
+    job = _job()
+    if job is None or _same(job, _refresh_script()) or not job.name or not job.is_file():
+        return None
+    return job.parent.parent
+
+
 def status() -> str:
-    """'on', 'off' or 'unsupported'."""
+    """'on' (this folder's job), 'other' (another ReelForge folder's), 'off' or 'unsupported'."""
     if _dry():
         return "off"
-    if P.WINDOWS:
-        r = _ps(f"if (Get-ScheduledTask -TaskName {_q(TASK)} -ErrorAction SilentlyContinue) {{ 'on' }} else {{ 'off' }}")
-        return r.stdout.strip() or "off"
-    if P.MAC:
-        return "on" if (Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist").exists() else "off"
     try:
-        out = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
+        job = _job()
     except OSError:
         return "unsupported"
-    return "on" if CRON_MARK in out else "off"
+    if job is None:
+        return "off"
+    return "on" if _same(job, _refresh_script()) else "other"
 
 
 def enable(minutes: int = 60) -> str:
@@ -73,6 +120,14 @@ def enable(minutes: int = 60) -> str:
         return f"(dry run) would run {script.name} every {minutes} minutes"
     if not py.exists() or not script.exists():
         return "Background stats need setup to have finished first (run setup again)."
+    try:
+        other = _other_folder()
+    except OSError:
+        other = None
+    if other is not None:
+        there, here = (folder / "bin" / ("reelforge.cmd" if P.WINDOWS else "reelforge") for folder in (other, P.ROOT))
+        return (f"{ELSEWHERE} already reads your stats every hour ({other}), so it's left as it is. To move the job "
+                f'here: "{there}" stats off, then "{here}" stats on')
     if P.WINDOWS:
         ps = f"""
 $a = New-ScheduledTaskAction -Execute {_q(py)} -Argument {_q('"' + str(script) + '"')} -WorkingDirectory {_q(P.DASHBOARD)}
@@ -88,7 +143,7 @@ Register-ScheduledTask -TaskName {_q(TASK)} -Action $a -Trigger $t -Settings $s 
             return "Couldn't create the background job: " + (r.stderr.strip().splitlines() or ["unknown error"])[-1]
         return f"Your stats will update every {minutes} minutes while this computer is on, even with ReelForge closed."
     if P.MAC:
-        plist = Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist"
+        plist = _plist()
         plist.parent.mkdir(parents=True, exist_ok=True)
         plist.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -113,13 +168,20 @@ Register-ScheduledTask -TaskName {_q(TASK)} -Action $a -Trigger $t -Settings $s 
 
 
 def disable() -> str:
+    """Stop this folder's hourly job (one that belongs to another ReelForge folder stays). Returns a sentence."""
     if _dry():
         return "(dry run) would remove the background job"
+    try:
+        other = _other_folder()
+    except OSError:
+        other = None
+    if other is not None:
+        return f"Background stats are off for this folder. The hourly job belongs to {other} and keeps running there."
     if P.WINDOWS:
         _ps(f"Unregister-ScheduledTask -TaskName {_q(TASK)} -Confirm:$false -ErrorAction SilentlyContinue")
         return "Background stats are off."
     if P.MAC:
-        plist = Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist"
+        plist = _plist()
         if plist.exists():
             subprocess.run(["launchctl", "unload", "-w", str(plist)], capture_output=True)
             plist.unlink()
@@ -140,7 +202,13 @@ def main(argv: list[str]) -> int:
     elif cmd == "off":
         print(disable())
     elif cmd == "status":
-        print(f"Background stats: {status()}")
+        state = status()
+        if state == "other":
+            other = _other_folder()
+            state = (f"off here; the hourly job belongs to {other}" if other else
+                     "off here; the hourly job belongs to a ReelForge folder that's gone (reelforge stats on moves it "
+                     "here)")
+        print(f"Background stats: {state}")
     else:
         print("usage: python -m studio stats [on|off]")
         return 2
