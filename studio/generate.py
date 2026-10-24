@@ -89,7 +89,7 @@ def settings_from(a: dict) -> dict:
     platforms = list(a.get("platforms") or S.PLATFORMS)
     today = dt.date.today().isoformat()
     return {
-        "studio": {"kit_version": KIT_VERSION, "created": a.get("_created", today), "updated": today},
+        "studio": {"kit_version": KIT_VERSION, "created": a.get("_created") or today, "updated": today},
         "channel": {
             "name": a["channel_name"].strip(),
             "creator": a.get("creator", "").strip(),
@@ -263,12 +263,13 @@ def write_all(answers: dict) -> list[Path]:
     a, problems = validate(answers)
     if problems:
         raise ValueError("some answers need fixing:\n  " + "\n  ".join(problems))
-    if P.ANSWERS.exists():   # keep the original creation date across re-runs
+    if not a.get("_created") and P.ANSWERS.exists():   # keep the original creation date across re-runs
         try:
-            a.setdefault("_created", json.loads(P.ANSWERS.read_text(encoding="utf-8")).get("_created"))
+            a["_created"] = json.loads(P.ANSWERS.read_text(encoding="utf-8")).get("_created")
         except ValueError:
             pass
-    a.setdefault("_created", dt.date.today().isoformat())
+    # The answers file is often the one being read (my-studio/answers.json), with no date yet: today, then.
+    a["_created"] = a.get("_created") or dt.date.today().isoformat()
     s = settings_from(a)
     written: list[Path] = []
     P.MY_STUDIO.mkdir(parents=True, exist_ok=True)
