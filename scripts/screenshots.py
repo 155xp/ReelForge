@@ -1,5 +1,6 @@
 """Retake the README's screenshots (docs/screenshots/*.png) and the dashboard guide's (dashboard/docs/*.png): the
-first-run screens and every tab of the ReelForge window on its demo data, the way Windows Terminal draws them.
+first-run screens, every tab of the ReelForge window on its demo data and a clicked notification, the way Windows
+Terminal draws them.
 
   .venv\\Scripts\\python scripts\\screenshots.py            all of them
   .venv\\Scripts\\python scripts\\screenshots.py app-publish first-run      just these
@@ -37,9 +38,12 @@ APP_SHOTS = {  # name: (tab, notifications drawer open, select the first video, 
     "app-publish": ("publish", False, True, GUIDE_SIZE, OUT),   # wide enough for every upload button in one view
     "app-accounts": ("accounts", False, False, APP_SIZE, OUT),
     "app-updates": ("updates", False, False, APP_SIZE, OUT),
+    "app-notification-click": ("overview", True, False, APP_SIZE, OUT),
     "overview": ("overview", True, False, GUIDE_SIZE, GUIDE),
+    "notification-click": ("overview", True, False, GUIDE_SIZE, GUIDE),
     "updates": ("updates", False, False, GUIDE_SIZE, GUIDE),
 }
+CLICK_A_VIDEO_NOTE = {"app-notification-click", "notification-click"}  # taken after clicking one about a video
 FIRST_RUN_SHOTS = {  # name: (first-run screen, onboarding step)
     "first-run": ("tools", None),
     "onboarding-format": ("onboard", 2),
@@ -58,6 +62,21 @@ def only_the_demos() -> None:
     videos.find = lambda cfg: [f for f in every(cfg) if f.stem in demos]
 
 
+async def click_a_video_note(app, pilot) -> None:
+    """Click the newest notification about a video (taking off, or passing a views milestone) in the drawer."""
+    from textual.widgets import OptionList
+
+    from dashboard import notify
+
+    note = next(n for n in notify.recent() if notify.target(n).post)
+    box = app.query_one("#notes", OptionList)
+    box.highlighted = box.get_option_index(f"note-{note['id']}")
+    box.focus()
+    await pilot.pause(0.2)
+    await pilot.press("enter")
+    await pilot.pause(0.8)
+
+
 async def app_shot(name: str, work: Path) -> Path:
     from dashboard import config, db, demo
     from dashboard.app import ReelForge
@@ -67,13 +86,16 @@ async def app_shot(name: str, work: Path) -> Path:
     for suffix in ("", "-wal", "-shm"):
         path.with_name(path.name + suffix).unlink(missing_ok=True)
     db.init(path)
-    demo.seed()
-    app = ReelForge(config.load_config(), demo.platforms(), demo=True, tab=tab, drawer=drawer)
+    cfg = config.load_config()
+    demo.seed(video=demo.newest_video(cfg))
+    app = ReelForge(cfg, demo.platforms(), demo=True, tab=tab, drawer=drawer)
     async with app.run_test(size=size) as pilot:
         await pilot.pause(1.0)
         if select:
             await pilot.press("down")
             await pilot.pause(0.5)
+        if name in CLICK_A_VIDEO_NOTE:
+            await click_a_video_note(app, pilot)
         app.save_screenshot(f"{name}.svg", str(work))
     return work / f"{name}.svg"
 

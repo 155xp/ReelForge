@@ -70,6 +70,56 @@ class NotifyTest(DbTest):
         self.assertEqual([notify.short(n) for n in (100, 1_000, 2_500, 25_000, 1_000_000, 2_500_000)],
                          ["100", "1K", "2.5K", "25K", "1M", "2.5M"])
 
+    def test_the_tab_saved_is_where_it_goes(self):
+        for kind, key, tab in (("milestone", "milestone:video:tiktok|1:1000", "videos"),
+                               ("milestone", "milestone:followers:tiktok:1000", "accounts"),
+                               ("milestone", "milestone:views:1000", "overview"),
+                               ("badge", "badge:video:x|2:views:5", "videos"),
+                               ("badge", "badge:day:x:2026-10-24:views:5", "overview"),
+                               ("hot", "hot:youtube|3", "videos"), ("video", "video:a.mp4", "publish"),
+                               ("update", "update:1.2.0", "updates"), ("info", None, None)):
+            notify.add(kind, kind, key=key)
+            self.assertEqual(notify.recent()[0]["tab"], tab, key)
+
+
+class TargetTest(unittest.TestCase):
+    """What clicking each kind of notification shows (notify.target)."""
+
+    def target(self, kind: str, key: str | None, title: str = "", tab: str | None = None) -> notify.Target:
+        return notify.target({"kind": kind, "key": key, "title": title, "tab": tab},
+                             {"tiktok": "TikTok", "instagram": "Instagram", "x": "X"})
+
+    def test_videos_open_on_the_videos_tab(self):
+        self.assertEqual(self.target("hot", "hot:tiktok|7700257191629982989"),
+                         notify.Target("videos", post="tiktok|7700257191629982989"))
+        # Saved by an older ReelForge with the Overview as its tab.
+        old = self.target("milestone", "milestone:video:instagram|4015229296325324708:1000", tab="overview")
+        self.assertEqual(old, notify.Target("videos", post="instagram|4015229296325324708"))
+        self.assertEqual(self.target("badge", "badge:video:youtube|AfeUh3eBYtw:first_day:5"),
+                         notify.Target("videos", post="youtube|AfeUh3eBYtw"))
+        self.assertEqual(self.target("milestone", "milestone:video:x|a:b:10000"),  # a colon in a post id is kept
+                         notify.Target("videos", post="x|a:b"))
+
+    def test_platforms_open_their_card_or_account(self):
+        self.assertEqual(self.target("milestone", "milestone:followers:tiktok:10000"),
+                         notify.Target("accounts", account="tiktok"))
+        self.assertEqual(self.target("badge", "badge:day:youtube:2026-10-24:followers:5"),
+                         notify.Target("overview", card="youtube"))
+        self.assertEqual(self.target("milestone", "milestone:views:1000000"), notify.Target("overview", card="total"))
+        self.assertEqual(self.target("login", "login:instagram"), notify.Target("accounts", account="instagram"))
+        # A log-in that worked again since has lost its key: its title names the platform.
+        self.assertEqual(self.target("login", None, "Log in to X again"), notify.Target("accounts", account="x"))
+        self.assertEqual(self.target("login", None, "Log in to Myspace again"), notify.Target("accounts"))
+
+    def test_files_updates_and_the_rest(self):
+        self.assertEqual(self.target("video", "video:demo_doubling_duck.mp4"),
+                         notify.Target("publish", file="demo_doubling_duck.mp4"))
+        self.assertEqual(self.target("update", "update:1.1.0"), notify.Target("updates"))
+        self.assertEqual(self.target("update", "updated:1.0.1"), notify.Target("updates"))
+        self.assertEqual(self.target("info", None), notify.Target(None))
+        self.assertEqual(self.target("milestone", None, tab="overview"), notify.Target("overview"))  # no key: its tab
+        self.assertEqual(self.target("milestone", "milestone:video:nonsense", tab="overview"), notify.Target("overview"))
+
 
 class MilestoneTest(DbTest):
     def test_first_look_only_takes_stock(self):

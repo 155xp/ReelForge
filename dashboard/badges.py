@@ -19,7 +19,8 @@ outside sources checked (October 2026) can't back a "top X% of creators" claim:
 Instagram and X: nothing comparable. A made-up yardstick would be untrue, so badges stay with your own numbers.
 
 The badge on show is on the Overview (the account's) and the Videos tab (the highlighted video's). Moving up to a
-better tier (top 25% -> 10% -> 5% -> 1% -> best yet) adds one notification per video or day.
+better tier (top 25% -> 10% -> 5% -> 1% -> best yet) adds one notification per video or day; clicking it shows the
+video on the Videos tab, or the platform's card on the Overview.
 """
 
 from __future__ import annotations
@@ -189,8 +190,7 @@ def notify_new(posts: list[dict], first_day: dict, account_rows: dict, platforms
             post = next((q for q in posts if f"video:{q['platform']}|{q['post_id']}" == top.subject), None)
             if post:
                 body = f"{(post.get('episode') or post.get('title') or 'A video')[:60]} · {top.detail}"
-        if notify.add("badge", title, body, key=f"badge:{top.subject}:{top.metric}:{top.tier}",
-                      tab="videos" if top.subject.startswith("video:") else "overview"):
+        if notify.add("badge", title, body, key=f"badge:{top.subject}:{top.metric}:{top.tier}"):
             told += 1
     marks["_seeded"] = 1
     # Old days' marks aren't needed once the day is over: keep videos' and the last few days'.

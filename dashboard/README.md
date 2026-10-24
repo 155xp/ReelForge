@@ -30,7 +30,7 @@ maximised. Everything is a button on the page it applies to; the only keys are *
 | **3 Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. |
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. |
 | **5 Accounts** | Where each platform's stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
-| **6 Updates** | Your version, what's new in the next one, and **Update and restart**. |
+| **6 Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
 3× is a hit. **Engagement** = (likes + comments + shares) ÷ views. **Share rate** = shares ÷ views, the strongest
@@ -39,16 +39,19 @@ sign a video is spreading.
 ## Notifications
 
 The **bell** at the header's right end opens the drawer, which slides in from the right; the bell, **Close** or Esc
-closes it. A **red dot** on the bell means something's unread (the drawer says how many). Click a notification to
-go to the tab it's about; **Mark all read** clears the dot. You hear about:
+closes it. A **red dot** on the bell means something's unread (the drawer says how many); **Mark all read** clears
+it. Click a notification to see what it's about, from any tab (the drawer stays open, so you can go through them):
 
-- a **new version** of ReelForge (once per version);
-- **milestones**: a platform passing 100, 500, 1K, 5K, 10K, 25K, 50K, 100K … followers; your views across every
-  platform passing 1K, 10K, 100K, 1M …; one video passing 1K, 10K, 100K, 1M … views;
-- **badges** a video or today moves up to;
-- a video **taking off** (3× your typical one in its first 12 hours);
-- a **finished video** that's ready to post;
-- Instagram or X **logging ReelForge out** (log in again on Accounts).
+| You hear about | Clicking it shows |
+|---|---|
+| a video **taking off** (3× your typical one in its first 12 hours), passing 1K, 10K, 100K, 1M … **views**, or moving up to a better **badge** | the **Videos** tab with that platform's videos, the video highlighted (scrolled to if it's far down) and its chart underneath |
+| a **finished video** that's ready to post | the **Publish** tab with that video picked, its caption and hashtags filled in |
+| a platform passing 100, 500, 1K, 5K, 10K, 25K, 50K, 100K … **followers** | that platform's panel on **Accounts**, framed in yellow for a few seconds |
+| Instagram or X **logging ReelForge out** | that platform's panel on **Accounts**, with **Log in again** ready to press |
+| **today's badge** on a platform, or your **views across every platform** passing 1K, 10K, 100K, 1M … | that platform's card (or **All platforms**) on the **Overview**, framed in yellow |
+| a **new version** of ReelForge (once per version), or ReelForge having **updated** | the **Updates** tab, with what's new |
+
+![A clicked notification about a video: the Videos tab on that platform's videos, with the video highlighted](docs/notification-click.png)
 
 With the hourly background job on (onboarding asks; `reelforge stats on`), ReelForge reads your stats while it's
 closed too, so the drawer has news waiting when you open it. Nothing is told twice, and the first look at a new

@@ -18,6 +18,7 @@ from textual.binding import Binding
 from textual.containers import Grid, Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.css.scalar import ScalarOffset
 from textual.theme import Theme
+from textual.widget import Widget
 from textual.widgets import (Button, DataTable, Input, Label, Markdown, OptionList, ProgressBar, Static, TabbedContent,
                              TabPane)
 from textual.widgets.data_table import ColumnKey
@@ -30,7 +31,7 @@ from .platforms.base import Account, Post
 from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
 from .widgets import (BAD, GOOD, MUTED, SCREENSHOTS, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell,
                       ChartPanel, Logo, PlatformCard, TotalCard, VideoList, change_text, chip, chips, clickable,
-                      legend, num, score_text, tag)
+                      frame, legend, num, score_text, tag)
 
 try:  # the ReelForge folder's own package: its version and the updater
     from studio import KIT_VERSION
@@ -67,6 +68,7 @@ VIDEO_COLUMNS = [  # (key, label, width)
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
+PICKED_FOR = 4  # seconds a clicked notification's card or account panel stays framed
 
 
 def db_safe(method):
@@ -143,6 +145,7 @@ class ReelForge(App):
         self.trend_views: dict[str, tuple] = {}
         self.detail_state: tuple | None = None  # (post, span, series) for the Videos chart
         self.compare_state: dict[str, tuple] = {}  # platform -> (title, series) for the Compare charts
+        self.picked: tuple | None = None  # (widget, timer): the card or panel a clicked notification framed
 
     # --- layout ---------------------------------------------------------------------------
 
@@ -329,8 +332,9 @@ class ReelForge(App):
         each badge a video or the account moves up to. Milestones come from the refresh itself."""
         for p in self.posts:
             if p["score"] and p["score"] >= 3 and p["age_h"] <= 12 and (p["views"] or 0) >= 100:
+                name = p["episode"] or videos.strip_hashtags(p["title"] or "") or "A video"
                 notify.add("hot", f"Taking off on {self.platforms[p['platform']].name}",
-                           f"{(p['title'] or 'A video')[:60]} is doing {p['score']:.1f}× your typical video.",
+                           f"{name[:60]} is doing {p['score']:.1f}× your typical video.",
                            key=f"hot:{p['platform']}|{p['post_id']}")
         badges.notify_new(self.posts, self.first_day, self.account_rows, self.platforms)
 
@@ -694,9 +698,10 @@ class ReelForge(App):
 
     # --- videos ---------------------------------------------------------------------------
 
-    def update_videos(self) -> None:
+    def update_videos(self, select: str | None = None) -> None:
+        """The Videos table, with the highlighted video still highlighted, or `select` ("<platform>|<post id>")."""
         table = self.query_one("#videos-table", DataTable)
-        keep = self._cursor_key(table)
+        keep = select or self._cursor_key(table)
         table.clear()
         key, reverse = self.sort
         rows = [p for p in self.posts if not self.filter or p["platform"] == self.filter]
@@ -1139,9 +1144,11 @@ class ReelForge(App):
 
     @on(OptionList.OptionHighlighted, "#file-list")
     def pick_file(self, event: OptionList.OptionHighlighted) -> None:
-        if not event.option_id or Path(event.option_id) == self.selected_file:
-            return
-        path = Path(event.option_id)
+        if event.option_id and Path(event.option_id) != self.selected_file:
+            self.pick(Path(event.option_id))
+
+    def pick(self, path: Path) -> None:
+        """Pick a video to post: its caption and hashtags go into the form."""
         self.selected_file = path
         meta, warnings = videos.meta(path, self.cfg)
         for w in warnings:
@@ -1542,15 +1549,75 @@ class ReelForge(App):
     @on(OptionList.OptionSelected, "#notes")
     @db_safe
     def open_note(self, event: OptionList.OptionSelected) -> None:
-        """Clicking a notification marks it read and opens the tab it's about."""
+        """Clicking a notification marks it read and shows what it's about."""
         if not (event.option_id or "").startswith("note-"):
             return
         note_id = int(event.option_id[5:])
         note = next((n for n in notify.recent() if n["id"] == note_id), None)
         notify.mark_read(note_id)
-        if note and note["tab"] in TABS:
-            self.action_tab(note["tab"])
+        if note:
+            self.go_to(note)
         self.update_notes()
+
+    def go_to(self, note: dict) -> None:
+        """Open the tab a notification is about and pick out what it's about there, whether or not that tab is open
+        already: the video on Videos (with its platform's videos showing), the finished video on Publish, or the
+        platform's card on the Overview or panel on Accounts (framed for a few seconds)."""
+        to = notify.target(note, {k: p.name for k, p in self.platforms.items()})
+        if to.tab not in TABS:
+            return
+        self.action_tab(to.tab)
+        if to.post:
+            self.show_post(to.post)
+        elif to.file:
+            self.show_file(to.file)
+        elif to.card in (*self.platforms, "total"):
+            self.pick_out(self.query_one(f"#card-{to.card}"))
+        elif to.account in self.platforms:
+            self.pick_out(self.query_one(f"#acct-{to.account}"))
+            login = self.query(f"#login-{to.account}")
+            if note["kind"] == "login" and login:
+                login.first().focus()  # Enter logs in again
+
+    def show_post(self, key: str) -> None:
+        """The Videos tab showing one video ("<platform>|<post id>"): its platform's videos, with it highlighted and
+        scrolled into view."""
+        post = self._post_for(key)
+        if post is None:
+            self.notify("That video isn't on the Videos tab any more.", severity="warning")
+            return
+        self.filter = post["platform"]
+        self.stale.discard("videos")
+        self.update_videos(select=key)
+        self.query_one("#videos-table", DataTable).focus()
+
+    def show_file(self, name: str) -> None:
+        """The Publish tab with one finished video picked (by file name), its caption and hashtags filled in."""
+        path = next((f for f in videos.find(self.cfg) if f.name.lower() == name.lower()), None)
+        if path is None:
+            self.notify(f"{name} isn't in your video folders any more.", severity="warning")
+            return
+        if path.name.lower() in {Path(h).name.lower() for h in db.get_meta("hidden_videos", [])}:
+            self.notify(f"{path.name} is hidden. Show hidden (top of the list) brings it back.", severity="warning")
+            return
+        self.pick(path)
+        self.scan_files()  # lists it, highlighted
+        self.query_one("#file-list", OptionList).focus()
+
+    def pick_out(self, widget: Widget) -> None:
+        """Frame a card or account panel in yellow for a few seconds (one at a time)."""
+        if self.picked:
+            old, timer = self.picked
+            timer.stop()
+            frame(old)
+
+        def done() -> None:
+            frame(widget)
+            self.picked = None
+
+        frame(widget, picked=True)
+        self.call_after_refresh(widget.scroll_visible)  # once its tab is laid out
+        self.picked = (widget, self.set_timer(PICKED_FOR, done))
 
     @db_safe
     def action_mark_all_read(self) -> None:
@@ -1664,8 +1731,10 @@ class ReelForge(App):
         if newer:
             notes.update(info.get("notes") or f"Release notes: {info.get('url')}")
         elif info.get("latest"):
+            # The notes are the version you have when it's the newest (what "Updated to ..." points you to).
+            own = info["latest"] == (info.get("current") or KIT_VERSION) and info.get("notes")
             notes.update(f"You have the newest version, {info['latest']}. When a new one comes out, a notification "
-                         "tells you, and this tab updates ReelForge in one click.")
+                         "tells you, and this tab updates ReelForge in one click." + (f"\n\n{own}" if own else ""))
         else:
             notes.update("ReelForge checks for a new version every few hours while it's open.")
         kind = "installer" if self.demo and SCREENSHOTS else kit_update.install_kind() if kit_update else ""

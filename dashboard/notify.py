@@ -8,14 +8,17 @@
   a badge          a video or today moving up to a better "top X% of yours" badge (see badges.py)
 
 They're kept in the stats database, so the hourly background refresh adds them while ReelForge is closed, and the
-bell shows a red dot until you've read them. Each has a key, so the same event is never told twice.
+bell shows a red dot until you've read them. Each has a key, so the same event is never told twice. The key also
+names what the notification is about, so clicking it shows that thing (see target).
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from . import db
 
-KINDS = {  # kind -> (icon, colour, the tab it opens)
+KINDS = {  # kind -> (icon, colour, the tab it opens when its key doesn't say more)
     "update": ("↑", "#7aa2f7", "updates"),
     "milestone": ("★", "#ffcc33", "overview"),
     "video": ("▶", "#3dff9a", "publish"),
@@ -31,10 +34,66 @@ TOTAL_VIEWS = tuple(10 ** e for e in range(3, 12))
 VIDEO_VIEWS = tuple(10 ** e for e in range(3, 10))
 
 
+@dataclass(frozen=True)
+class Target:
+    """What clicking a notification shows: a tab, and on it the one thing the notification is about (at most one of
+    post, file, card and account)."""
+    tab: str | None
+    post: str | None = None     # a video, "<platform>|<post id>": its row on the Videos tab
+    file: str | None = None     # a finished video's file name: picked on the Publish tab
+    card: str | None = None     # a platform's card on the Overview, or "total" for All platforms
+    account: str | None = None  # a platform's panel on the Accounts tab
+
+
+def target(note: dict, names: dict[str, str] | None = None) -> Target:
+    """Where a notification takes you, from its key:
+
+      hot:<platform>|<post id>                           the video on the Videos tab
+      milestone:video:<platform>|<post id>:<views>       the video on the Videos tab
+      badge:video:<platform>|<post id>:<metric>:<tier>   the video on the Videos tab
+      badge:day:<platform>:<date>:<metric>:<tier>        the platform's card on the Overview
+      milestone:views:<views>                            the All platforms card on the Overview
+      milestone:followers:<platform>:<followers>         the platform's panel on Accounts
+      login:<platform>                                   the platform's panel on Accounts
+      video:<file name>                                  the video on the Publish tab
+      update:<version>, updated:<version>                the Updates tab
+
+    A log-in notification loses its key once the log-in works again (see release), so then its platform is found by
+    name in its title (names: platform key -> name). Anything else opens the tab it was saved with.
+    """
+    key = note.get("key") or ""
+    head, _, rest = key.partition(":")
+    if head == "hot" and "|" in rest:
+        return Target("videos", post=rest)
+    if head in ("milestone", "badge"):
+        what, _, rest = rest.partition(":")
+        if what == "video":
+            post = rest.rsplit(":", 1 if head == "milestone" else 2)[0]  # the post id comes before the numbers
+            if "|" in post:
+                return Target("videos", post=post)
+        elif what == "day" and rest:
+            return Target("overview", card=rest.partition(":")[0])
+        elif what == "views":
+            return Target("overview", card="total")
+        elif what == "followers" and ":" in rest:
+            return Target("accounts", account=rest.rpartition(":")[0])
+    if head == "login" and rest:
+        return Target("accounts", account=rest)
+    if head == "video" and rest:
+        return Target("publish", file=rest)
+    if head in ("update", "updated"):
+        return Target("updates")
+    if note.get("kind") == "login":
+        title = f" {note.get('title') or ''} "
+        return Target("accounts", account=next((k for k, name in (names or {}).items() if f" {name} " in title), None))
+    return Target(note.get("tab") or KINDS.get(note.get("kind"), KINDS["info"])[2])
+
+
 def add(kind: str, title: str, body: str = "", key: str | None = None, tab: str | None = None,
         ts: str | None = None, read: bool = False) -> bool:
-    """Add a notification, unless one with the same key is already there. Returns whether it was added."""
-    tab = tab if tab is not None else KINDS.get(kind, KINDS["info"])[2]
+    """Add a notification, unless one with the same key is already there. Returns whether it was added. Unless
+    given, the tab it opens comes from its key (see target)."""
+    tab = tab if tab is not None else target({"kind": kind, "key": key, "title": title}).tab
     with db.connect() as c:
         cur = c.execute(
             "INSERT OR IGNORE INTO notifications (ts, kind, key, title, body, tab, read) VALUES (?,?,?,?,?,?,?)",

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from rich.text import Text
 
-from dashboard import analytics, db, demo, trends, widgets
+from dashboard import analytics, db, demo, notify, trends, widgets
 
 VALUES = {"followers": 12_900, "views": 1_234_567, "likes": 98_765}
 CHANGES = {"followers": 1_030, "views": 19_400, "likes": -40}
@@ -93,6 +93,14 @@ class DemoTest(unittest.TestCase):
         for n in notes:
             if n["kind"] == "hot" or n["title"].startswith("A video passed"):
                 self.assertTrue(any(n["body"].startswith(t[:40]) for t in titles), n)
+
+    def test_every_notification_leads_somewhere(self):
+        posts = {f"{p['platform']}|{p['post_id']}" for p in db.posts_latest()}
+        for n in notify.recent():
+            to = notify.target(n)
+            self.assertIn(to.tab, ("overview", "videos", "publish", "accounts", "updates"), n)
+            self.assertTrue(to.post in posts if to.post else to.file or to.card or to.account or to.tab == "updates",
+                            n)
 
 
 class AppFitTest(unittest.TestCase):

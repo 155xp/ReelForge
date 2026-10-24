@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         for suffix in ("", "-wal", "-shm"):
             path.with_name(path.name + suffix).unlink(missing_ok=True)
         db.init(path)
-        demo.seed()
+        demo.seed(video=demo.newest_video(cfg))
         platforms = demo.platforms()
     else:
         from .platforms import build

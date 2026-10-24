@@ -103,6 +103,12 @@ DataTable {
     background: $background;
 }
 
+/* A list's highlighted row while the list has focus: brighter than without focus, but dark enough that the coloured
+   text in it (file names, platform tags, notification titles) stays readable; Textual's bright green hid green text. */
+OptionList:focus > .option-list--option-highlighted {
+    background: $primary 40%;
+}
+
 /* overview */
 
 #cards {

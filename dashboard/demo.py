@@ -140,7 +140,9 @@ def _read(key: str, t: datetime) -> tuple[Account, list[Post]]:
     return Account(HANDLES[key], int(followers), posts=len(posts)), posts
 
 
-def seed(days: int = 11) -> None:
+def seed(days: int = 11, video: tuple[str, str] | None = None) -> None:
+    """video: (file name, caption) of a real finished video, the newest on the Publish tab, for the "ready to post"
+    notification; without one it names a made-up episode."""
     rng = random.Random(7)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     start = now.replace(minute=0, second=0) - timedelta(days=days)
@@ -180,7 +182,17 @@ def seed(days: int = 11) -> None:
             for key in PROFILES:
                 account, posts = _read(key, t)
                 db.record_snapshot(key, account, posts, ts=db.to_iso(t), conn=conn)
-    _sample_notifications(now, start, posted, count)
+    if video is None and count < len(TITLES):
+        video = (f"ep{count + 1:02d}.mp4", TITLES[count])
+    _sample_notifications(now, start, posted, video)
+
+
+def newest_video(cfg: dict) -> tuple[str, str] | None:
+    """(file name, caption) of the newest finished video on the Publish tab, for seed(), or None."""
+    from . import videos
+
+    newest = next(iter(videos.find(cfg)), None)
+    return (newest.name, videos.meta(newest, cfg)[0]["caption"]) if newest else None
 
 
 def _passed(value_at, marks, start: datetime, end: datetime) -> tuple[int, datetime, float] | None:
@@ -197,10 +209,11 @@ def _passed(value_at, marks, start: datetime, end: datetime) -> tuple[int, datet
     return found
 
 
-def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str, datetime]], count: int) -> None:
+def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str, datetime]],
+                          video: tuple[str, str] | None) -> None:
     """A few of what the drawer shows, some read and some not, worked out from the made-up numbers so they agree with
     the charts; and the milestone starting points (so the demo's own refreshes don't announce every round number at
-    once)."""
+    once). Each has the key a real one would have, so clicking it shows what it's about."""
     notify.check_milestones({cls.key: cls.name for cls in ORDER}, {cls.key for cls in ORDER})
     if not posted:
         return
@@ -210,7 +223,7 @@ def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str
     if followers:
         m, t, v = followers
         notes.append((t, "milestone", f"TikTok passed {notify.short(m)} followers",
-                      f"You have {int(v):,} followers on TikTok.", True, None))
+                      f"You have {int(v):,} followers on TikTok.", True, f"milestone:followers:tiktok:{m}"))
     # The newest video's best platform, scored the way ReelForge scores it (vs your typical video at the same age).
     newest, published = posted[-1]
     posts = analytics.enrich([p for p in db.posts_latest() if p["published_at"]],
@@ -223,21 +236,22 @@ def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str
                       f"hot:{hot['platform']}|{hot['post_id']}"))  # the key a refresh would use, so it isn't told twice
     views = None  # the last time a video passed 100K views (or failing that, any round number) somewhere
     for marks in ((100_000,), notify.VIDEO_VIEWS):
-        for (key, _), (title, published, curve, _) in _SEEDED.items():
+        for (key, post_id), (title, published, curve, _) in _SEEDED.items():
             hit = _passed(lambda t: _views(curve, published, t), marks, published, now)
             if hit and (views is None or hit[1] > views[1]):
-                views = (hit[0], hit[1], key, title)
+                views = (hit[0], hit[1], key, post_id, title)
         if views:
             break
     if views:
-        m, t, key, title = views
+        m, t, key, post_id, title = views
         notes.append((t, "milestone", f"A video passed {notify.short(m)} views on {names[key]}", title[:70], False,
-                      None))
+                      f"milestone:video:{key}|{post_id}:{m}"))
     notes.append((now - timedelta(hours=2), "update", f"ReelForge {SAMPLE_UPDATE[0]} is out",
-                  "Open Updates (6) to update and restart in one click.", False, None))
-    if count < len(TITLES):
+                  "Open Updates (6) to update and restart in one click.", False, f"update:{SAMPLE_UPDATE[0]}"))
+    if video:
+        name, caption = video
         notes.append((now - timedelta(minutes=30), "video", "A new video is ready to post",
-                      f"{TITLES[count]} (ep{count + 1:02d}.mp4)", False, None))
+                      f"{caption[:70]} ({name})", False, f"video:{name.lower()}"))
     for when, kind, title, body, read, key in sorted(notes, key=lambda n: n[0]):  # the drawer: newest first
         notify.add(kind, title, body, key=key, ts=db.to_iso(when), read=read)
 

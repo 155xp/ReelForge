@@ -25,6 +25,7 @@ MUTED = "#8b93a1"
 GOOD = "#3dff9a"
 BAD = "#ff4d5e"
 TYPICAL = "#ffb020"  # the "typical video" line: amber, unlike any platform colour
+PICKED = "#ffcc33"  # the frame round what a notification you clicked is about
 EIGHTHS = " ▏▎▍▌▋▊▉"
 SHORT = {"tiktok": "TT", "youtube": "YT", "instagram": "IG", "x": "X"}
 # REELFORGE_SCREENSHOTS=1 is for the README's pictures of the demo: no DEMO badge and no "demo data" lines, so they
@@ -37,6 +38,13 @@ def dim(hex_color: str, amount: float = 0.65) -> str:
 
 def tag(p: Platform) -> Text:
     return Text(f"● {SHORT.get(p.key, p.key)}", style=f"bold {p.color}")
+
+
+def frame(widget: Widget, picked: bool = False) -> None:
+    """A card's or account panel's border: round in its own colour, or heavy and yellow while it's picked out
+    (the notification you just clicked is about it)."""
+    widget.styles.border = ("heavy", PICKED) if picked else ("round", widget.color)
+    widget.set_class(picked, "picked")
 
 
 def clickable(action: str) -> Style:
@@ -360,7 +368,7 @@ class _Card(Vertical):
         yield Static(classes="card-caption")
 
     def on_mount(self) -> None:
-        self.styles.border = ("round", self.color)
+        frame(self)
         self.styles.border_title_color = self.color
 
     _body = None  # the width -> lines the card shows
@@ -447,6 +455,7 @@ class AccountPanel(Vertical):
     def __init__(self, platform: Platform, demo: bool):
         super().__init__(classes="account", id=f"acct-{platform.key}")
         self.platform, self.demo = platform, demo
+        self.color = platform.color
         # The README's pictures show the demo as a set-up account would look (see SCREENSHOTS).
         self.pretend = demo and SCREENSHOTS
         self.logs_in = platform.browser_stats and not demo or self.pretend and platform.key in ("instagram", "x")
@@ -470,8 +479,8 @@ class AccountPanel(Vertical):
         yield Plot(classes="acct-chart")
 
     def on_mount(self) -> None:
-        self.styles.border = ("round", self.platform.color)
-        self.styles.border_title_color = self.platform.color
+        frame(self)
+        self.styles.border_title_color = self.color
 
     def show(self, latest, info: dict) -> None:
         """info: posts (videos tracked), since (first reading), error (last failed read), due (next refresh)."""
