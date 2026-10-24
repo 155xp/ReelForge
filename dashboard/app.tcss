@@ -15,9 +15,9 @@ Screen {
 }
 
 #bell {
-    width: 8;
-    height: 3;
-    margin-left: 1;
+    width: 4;
+    height: 1;
+    margin: 1 1 1 0;
 }
 
 #bell:hover {
@@ -47,13 +47,13 @@ TabbedContent {
     width: 1fr;
 }
 
-/* the notifications drawer, on the left */
+/* the notifications drawer, on the right (under the bell) */
 
 #drawer {
     width: 48;
     height: 1fr;
     background: $surface;
-    border-right: tall $panel-lighten-2;
+    border-left: tall $panel-lighten-2;
     padding: 0 1;
 }
 

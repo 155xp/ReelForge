@@ -38,9 +38,9 @@ sign a video is spreading.
 
 ## Notifications
 
-The **bell** next to the logo opens the drawer on the left; the bell, **Close** or Esc closes it. A **red dot** on
-the bell means something's unread (with how many under it). Click a notification to go to the tab it's about;
-**Mark all read** clears the dot. You hear about:
+The **bell** at the header's right end opens the drawer, which slides in from the right; the bell, **Close** or Esc
+closes it. A **red dot** on the bell means something's unread (the drawer says how many). Click a notification to
+go to the tab it's about; **Mark all read** clears the dot. You hear about:
 
 - a **new version** of ReelForge (once per version);
 - **milestones**: a platform passing 100, 500, 1K, 5K, 10K, 25K, 50K, 100K … followers; your views across every

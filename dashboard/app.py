@@ -16,6 +16,7 @@ from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
+from textual.css.scalar import ScalarOffset
 from textual.theme import Theme
 from textual.widgets import (Button, DataTable, Input, Label, Markdown, OptionList, ProgressBar, Static, TabbedContent,
                              TabPane)
@@ -142,14 +143,14 @@ class ReelForge(App):
         ps = list(self.platforms.values())
         with Horizontal(id="header"):
             yield Logo(config.channel_name(self.cfg), id="logo")
-            yield Bell(id="bell")
             yield ActionText(id="status")
             yield ActionText(chips(("Refresh", "refresh"), ("Help", "help"), ("Quit", "quit")), id="actions")
+            yield Bell(id="bell")
         with Horizontal(id="main"):
+            yield from self.compose_tabs(ps)
             with Vertical(id="drawer"):
                 yield ActionText(id="drawer-head")
                 yield OptionList(id="notes")
-            yield from self.compose_tabs(ps)
 
     def compose_tabs(self, ps: list[Platform]) -> ComposeResult:
         with TabbedContent(initial=self.start_tab):
@@ -1460,6 +1461,8 @@ class ReelForge(App):
         drawer = self.query_one("#drawer")
         drawer.display = not drawer.display
         if drawer.display:
+            drawer.styles.offset = (drawer.styles.width.value, 0)  # slides in from the right
+            drawer.styles.animate("offset", ScalarOffset.from_offset((0, 0)), duration=0.2, easing="out_cubic")
             self.update_notes()
             self.query_one("#notes", OptionList).focus()
 

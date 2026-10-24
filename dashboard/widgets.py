@@ -130,7 +130,6 @@ def change_text(n: float | None, suffix: str = "") -> Text:
 
 
 WHITE, RED = "#ffffff", "#f0362b"  # the logo's colours: "reel" white, "forge" red
-BELL = (" ▄██▄ ", " ████ ", "▀▀██▀▀")  # a bell in half blocks, three rows tall
 
 
 def anvil_rows() -> list[Text]:
@@ -167,8 +166,8 @@ class Logo(Static):
 
 
 class Bell(Static):
-    """The notifications button: a bell with a red dot at its top right while something is unread (and how many,
-    under the dot, when it's more than one). Click it, or press n, to open the drawer."""
+    """The notifications button at the header's right end: one line, the height of the header's text, with a red dot
+    while something is unread. Click it, or press n, to open the drawer."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -180,18 +179,8 @@ class Bell(Static):
         self.update(self._draw())
 
     def _draw(self) -> Text:
-        out = Text()
-        color = "#e8eaed" if self.unread else "#6b7380"
-        for i, row in enumerate(BELL):
-            if i:
-                out.append("\n")
-            out.append(row, style=color)
-            if i == 0 and self.unread:
-                out.append("●", style=f"bold {BAD}")
-            elif i == 1 and self.unread > 1:
-                out.append(str(self.unread) if self.unread < 10 else "+", style=f"bold {BAD}")
-            else:
-                out.append(" ")
+        out = Text("🔔")
+        out.append("●" if self.unread else " ", style=f"bold {BAD}")
         return out
 
     def on_mount(self) -> None:

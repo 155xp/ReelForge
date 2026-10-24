@@ -198,8 +198,8 @@ HELP = [
                      "Type in stats lets you enter the numbers by hand for a platform ReelForge can't read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
-    ("Notifications", "The bell opens the drawer on the left: updates, milestones, badges, finished videos "
-                      "and log-ins that need you. A red dot on the bell means something's unread; click one to go "
+    ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
+                      "log-ins that need you. A red dot on the bell means something's unread; click one to go "
                       "to it. The hourly background job (reelforge stats on) adds them while ReelForge is closed."),
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
