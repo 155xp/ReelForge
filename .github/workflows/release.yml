@@ -129,4 +129,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ls -la dist
-          gh release create "$GITHUB_REF_NAME" dist/* --title "ReelForge $GITHUB_REF_NAME" --notes-file .github/release-notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* scripts/install.ps1 --title "ReelForge $GITHUB_REF_NAME" --notes-file .github/release-notes.md
