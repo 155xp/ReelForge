@@ -39,7 +39,8 @@ CSS = """
 #buttons Button { margin-right: 2; min-width: 20; }
 #go { min-width: 28; }
 .job { height: 2; }
-.job .name { width: 26; text-style: bold; }
+.job .mark { width: 4; padding-left: 1; }
+.job .name { width: 24; text-style: bold; }
 .job ProgressBar { width: 44; }
 .job .status { width: 1fr; color: $text-muted; }
 #checks { height: auto; padding: 1 0 0 0; }
@@ -170,11 +171,13 @@ class WorkScreen(tui.Framed):
         with VerticalScroll(id="jobs"):
             for i in self.items:
                 with Horizontal(classes="job", id=f"job-{i.key}"):
-                    yield Static(Text("  ") + Text(i.name), classes="name")
+                    yield Static(Text("·", style=MUTED), classes="mark", id=f"mk-{i.key}")
+                    yield Static(i.name, classes="name")
                     yield ProgressBar(total=None, show_eta=False, id=f"bar-{i.key}")
                     yield Static("waiting", classes="status", id=f"st-{i.key}")
             with Horizontal(classes="job", id="job-sounds-cache"):
-                yield Static("  Sound library", classes="name")
+                yield Static(Text("·", style=MUTED), classes="mark", id="mk-cache")
+                yield Static("Sound library", classes="name")
                 yield ProgressBar(total=None, show_eta=False, show_percentage=False, id="bar-cache")
                 yield Static("waiting", classes="status", id="st-cache")
             yield Static(id="checks")
@@ -182,10 +185,21 @@ class WorkScreen(tui.Framed):
             yield Button("Working…", variant="primary", id="next", disabled=True)
             yield Button("Check again", id="again")
 
+    SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" if tui.FANCY else "-\\|/"
+
     def on_mount(self) -> None:
         super().on_mount()
         self.query_one("#again", Button).display = False
+        self.working: set[str] = set()
+        self.tick = 0
+        self.set_interval(0.12, self._spin)
         self.run_all()
+
+    def _spin(self) -> None:
+        """Turn the spinner next to whatever is downloading or installing right now."""
+        self.tick += 1
+        for key in self.working:
+            self.query_one(f"#mk-{key}", Static).update(Text(self.SPIN[self.tick % len(self.SPIN)], style="bold"))
 
     def _progress(self, key: str):
         def report(text: str, done: float, total: float) -> None:
@@ -193,6 +207,7 @@ class WorkScreen(tui.Framed):
         return report
 
     def _show(self, key: str, text: str, done: float, total: float) -> None:
+        self.working.add(key)
         bar = self.query_one(f"#bar-{key}", ProgressBar)
         if total:
             bar.update(total=total, progress=done)
@@ -203,9 +218,12 @@ class WorkScreen(tui.Framed):
         self.query_one(f"#st-{key}", Static).update(text)
 
     def _finished(self, key: str, ok: bool, text: str) -> None:
+        self.working.discard(key)
+        self.query_one(f"#mk-{key}", Static).update(
+            Text(tui.CHECK, style=f"bold {GOOD}") if ok else Text(tui.CROSS, style=f"bold {BAD}"))
         bar = self.query_one(f"#bar-{key}", ProgressBar)
         bar.update(total=1, progress=1 if ok else 0)
-        self.query_one(f"#st-{key}", Static).update(Text(("Done: " if ok else "Didn't work: ") + text,
+        self.query_one(f"#st-{key}", Static).update(Text(text if ok else "Didn't work: " + text,
                                                          style=GOOD if ok else BAD))
 
     @work(thread=True, exclusive=True)

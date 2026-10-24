@@ -8,11 +8,15 @@ Standard library only (nothing else is installed yet). With --yes, or without a 
 
 from __future__ import annotations
 
+import atexit
 import hashlib
 import os
+import queue
+import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -60,68 +64,162 @@ class Plain:
         print(f"\n=== {KIT_NAME} setup ===\nFolder: {ROOT}\n", flush=True)
 
     def line(self, text: str, colour: str = "") -> int:
-        print(text, flush=True)
+        self.set(0, text)
         return 0
 
     def set(self, row: int, text: str, colour: str = "") -> None:
-        if not text.startswith(tuple(SPIN)):
+        if not text.lstrip().startswith(tuple(SPIN)):      # spinners and progress only make sense in the box
             print(text, flush=True)
 
-    def close(self) -> None:
+    def close(self, keep: bool = False) -> None:
         pass
 
 
-class Box:
-    """A double-line box round the whole terminal, the logo at the top, and status lines inside it."""
+def _size() -> tuple[int, int]:
+    s = shutil.get_terminal_size((100, 30))
+    return s.columns, s.lines
 
-    def __init__(self, cols: int, rows: int):
-        self.cols, self.rows = cols, rows
-        self.top = 0
-        self.used = 0
+
+class Box:
+    """A double-line box round the whole terminal, the logo at the top, and status lines inside it.
+
+    It lives on the terminal's second screen (the one full-screen apps use, so nothing scrolls or reflows) with line
+    wrap off (so drawing the last column never wraps or scrolls). A watcher thread redraws all of it whenever the
+    window changes size, and the status lines scroll inside the box once they fill it."""
+
+    STEPS = ("1 Get the tools", "2 Your channel", "3 Ready")
+
+    def __init__(self):
+        self.cols, self.rows = _size()
+        self.lines: list[list[str]] = []      # [text, colour] for each status line, oldest first
+        self.top = 0                          # the first row status lines go on
+        self.lock = threading.RLock()
+        self.open = False
 
     def _at(self, row: int, col: int) -> str:
         return f"{ESC}{row + 1};{col + 1}H"
 
-    def start(self) -> None:
-        c, r = self.cols, self.rows
-        title = " 1 Get the tools  ·  2 Your channel  ·  3 Ready "
-        mid = max(1, (c - len(title)) // 2)
-        out = [f"{ESC}?25l{ESC}0m{ESC}2J{ESC}H"]
-        out.append(self._at(0, 0) + RED + "╔" + "═" * (mid - 1) + RESET + BOLD + WHITE + title + RESET + RED +
-                   "═" * (c - mid - len(title) - 1) + "╗" + RESET)
-        for y in range(1, r - 1):
-            out.append(self._at(y, 0) + RED + "║" + RESET + self._at(y, c - 1) + RED + "║" + RESET)
-        out.append(self._at(r - 1, 0) + RED + "╚" + "═" * (c - 2) + "╝" + RESET)
-        big = logo.big()
-        if c >= logo.width(big) + 8 and r >= 24:
-            art, width = logo.ansi(big), logo.width(big)
-        else:
-            art, width = logo.ansi(logo.anvil()), logo.width(logo.anvil()) + 12
-            art[1] += "  " + BOLD + WHITE + "reel" + RED + "forge" + RESET
-        x, y = max(2, (c - width) // 2), 2
-        for i, line in enumerate(art):
-            out.append(self._at(y + i, x) + line)
-        y += len(art) + 1
-        tag = logo.TAGLINE
-        out.append(self._at(y, max(2, (c - len(tag)) // 2)) + MUTED + tag + RESET)
-        self.top = y + 2
-        sys.stdout.write("".join(out))
+    def _write(self, s: str) -> None:
+        sys.stdout.write(s)
         sys.stdout.flush()
+
+    def start(self) -> None:
+        self.open = True
+        atexit.register(self._restore)
+        self._write(f"{ESC}?1049h{ESC}?25l{ESC}?7l")
+        with self.lock:
+            self._draw()
+        threading.Thread(target=self._watch, daemon=True).start()
+
+    def _watch(self) -> None:
+        while self.open:
+            time.sleep(0.1)
+            size = _size()
+            with self.lock:
+                if self.open and size != (self.cols, self.rows):
+                    self.cols, self.rows = size
+                    self._draw()
+
+    def _title(self, room: int) -> list[tuple[str, str]]:
+        """The steps for the top edge, step 1 lit; fewer of them when the window is narrow."""
+        dot = "  ·  "
+        for steps in (self.STEPS, self.STEPS[:1]):
+            parts = [(" ", "")]
+            for n, s in enumerate(steps):
+                if n:
+                    parts.append((dot, MUTED))
+                parts.append((s, BOLD + WHITE if n == 0 else MUTED))
+            parts.append((" ", ""))
+            if sum(len(t) for t, _ in parts) <= room:
+                return parts
+        return []
+
+    def _draw(self) -> None:
+        c, r = self.cols, self.rows
+        out = [f"{ESC}0m{ESC}2J"]
+        if c < 4 or r < 3:
+            self._write("".join(out))
+            return
+        title = self._title(c - 6)
+        tw = sum(len(t) for t, _ in title)
+        left = (c - 2 - tw) // 2
+        out.append(self._at(0, 0) + RED + "╔" + "═" * left + RESET)
+        out.extend(colour + t + RESET for t, colour in title)
+        out.append(RED + "═" * (c - 2 - left - tw) + "╗" + RESET)
+        for y in range(1, r - 1):
+            out.append(self._at(y, 0) + RED + "║" + self._at(y, c - 1) + "║" + RESET)
+        out.append(self._at(r - 1, 0) + RED + "╚" + "═" * (c - 2) + "╝" + RESET)
+
+        big, anvil = logo.big(), logo.anvil()
+        y = 2
+        if c >= logo.width(big) + 8 and r >= logo.rows(big) + 16:
+            art, width = logo.ansi(big), logo.width(big)
+        elif c >= logo.width(anvil) + 20 and r >= logo.rows(anvil) + 12:
+            art, width = logo.ansi(anvil), logo.width(anvil) + 11
+            art[1] += "  " + BOLD + WHITE + "reel" + RED + "forge" + RESET
+        else:
+            art, width, y = [], 0, 1
+        if art:
+            x = (c - width) // 2
+            for i, line in enumerate(art):
+                out.append(self._at(y + i, x) + line)
+            y += len(art) + 1
+            tag = logo.TAGLINE
+            if len(tag) <= c - 8:
+                out.append(self._at(y, (c - len(tag)) // 2) + MUTED + tag + RESET)
+                y += 1
+            y += 1
+        self.top = y
+        out.append(self._body())
+        self._write("".join(out))
+
+    def _room(self) -> int:
+        return max(0, self.rows - 2 - self.top)
+
+    def _first(self) -> int:
+        return max(0, len(self.lines) - self._room())
+
+    def _row(self, i: int) -> str:
+        width = max(0, self.cols - 8)
+        text, colour = self.lines[i]
+        return self._at(self.top + i - self._first(), 4) + colour + text[:width].ljust(width) + RESET
+
+    def _body(self) -> str:
+        """Every status line that fits, the newest at the bottom."""
+        rows = [self._row(i) for i in range(self._first(), len(self.lines))]
+        blank = " " * max(0, self.cols - 8)
+        rows += [self._at(self.top + n, 4) + blank for n in range(len(rows), self._room())]
+        return "".join(rows)
 
     def line(self, text: str, colour: str = "") -> int:
-        row = min(self.top + self.used, self.rows - 3)
-        self.used += 1
-        self.set(row, text, colour)
-        return row
+        with self.lock:
+            scrolls = len(self.lines) >= self._room()
+            self.lines.append([text, colour])
+            if self.open:
+                self._write(self._body() if scrolls else self._row(len(self.lines) - 1))
+            return len(self.lines) - 1
 
-    def set(self, row: int, text: str, colour: str = "") -> None:
-        width = self.cols - 8
-        sys.stdout.write(self._at(row, 4) + colour + text[:width].ljust(width) + RESET)
-        sys.stdout.flush()
+    def set(self, i: int, text: str, colour: str = "") -> None:
+        with self.lock:
+            self.lines[i] = [text, colour]
+            if self.open and i >= self._first():
+                self._write(self._row(i))
 
-    def close(self) -> None:
-        sys.stdout.write(f"{ESC}0m{ESC}?25h" + self._at(self.rows - 2, 2))
-        sys.stdout.flush()
+    def _restore(self) -> None:
+        if self.open:
+            self.open = False
+            self._write(f"{ESC}0m{ESC}?7h{ESC}?25h")
+
+    def close(self, keep: bool = False) -> None:
+        """Hand the terminal back. keep: leave the box's screen and print its lines (after a failure, so they stay
+        readable); otherwise the box stays up until the next full-screen app (setup's next screens) replaces it."""
+        with self.lock:
+            self._restore()
+            if keep:
+                self._write(f"{ESC}?1049l")
+                for text, colour in self.lines:
+                    print(colour + text + RESET)
+                sys.stdout.flush()
 
 
 def _same_file(a: Path, b: Path) -> bool:
@@ -140,20 +238,122 @@ def _healthy() -> bool:
         return False
 
 
-def _run(ui, row: int, label: str, cmd: list[str]) -> int:
-    """Run a command with its output in the log, a spinner and a clock on screen."""
+def _mb(n: float) -> str:
+    return f"{n / 1e6:.1f} MB" if n >= 1e5 else f"{n / 1e3:.0f} kB"
+
+
+class Packages:
+    """pip's output as one line per package: a spinner and its download while pip fetches it, a tick once it's
+    installed (or already was), a cross if pip stopped before it was."""
+
+    NAME = r"([A-Za-z0-9][A-Za-z0-9._-]*)"
+
+    def __init__(self, ui, ok: str, bad: str):
+        self.ui, self.ok, self.bad = ui, ok, bad
+        self.rows: dict[str, list] = {}        # name, normalised -> [line, name, state, detail, text on screen]
+        self.fetching = ""                      # the package being downloaded
+        self.error = ""
+
+    def _row(self, name: str) -> list:
+        key = re.sub(r"[-_.]+", "-", name).lower()
+        if key not in self.rows:
+            self.rows[key] = [self.ui.line(f"  {SPIN[0]} {name}", WHITE), name, "busy", "checking", ""]
+        return self.rows[key]
+
+    def feed(self, line: str) -> None:
+        line = line.strip()
+        if m := re.match(r"Collecting " + self.NAME, line):
+            self._row(m[1])
+        elif m := re.match(r"Requirement already satisfied: " + self.NAME, line):
+            r = self._row(m[1])
+            r[2], r[3] = "done", "already installed"
+        elif (m := re.match(r"(?:Downloading|Using cached) ([A-Za-z0-9._]+?)-\d\S* \(([^)]+)\)", line)) \
+                and ".metadata " not in line:
+            r = self._row(m[1])
+            r[3] = f"downloading {m[2]}" if line.startswith("Downloading") else "from the download cache"
+            self.fetching = m[1]
+        elif (m := re.match(r"Progress (\d+) of (\d+)", line)) and self.fetching and int(m[2]):
+            self._row(self.fetching)[3] = f"downloading {_mb(int(m[1]))} of {_mb(int(m[2]))}"
+        elif line.startswith("Installing collected packages:"):
+            for name in line.split(":", 1)[1].split(","):
+                if name.strip():
+                    self._row(name.strip())[3] = "installing"
+        elif line.startswith("Successfully installed "):
+            for tok in line.split()[2:]:
+                name, _, version = tok.rpartition("-")
+                r = self._row(name or tok)
+                r[2], r[3] = "done", version
+        elif line.startswith("ERROR:") and not self.error:
+            self.error = line[6:].strip()
+
+    def finish(self, ok: bool) -> None:
+        for r in self.rows.values():
+            if r[2] == "busy":
+                r[2], r[3] = ("done", "installed") if ok else ("failed", "not installed")
+
+    def draw(self, tick: int) -> None:
+        for r in self.rows.values():
+            line, name, state, detail, shown = r
+            mark, colour = {"busy": (SPIN[tick % 4], WHITE), "done": (self.ok, GREEN)}.get(state, (self.bad, YELLOW))
+            text = f"  {mark} {name}  {detail}"
+            if text != shown:
+                r[4] = text
+                self.ui.set(line, text, colour)
+
+    def count(self) -> int:
+        return sum(r[2] == "done" for r in self.rows.values())
+
+
+def _run(ui, row: int, label: str, cmd: list[str], watch: Packages | None = None) -> int:
+    """Run a command with its output in the log, a spinner and a clock on screen. watch, if given, hears each line
+    of the output and redraws its own lines as the spinner turns."""
     LOG.parent.mkdir(parents=True, exist_ok=True)
     with LOG.open("a", encoding="utf-8", errors="replace") as log:
         log.write(f"\n$ {' '.join(cmd)}\n")
         log.flush()
-        p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=ROOT)
-        t0, i = time.monotonic(), 0
-        while p.poll() is None:
+        env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE if watch else log, stderr=subprocess.STDOUT, cwd=ROOT,
+                             env=env)
+        lines: queue.Queue = queue.Queue()
+        if watch:
+            def read() -> None:
+                for raw in p.stdout:
+                    lines.put(raw.decode("utf-8", "replace"))
+                lines.put(None)
+            threading.Thread(target=read, daemon=True).start()
+        t0, i, reading = time.monotonic(), 0, bool(watch)
+        while p.poll() is None or reading:
+            while True:
+                try:
+                    text = lines.get_nowait()
+                except queue.Empty:
+                    break
+                if text is None:
+                    reading = False
+                    break
+                log.write(text)
+                watch.feed(text)
             secs = int(time.monotonic() - t0)
             ui.set(row, f"{SPIN[i % 4]} {label}  {secs // 60}:{secs % 60:02d}", WHITE)
+            if watch:
+                watch.draw(i)
             i += 1
             time.sleep(0.15)
+        p.wait()
+    if watch:
+        watch.finish(p.returncode == 0)
+        watch.draw(i)
     return p.returncode
+
+
+def _raw_progress() -> bool:
+    """pip 24.1 and newer can report download progress as plain lines (--progress-bar raw)."""
+    try:
+        out = subprocess.run([str(VENV_PY), "-m", "pip", "--version"], capture_output=True, text=True, timeout=60)
+        major, minor = (int(x) for x in out.stdout.split()[1].split(".")[:2])
+        return (major, minor) >= (24, 1)
+    except (OSError, subprocess.SubprocessError, ValueError, IndexError):
+        return False
 
 
 def _fail(ui, text: str) -> int:
@@ -166,7 +366,7 @@ def _fail(ui, text: str) -> int:
     for t in tail:
         ui.line("  " + t, MUTED)
     ui.line(f"The full log is in {LOG}", MUTED)
-    ui.close()
+    ui.close(keep=True)
     return 1
 
 
@@ -175,9 +375,10 @@ def main(argv: list[str]) -> int:
     size = shutil.get_terminal_size((100, 30))
     fancy = not yes and sys.stdout.isatty() and sys.stdin.isatty() and size.columns >= 64 and size.lines >= 18 \
         and enable_colours()
-    ui = Box(size.columns, size.lines) if fancy else Plain()
+    ui = Box() if fancy else Plain()
     ui.start()
     ok = "✓" if fancy and (not WINDOWS or os.environ.get("WT_SESSION")) else "+"   # the old console font has no ✓
+    bad = "✗" if ok == "✓" else "x"
     try:
         v = sys.version_info
         ui.line(f"{ok} Python {v.major}.{v.minor}.{v.micro}", GREEN)
@@ -191,20 +392,24 @@ def main(argv: list[str]) -> int:
                 return _fail(ui, f"Couldn't make the .venv folder{hint}.")
             ui.set(row, f"{ok} ReelForge's Python environment: made", GREEN)
         if not STAMP.exists() or not _same_file(REQUIREMENTS, STAMP):
-            row = ui.line("Installing Python packages (a minute or two)...")
-            _run(ui, row, "Updating pip", [str(VENV_PY), "-m", "pip", "install", "--disable-pip-version-check",
-                                           "--quiet", "--upgrade", "pip"])
-            if _run(ui, row, "Installing Python packages (a minute or two)",
-                    [str(VENV_PY), "-m", "pip", "install", "--disable-pip-version-check", "--quiet", "-r",
-                     str(REQUIREMENTS)]) != 0:
+            row = ui.line("Python packages...")
+            pkgs = Packages(ui, ok, bad)
+            pip = [str(VENV_PY), "-m", "pip", "install", "--disable-pip-version-check"]
+            _run(ui, row, "Python packages: updating pip", pip + ["--upgrade", "pip"], pkgs)
+            raw = ["--progress-bar", "raw"] if _raw_progress() else []
+            if _run(ui, row, "Python packages: downloading and installing", pip + raw + ["-r", str(REQUIREMENTS)],
+                    pkgs) != 0:
+                ui.set(row, f"{bad} Python packages: {pkgs.error or 'the install stopped'}", YELLOW)
                 return _fail(ui, "The package install didn't finish. Check your internet connection and run setup "
                                  "again.")
             shutil.copyfile(REQUIREMENTS, STAMP)
-        ui.line(f"{ok} Python packages: ready", GREEN)
+            ui.set(row, f"{ok} Python packages: {pkgs.count()} ready", GREEN)
+        else:
+            ui.line(f"{ok} Python packages: ready", GREEN)
         ui.line("Starting setup...", MUTED)
         time.sleep(0.4)
     except KeyboardInterrupt:
-        ui.close()
+        ui.close(keep=True)
         return 130
     ui.close()
     env = dict(os.environ, PYTHONUTF8="1")

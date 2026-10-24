@@ -44,6 +44,8 @@ def fetch_mixkit(log=lambda s: print(s, flush=True), progress=None) -> list[str]
         dest = SFX / meta["file"]
         ext = dest.suffix.lstrip(".")
         url = url_t.format(id=meta["id"], ext=ext)
+        if progress:
+            progress(f"Downloading sound {k} of {len(todo)}: {name}", k - 1, len(todo))
         try:
             data = net.fetch_bytes(url)
             if meta.get("sha256") and _sha256(data) != meta["sha256"]:
@@ -51,7 +53,7 @@ def fetch_mixkit(log=lambda s: print(s, flush=True), progress=None) -> list[str]
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
             if progress:
-                progress(f"Downloading sound {k} of {len(todo)}", k, len(todo))
+                progress(f"Downloaded sound {k} of {len(todo)}: {name}", k, len(todo))
             else:
                 log(f"  [{k}/{len(todo)}] {name} ({len(data) / 1e6:.1f} MB)")
         except Exception as e:  # network errors, 403s, checksum
