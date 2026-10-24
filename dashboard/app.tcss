@@ -275,8 +275,15 @@ DataTable {
     margin-top: 1;
 }
 
+#manual-rows {
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
 .manual-row {
     height: auto;
+    width: auto;
 }
 
 .manual-row Button, .copy-spacer {

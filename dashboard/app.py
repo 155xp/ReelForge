@@ -15,7 +15,7 @@ from rich.text import Text
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
+from textual.containers import Grid, Horizontal, ScrollableContainer, Vertical, VerticalScroll
 from textual.css.scalar import ScalarOffset
 from textual.theme import Theme
 from textual.widgets import (Button, DataTable, Input, Label, Markdown, OptionList, ProgressBar, Static, TabbedContent,
@@ -216,27 +216,31 @@ class ReelForge(App):
                                   "x": ("copy-caption", "Copy caption")}  # the caption is the X text
                         widths = {p.key: max(len(f"{p.name} →"), len(copies.get(p.key, ("", ""))[1])) + 4 for p in ps}
                         open_all = f"Open all {len(ps)} →"
-                        with Horizontal(classes="manual-row"):
-                            btn = Button(open_all, id="open-all", variant="primary")
-                            btn.styles.width = len(open_all) + 4
-                            yield btn
-                            for p in ps:
-                                btn = Button(f"{p.name} →", id=f"open-{p.key}", classes="open-btn")
-                                btn.styles.width = widths[p.key]
+                        # In a window too narrow for every button, the two rows scroll sideways together (Tab
+                        # still reaches every button: a focused one scrolls into view).
+                        with ScrollableContainer(id="manual-rows") as rows:
+                            rows.can_focus = False
+                            with Horizontal(classes="manual-row"):
+                                btn = Button(open_all, id="open-all", variant="primary")
+                                btn.styles.width = len(open_all) + 4
                                 yield btn
-                            yield Button("Show file", id="reveal")
-                        with Horizontal(classes="manual-row"):
-                            spacer = Static(classes="copy-spacer")
-                            spacer.styles.width = len(open_all) + 4  # under "Open all"
-                            yield spacer
-                            for p in ps:
-                                if p.key in copies:
-                                    btn_id, label = copies[p.key]
-                                    btn = Button(label, id=btn_id, classes="copy-btn")
+                                for p in ps:
+                                    btn = Button(f"{p.name} →", id=f"open-{p.key}", classes="open-btn")
                                     btn.styles.width = widths[p.key]
                                     yield btn
-                            if "x" not in self.platforms:
-                                yield Button("Copy caption", id="copy-caption", classes="copy-btn")
+                                yield Button("Show file", id="reveal")
+                            with Horizontal(classes="manual-row"):
+                                spacer = Static(classes="copy-spacer")
+                                spacer.styles.width = len(open_all) + 4  # under "Open all"
+                                yield spacer
+                                for p in ps:
+                                    if p.key in copies:
+                                        btn_id, label = copies[p.key]
+                                        btn = Button(label, id=btn_id, classes="copy-btn")
+                                        btn.styles.width = widths[p.key]
+                                        yield btn
+                                if "x" not in self.platforms:
+                                    yield Button("Copy caption", id="copy-caption", classes="copy-btn")
                         yield ActionText(id="uploads-heading", classes="box-title")
                         yield DataTable(id="uploads-table", cursor_type="row")
             with TabPane("Accounts", id="accounts"):
