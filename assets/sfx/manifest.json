@@ -1,0 +1,320 @@
+{
+  "_licenses": {
+    "mixkit": "Mixkit Sound Effects Free License: free for commercial and personal projects, incl. YouTube and social media, no attribution required; the files may not be resold or redistributed as-is. https://mixkit.co/license/ . So they are NOT in the download: setup fetches each one from Mixkit for you (python -m studio sounds) after you accept that license.",
+    "kenney": "Creative Commons Zero (CC0 1.0), public domain, by Kenney (kenney.nl). Included in the kit. https://creativecommons.org/publicdomain/zero/1.0/ (License.txt inside each pack)",
+    "generated": "Synthesized by the pipeline itself (pipeline/post/sfx_generate.py): original, free to use."
+  },
+  "sounds": {
+    "city_traffic": {
+      "file": "mixkit/mixkit_2930.wav",
+      "source": "mixkit",
+      "id": 2930,
+      "title": "City traffic background ambience",
+      "sha256": "ae0d4c7c6a1a2d40361ae345348c5106931cdf3fceb8f23e3b6c2b93eaea2b24",
+      "bytes": 11853176
+    },
+    "engine_hum": {
+      "file": "mixkit/mixkit_1553.wav",
+      "source": "mixkit",
+      "id": 1553,
+      "title": "ATV engine motor hum",
+      "sha256": "511f07df1703b36338657f281ef8533ffdae06e4b07686ed242db42388361a68",
+      "bytes": 6068798
+    },
+    "car_driveby": {
+      "file": "mixkit/mixkit_1538.wav",
+      "source": "mixkit",
+      "id": 1538,
+      "title": "Fast car drive by",
+      "sha256": "bd28537a22bcd57c78b539068c1f40f8ecb5a65bd4134800c161be39b207f21f",
+      "bytes": 665116
+    },
+    "speed_swoosh": {
+      "file": "mixkit/mixkit_1484.wav",
+      "source": "mixkit",
+      "id": 1484,
+      "title": "Speeding swoosh",
+      "sha256": "edf7672df384cd2a9bd9a00d81802050bc1f8afdf8fb6639840042c894af324a",
+      "bytes": 1067354
+    },
+    "wind_bed": {
+      "file": "mixkit/mixkit_2658.wav",
+      "source": "mixkit",
+      "id": 2658,
+      "title": "Wind blowing ambience",
+      "sha256": "63e6d732995dfe4cc646ea1edc7d6352559e337b75106c72266a97edf0412d3f",
+      "bytes": 10909084
+    },
+    "wind_hum": {
+      "file": "mixkit/mixkit_1177.wav",
+      "source": "mixkit",
+      "id": 1177,
+      "title": "Deep cinematic wind hum",
+      "sha256": "385ee63dc94817297bc9d20f362078cd2cbfa11de76263fb50290bf36677729c",
+      "bytes": 9526330
+    },
+    "boom_thunder": {
+      "file": "mixkit/mixkit_1300.wav",
+      "source": "mixkit",
+      "id": 1300,
+      "title": "Strong close thunder explosion",
+      "sha256": "ba0d4ae8ea85d55544f34273224367eae1d2e2b1afff3ba2c7927b3ce2ff1757",
+      "bytes": 1564898
+    },
+    "boom_impact": {
+      "file": "mixkit/mixkit_788.mp3",
+      "source": "mixkit",
+      "id": 788,
+      "title": "Big cinematic impact",
+      "sha256": "772e4afc9e793228f1c612a4d08f048ac1cd08d910023579842ed906bb4e9e6f",
+      "bytes": 321745
+    },
+    "glass_break": {
+      "file": "mixkit/mixkit_759.wav",
+      "source": "mixkit",
+      "id": 759,
+      "title": "Glass break with hammer thud",
+      "sha256": "1144a015449c5fb0a34d75d496c76f05affbf733550bfc1d34d278166511a3a4",
+      "bytes": 395670
+    },
+    "glass_window": {
+      "file": "mixkit/mixkit_1551.wav",
+      "source": "mixkit",
+      "id": 1551,
+      "title": "Car window breaking",
+      "sha256": "3d9487bb0fcc03db6a8ef52f3e5e574225aef69a43c7f1dd7c447bfd2cbd4d21",
+      "bytes": 452402
+    },
+    "glass_debris": {
+      "file": "mixkit/mixkit_172.wav",
+      "source": "mixkit",
+      "id": 172,
+      "title": "Sweeping glass debris",
+      "sha256": "c4f035edcceada037eb7502cdcada640c4173e041897d482d5f9893c50725093",
+      "bytes": 552982
+    },
+    "rocket_turbine": {
+      "file": "mixkit/mixkit_1720.wav",
+      "source": "mixkit",
+      "id": 1720,
+      "title": "Space rocket full power turbine",
+      "sha256": "e4ee9b8503322aa013e800541ab9f512cb2697bf39fa2b90dc3559a59d6b5254",
+      "bytes": 2492612
+    },
+    "rocket_whoosh": {
+      "file": "mixkit/mixkit_1714.wav",
+      "source": "mixkit",
+      "id": 1714,
+      "title": "Fast rocket whoosh",
+      "sha256": "89117d6c51592ef4a0d41a7b7d2a86cb61d4ea5194ce5b2e0085c64646a7a33f",
+      "bytes": 1256246
+    },
+    "space_ambience": {
+      "file": "mixkit/mixkit_653.mp3",
+      "source": "mixkit",
+      "id": 653,
+      "title": "Space soundscape",
+      "sha256": "731b443e5ca3343609d74c315b76e79e41d814a1675d250bef6d8ae2cad46734",
+      "bytes": 2646643
+    },
+    "meteor_whoosh": {
+      "file": "mixkit/mixkit_3024.wav",
+      "source": "mixkit",
+      "id": 3024,
+      "title": "Meteor whoosh",
+      "sha256": "3b77408e389cae0dbd3d8ccba5e6e08dad78833bb6e38a7d66b4ae95817cb685",
+      "bytes": 771244
+    },
+    "riser": {
+      "file": "mixkit/mixkit_1144.mp3",
+      "source": "mixkit",
+      "id": 1144,
+      "title": "Short space stutter intro riser",
+      "sha256": "bcc779c534b5fee844b86c4ff65f825d27f7465575022b9dfc3fb0c1a1085af3",
+      "bytes": 266366
+    },
+    "bass_rumble": {
+      "file": "mixkit/mixkit_2297.wav",
+      "source": "mixkit",
+      "id": 2297,
+      "title": "Bass rumble hum",
+      "sha256": "55db3ca5c1d5245a7c57a389843dd339556deb0518d05cba772bf6f3ec0a67fa",
+      "bytes": 1234368
+    },
+    "glitch_break": {
+      "file": "mixkit/mixkit_2951.wav",
+      "source": "mixkit",
+      "id": 2951,
+      "title": "Digital glitch break",
+      "sha256": "17f28a9bca1cb520d80d49c5bc32a1bffa4801fce658905570d3e74e6af17c83",
+      "bytes": 188792
+    },
+    "system_break": {
+      "file": "mixkit/mixkit_2942.wav",
+      "source": "mixkit",
+      "id": 2942,
+      "title": "System break",
+      "sha256": "9cf4c795ad862aad9b098ac302f413af7abdb554920eeb868ad25590ca84e967",
+      "bytes": 348196
+    },
+    "device_fail": {
+      "file": "mixkit/mixkit_2939.wav",
+      "source": "mixkit",
+      "id": 2939,
+      "title": "Futuristic device fail",
+      "sha256": "39a5f60562f4f560214cd75d7c67551ce15d2c705b3fdbabf967afd78190fb48",
+      "bytes": 636360
+    },
+    "rewind_glitch": {
+      "file": "mixkit/mixkit_1093.wav",
+      "source": "mixkit",
+      "id": 1093,
+      "title": "Glitch sci fi rewind transition",
+      "sha256": "d8ad4c58b81953409aa9cdf532c8753da8c06348b16c3e30b20289a1bbc8065d",
+      "bytes": 652834
+    },
+    "tape_rewind": {
+      "file": "mixkit/mixkit_1088.wav",
+      "source": "mixkit",
+      "id": 1088,
+      "title": "Tape rewind cinematic transition",
+      "sha256": "470ff7a385d2cebc414465dbed09abf02d9ed1b8d71852cdd2621c45beef416d",
+      "bytes": 1161410
+    },
+    "tape_rewind_fast": {
+      "file": "mixkit/mixkit_1092.wav",
+      "source": "mixkit",
+      "id": 1092,
+      "title": "Fast tape rewind cinematic transition",
+      "sha256": "f704deafc7cd7d34f18eb36e1fc707c76a0e5eb99a84b5a465f3b24ec6b85203",
+      "bytes": 507320
+    },
+    "hud_blip": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/computerNoise_000.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: computerNoise_000",
+      "note": "NOT a blip: a 5-second computer-noise burst (Kenney computerNoise_000). Stacked copies pile into loud static. For quick repeated accents use the notify/ding/coin synths."
+    },
+    "plasma": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/thrusterFire_002.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: thrusterFire_002"
+    },
+    "space_engine": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/spaceEngineLow_001.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: spaceEngineLow_001"
+    },
+    "sub_boom": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/lowFrequency_explosion_000.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: lowFrequency_explosion_000"
+    },
+    "crunch": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/explosionCrunch_002.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: explosionCrunch_002"
+    },
+    "glass_heavy_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactGlass_heavy_000.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactGlass_heavy_000"
+    },
+    "glass_heavy_1": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactGlass_heavy_002.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactGlass_heavy_002"
+    },
+    "glass_medium_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactGlass_medium_001.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactGlass_medium_001"
+    },
+    "glass_light_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactGlass_light_003.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactGlass_light_003"
+    },
+    "door_close": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/doorClose_000.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: doorClose_000"
+    },
+    "force_field": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/forceField_000.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: forceField_000"
+    },
+    "crunch_0": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/explosionCrunch_000.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: explosionCrunch_000"
+    },
+    "crunch_1": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/explosionCrunch_003.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: explosionCrunch_003"
+    },
+    "low_boom_1": {
+      "file": "kenney/kenney_sci-fi-sounds/Audio/lowFrequency_explosion_001.ogg",
+      "source": "kenney",
+      "title": "Sci-fi Sounds: lowFrequency_explosion_001"
+    },
+    "rock_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactMining_000.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactMining_000"
+    },
+    "rock_1": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactMining_002.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactMining_002"
+    },
+    "rock_2": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactMining_004.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactMining_004"
+    },
+    "plate_heavy_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactPlate_heavy_000.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactPlate_heavy_000"
+    },
+    "plate_heavy_1": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactPlate_heavy_003.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactPlate_heavy_003"
+    },
+    "punch_heavy_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactPunch_heavy_001.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactPunch_heavy_001"
+    },
+    "metal_heavy_0": {
+      "file": "kenney/kenney_impact-sounds/Audio/impactMetal_heavy_002.ogg",
+      "source": "kenney",
+      "title": "Impact Sounds: impactMetal_heavy_002"
+    },
+    "coins": {
+      "file": "generated/coins.wav",
+      "source": "generated",
+      "title": "Coins clinking (synth)"
+    },
+    "kaching": {
+      "file": "generated/kaching.wav",
+      "source": "generated",
+      "title": "Cash register ka-ching (synth)"
+    },
+    "shimmer": {
+      "file": "generated/shimmer.wav",
+      "source": "generated",
+      "title": "Rising magic shimmer (synth)"
+    },
+    "shutter": {
+      "file": "generated/shutter.wav",
+      "source": "generated",
+      "title": "Camera shutter click (synth)"
+    }
+  },
+  "_mixkit_url": "https://assets.mixkit.co/active_storage/sfx/{id}/{id}.{ext}"
+}

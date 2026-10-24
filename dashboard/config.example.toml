@@ -1,0 +1,30 @@
+# ReelForge's dashboard settings. ReelForge copies this file to config.toml the first time it runs, and onboarding
+# fills that one in for you; edit config.toml, not this one. Lines starting with # are notes. After changing
+# anything, close ReelForge and open it again.
+
+name = ""                      # your channel's name, shown in the window title, e.g. "My Channel"
+videos_dir = "videos"          # where you put finished videos to upload (.mp4, .mov, .m4v); relative to this folder
+refresh_minutes = 30           # how often ReelForge re-reads your stats while it's open (0 = only when you press
+                               # Refresh); the hourly background job (reelforge stats on) reads them while it's closed
+default_tags = ""              # up to 5 hashtags for new videos, e.g. "#cooking #recipe #easyrecipe";
+                               # (onboarding fills this in; the caption rules come from my-studio/studio.toml)
+
+# Where the video pipeline's finished videos are: ReelForge lists <episodes_dir>/<id>/final/<id>.mp4 and
+# <completed_dir>/<folder>/<video>.mp4 on the Publish tab, and fills the caption in from each episode's episode.json.
+# episodes_dir = "../episodes"
+# completed_dir = "../completed videos"
+
+# Your handle on each platform, e.g. handle = "@yourname". TikTok and YouTube need only the handle;
+# Instagram and X also need the one-time Log in on the Accounts tab (5). Leave a platform blank to skip it.
+
+[tiktok]
+handle = ""
+
+[youtube]
+handle = ""
+
+[instagram]
+handle = ""
+
+[x]
+handle = ""

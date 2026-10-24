@@ -1,0 +1,98 @@
+<!-- {{ mark }} on {{ date }}. Your AI keeps the slate and the research notes up to date. Re-running onboarding
+     rewrites this file but keeps the research notes (and a copy of the old one in my-studio/backups/). -->
+# {{ ch.name }}: channel bible
+
+- **About:** {{ ch.about }}
+{% if ch.audience %}
+- **For:** {{ ch.audience }}
+{% endif %}
+{% if tone %}
+- **Viewers should feel:** {{ tone }}
+{% endif %}
+- **Platforms:** {% for p in platforms %}{{ p.name }}{% if p.handle %} ({{ p.handle }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{{ "" }}
+
+## The promise
+
+Every video answers one question in its title and keeps escalating until the last second. A viewer who stops on
+the first frame should feel they can't scroll away before the payoff.
+
+## Lead series: {{ series }}
+
+{% if fmt_key == "custom" %}
+{{ custom }}
+{% else %}
+**Format:** "{{ fmt.label }}"
+
+{{ fmt.premise }}
+{% endif %}
+
+{% if twist %}
+**Our twist:** {{ twist }}
+{% endif %}
+
+**Ending:** {{ ending_text }}
+
+### Beats
+
+| Time | Beat |
+|---|---|
+{% for t, b in fmt.beats %}
+| {{ t }} | {{ b }} |
+{% endfor %}
+
+### Format rules
+
+- 9:16, {{ dims }}, 30 fps, {{ min }}-{{ max }} s.
+- No voiceover: short second-person lines, one at a time, each true and visible on screen when it shows.
+- Hook in 0-2 s, something new every 2-3 s, the framing changes at least every ~8 s, the last 20 s are the biggest.
+{% if hud %}
+- A big on-screen counter that ticks in chapters (label, value, sub-line), with no box and no channel name.
+{% endif %}
+- Every video ends with "{{ cta }}".
+- Look: {{ style_text }}.
+- Every episode needs true anchors: real numbers, checked and sourced in its `facts.md`.
+
+{% if references %}
+## Creators to study and beat
+
+{% for r in references %}
+- {{ r }}
+{% endfor %}
+
+{% endif %}
+## Slate (ideas, in order)
+
+Mark each one used in `completed videos/production-log.md`. Don't run the same subject back to back with small
+changes: repeats lose most of their reach.
+
+{% for x in subjects %}
+- {{ x }}
+{% endfor %}
+{% for x in fmt.subjects if x not in subjects %}
+- {{ x }} *(suggested)*
+{% endfor %}
+
+{% if examples %}
+Title pattern examples: {% for e in examples %}"{{ e }}"{% if not loop.last %}, {% endif %}{% endfor %}.
+{% endif %}
+
+{% if avoid %}
+## Never
+
+{{ avoid }}
+
+{% endif %}
+## Captions and posting
+
+- Caption: one short hook line, the episode's `title` (at most {{ title_max }} characters).
+- Hashtags: at most {{ max_tags }}{% if first_tag %}, #{{ first_tag }} first on TikTok{% endif %}.
+{% for r in rules %}
+- {{ r }}.
+{% endfor %}
+- Cadence: {{ cadence }}{% if post_times %}, posted {{ post_times }}{% endif %}{% if timezone %} ({{ timezone }}){% endif %}.
+- The same cut goes to every platform. {{ Who }} posts by hand from ReelForge's Publish tab; the AI never posts.
+
+## Research notes
+
+Keep competitor scans in `research/` (see `docs/RESEARCH.md`) and summarise what you learn here: which subjects
+and hooks are pulling views, and what to try next.

@@ -1,0 +1,34 @@
+#!/bin/sh
+# "reelforge" in any terminal opens ReelForge. Try: reelforge 4, reelforge videos, reelforge help.
+# Setup links this into ~/.local/bin; it finds its real folder through the link. Everything runs inside main(),
+# which the shell reads in full before starting, so an update that rewrites this file can't break it mid-run.
+main() {
+  self="$0"
+  while [ -h "$self" ]; do
+    link="$(readlink "$self")"
+    case "$link" in
+      /*) self="$link" ;;
+      *) self="$(dirname "$self")/$link" ;;
+    esac
+  done
+  RF="$(cd "$(dirname "$self")/.." && pwd)"
+
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*)   # Git Bash on Windows: the .cmd launcher does the work
+      cmd //c "$(cygpath -w "$RF/bin/reelforge.cmd")" "$@"
+      return $? ;;
+  esac
+
+  if [ ! -x "$RF/.venv/bin/python" ]; then
+    echo "ReelForge isn't set up yet. Starting setup..."
+    "$RF/setup.sh"
+    return $?
+  fi
+  while :; do
+    "$RF/.venv/bin/python" "$RF/bin/reelforge.py" "$@"
+    code=$?
+    # 75: ReelForge just updated itself, so start it again
+    [ "$code" -eq 75 ] || return "$code"
+  done
+}
+main "$@"; exit $?

@@ -1,0 +1,437 @@
+{
+  "demo": true,
+  "id": "demo_everyone_jumps",
+  "title": "What if everyone on Earth jumped at the same time?",
+  "series": "Everyone At Once",
+  "fps": 30,
+  "duration": 67.0,
+  "render_until": 63.0,
+  "render": {"samples": 16, "shadow_scale": 0.75},
+  "world": {
+    "type": "plaza",
+    "seed": 7,
+    "home": [48.86, 2.35],
+    "sun": {"heading": 245, "elevation": 24},
+    "density": 2.2,
+    "streets": 1.8,
+    "city_radius": 5800,
+    "hero": [6.0, -36.0]
+  },
+  "effect": {
+    "type": "everyone",
+    "population": 8300678395,
+    "mean_mass_kg": 50,
+    "hero": {"hop_at": [0.45, 1.35, 2.25], "hop_height": 0.12},
+    "join": {
+      "square": {"from": 5.0, "to": 10.6},
+      "streets": {"from": 9.6, "to": 12.4},
+      "city": {"from": 11.6, "to": 15.0, "count": 2113705},
+      "country": {"from": 15.5, "to": 19.0, "radius_km": 418, "count": 66400000},
+      "planet": {"from": 19.4, "to": 23.0}
+    },
+    "where": [
+      [0, "JUST YOU"],
+      [5.0, "AROUND YOU"],
+      [8.0, "IN THIS SQUARE"],
+      [11.6, "IN THIS CITY"],
+      [15.4, "IN THIS COUNTRY"],
+      [19.2, "ON THE WHOLE PLANET"]
+    ],
+    "countdown": {"ticks": [23.6, 24.8, 26.0], "texts": ["3", "2", "1", "JUMP!"], "go": 26.9},
+    "action": {
+      "type": "jump",
+      "lift_off": 26.9,
+      "height": 0.44,
+      "air": 0.6,
+      "crouch": 0.32,
+      "land": 0.28,
+      "slow_at": 27.02,
+      "slow_rate": 0.006,
+      "ease": 0.3,
+      "land_at": 47.5,
+      "cheer_after": 0.6
+    },
+    "glow": [[0, 0], [11.7, 0], [12.1, 1], [50.4, 1], [52.2, 0]],
+    "earth": {"show_from": 35.0, "count_for": 3.4},
+    "shots": [
+      {
+        "from": 0.0,
+        "to": 5.0,
+        "type": "keys",
+        "rel": "hero",
+        "keys": [
+          [0.0, [0.8, -4.3, 0.9], [0.0, 0.0, 1.55], 30],
+          [5.0, [1.3, -5.4, 1.1], [0.0, 0.5, 1.6], 30]
+        ]
+      },
+      {
+        "from": 5.0,
+        "to": 8.0,
+        "type": "keys",
+        "rel": "hero",
+        "keys": [
+          [5.0, [1.0, -6.5, 1.7], [0.0, 2.0, 1.4], 30],
+          [8.0, [0.5, -22.0, 21.0], [0.0, 14.0, 0.0], 30]
+        ]
+      },
+      {
+        "from": 8.0,
+        "to": 11.6,
+        "type": "orbit",
+        "centre": [0, 0, 0],
+        "radius": [95, 120],
+        "height": [55, 120],
+        "az": [-25, 20],
+        "look_z": 0,
+        "lens": 30
+      },
+      {
+        "from": 11.6,
+        "to": 15.4,
+        "type": "climb",
+        "over": [0, 0],
+        "alt": [350, 2800],
+        "back": 0.85,
+        "ahead": 0.25,
+        "lens": 28
+      },
+      {
+        "from": 15.4,
+        "to": 19.2,
+        "type": "planet",
+        "alt_km": [160, 1300],
+        "pos": [-1.2, 0],
+        "aim": [0.8, 0],
+        "lens": 30
+      },
+      {"from": 19.2, "to": 23.4, "type": "planet", "alt_km": [1800, 14000], "pos": [-12, -4], "lens": 30},
+      {
+        "from": 23.4,
+        "to": 24.6,
+        "type": "keys",
+        "rel": "hero",
+        "keys": [
+          [23.4, [-1.0, -3.4, 0.75], [0.6, 4.0, 1.9], 20],
+          [24.6, [-0.8, -3.1, 0.8], [0.6, 4.0, 1.9], 20]
+        ]
+      },
+      {
+        "from": 24.6,
+        "to": 25.8,
+        "type": "keys",
+        "rel": "world",
+        "keys": [[24.6, [-60, -150, 95], [0, -5, 0], 35], [25.8, [-55, -140, 92], [0, -5, 0], 35]]
+      },
+      {
+        "from": 25.8,
+        "to": 27.0,
+        "type": "keys",
+        "rel": "hero",
+        "keys": [
+          [25.8, [0.7, -2.6, 0.55], [0.0, 0.0, 1.1], 30],
+          [27.0, [0.6, -2.4, 0.6], [0.0, 0.0, 1.2], 30]
+        ]
+      },
+      {
+        "from": 27.0,
+        "to": 31.0,
+        "type": "orbit",
+        "centre": "hero",
+        "radius": 4.6,
+        "height": [1.0, 1.5],
+        "az": [-50, 48],
+        "look_z": 1.3,
+        "lens": 26
+      },
+      {
+        "from": 31.0,
+        "to": 35.0,
+        "type": "keys",
+        "rel": "hero",
+        "keys": [
+          [31.0, [1.0, -4.0, 2.5], [0.0, 3.0, 1.0], 28],
+          [35.0, [8.0, -38.0, 46.0], [0.0, 12.0, 0.0], 28]
+        ]
+      },
+      {"from": 35.0, "to": 39.2, "type": "planet", "alt_km": [9000, 6500], "pos": [-20, -15], "lens": 32},
+      {
+        "from": 39.2,
+        "to": 43.4,
+        "type": "keys",
+        "rel": "hero",
+        "dof": {"fstop": 2.2, "focus": "target"},
+        "keys": [
+          [39.2, [0.55, -1.35, 0.26], [0.0, 0.0, 0.45], 35],
+          [43.4, [0.35, -1.15, 0.24], [0.0, 0.0, 0.45], 35]
+        ]
+      },
+      {"from": 43.4, "to": 46.8, "type": "planet", "alt_km": [16000, 13500], "pos": [-5, 30], "lens": 35},
+      {
+        "from": 46.8,
+        "to": 50.0,
+        "type": "keys",
+        "rel": "hero",
+        "shake": [[47.45, 0], [47.5, 2.2], [48.4, 0.3], [49.5, 0]],
+        "keys": [
+          [46.8, [-4.0, -3.5, 0.35], [2.0, 1.0, 0.9], 24],
+          [50.0, [-3.7, -3.4, 0.4], [2.0, 1.0, 0.9], 24]
+        ]
+      },
+      {"from": 50.0, "to": 53.4, "type": "planet", "alt_km": [7000, 8000], "pos": [-25, -5], "lens": 30},
+      {
+        "from": 53.4,
+        "to": 58.4,
+        "type": "rise",
+        "target": "hero",
+        "target_to": [0.0, 16.0, 0.0],
+        "alt": [1.8, 32000],
+        "back": 4.0,
+        "lens": 28
+      },
+      {"from": 58.4, "to": 63.0, "type": "planet", "alt_km": [900, 21000], "pos": [-3, 0], "lens": 30}
+    ]
+  },
+  "layout": {"avoid_subject": true},
+  "title_card": {"start": 0.0, "end": 3.0},
+  "lines": [
+    [3.1, 4.9, "It starts with you."],
+    [5.1, 7.9, "Then everyone around you."],
+    [8.1, 11.4, "Then the whole square."],
+    [11.7, 15.2, "Then the whole city."],
+    [15.5, 19.0, "Then the whole country."],
+    [19.3, 23.2, "Then all 8.3 billion people on Earth.", {"scrim": 0.5}],
+    [23.5, 26.8, "On three, everyone jumps.", {"y": 1480, "scrim": 0.45}],
+    [27.3, 30.9, "For half a second, nobody touches the ground."],
+    [31.1, 34.8, "Together, you weigh about 400 million tonnes.", {"scrim": 0.5}],
+    [35.1, 39.0, "Pushing off, you shove the planet the other way.", {"scrim": 0.55}],
+    [39.3, 43.2, "It moves less than the width of an atom."],
+    [43.5, 46.6, "Earth is 14 trillion times heavier than all of you.", {"scrim": 0.45}],
+    [46.9, 49.9, "Then everyone lands at once."],
+    [50.1, 53.3, "And the planet moves right back.", {"scrim": 0.55}],
+    [53.5, 58.2, "Everyone is right back where they started.", {"scrim": 0.45}],
+    [58.5, 62.7, "And so is the Earth.", {"scrim": 0.45}]
+  ],
+  "hud": {
+    "vars": {
+      "ready": {"series": "ready", "format": "int_commas"},
+      "where": {"series": "where", "format": "raw"},
+      "countdown": {"series": "countdown", "format": "raw"},
+      "in_air": {"series": "in_air", "format": "int_commas"},
+      "airtime": {"series": "airtime", "format": "raw"},
+      "earth": {"series": "earth_m", "format": "raw"}
+    },
+    "chapters": [
+      {"from": 0.0, "to": 23.6, "label": "PEOPLE READY TO JUMP", "value": "{ready}", "sub": "{where}"},
+      {"from": 23.6, "to": 27.4, "label": "EVERYONE JUMPS IN", "value": "{countdown}", "sub": "8,300,678,395 PEOPLE"},
+      {
+        "from": 27.4,
+        "to": 31.0,
+        "label": "PEOPLE IN THE AIR",
+        "value": "{in_air}",
+        "sub": "TIME IN THE AIR {airtime}"
+      },
+      {
+        "from": 31.0,
+        "to": 35.0,
+        "label": "WEIGHT IN THE AIR",
+        "value": "415,000,000 t",
+        "sub": "ABOUT 50 KG EACH, CHILDREN INCLUDED"
+      },
+      {
+        "from": 35.0,
+        "to": 43.4,
+        "label": "EARTH MOVES AT MOST",
+        "value": "{earth}",
+        "sub": "ONE ATOM: 0.0000000001 m"
+      },
+      {
+        "from": 43.4,
+        "to": 46.8,
+        "label": "EARTH OUTWEIGHS ALL OF YOU",
+        "value": "14 TRILLION : 1",
+        "sub": "EARTH 5.97e24 KG · YOU 4.15e11 KG"
+      },
+      {
+        "from": 46.8,
+        "to": 50.0,
+        "label": "PEOPLE IN THE AIR",
+        "value": "{in_air}",
+        "sub": "TIME IN THE AIR {airtime}"
+      },
+      {"from": 50.0, "to": 53.4, "label": "EARTH'S NET MOVE", "value": "0 m", "sub": "IT CAME BACK WHEN YOU LANDED"},
+      {
+        "from": 53.4,
+        "to": 63.0,
+        "label": "TOTAL EFFECT ON EARTH",
+        "value": "0 m",
+        "sub": "8,300,678,395 PEOPLE · 1 JUMP"
+      }
+    ]
+  },
+  "flashes": [
+    {"at": 47.5, "rise": 0.03, "fall": 0.25, "max": 0.22}
+  ],
+  "blackout": [63.0, 63.5],
+  "end_card": {
+    "start": 63.5,
+    "fact": "The Moon's pull lifts the ground under you by up to 20 cm, twice a day. Nobody feels that either."
+  },
+  "cta": {"start": 64.2, "end": 66.9, "text": "FOLLOW FOR MORE", "sub": "", "y": 1330},
+  "qa": {"frozen_ok": [[63.5, 67.0]]},
+  "audio": {
+    "mixer": "samples",
+    "target_rms_db": -16.0,
+    "beds": [
+      {
+        "sound": "wind_hum",
+        "from": 0.0,
+        "to": 63.5,
+        "gain": [
+          [0, 0.2],
+          [8.0, 0.22],
+          [11.6, 0.28],
+          [15.4, 0.4],
+          [19.2, 0.32],
+          [23.3, 0.18],
+          [27.0, 0.26],
+          [35.0, 0.3],
+          [39.2, 0.28],
+          [43.4, 0.3],
+          [46.8, 0.2],
+          [50.0, 0.3],
+          [53.4, 0.22],
+          [58.4, 0.34],
+          [63.0, 0.3],
+          [63.5, 0.0]
+        ]
+      },
+      {
+        "sound": "city_traffic",
+        "from": 0.0,
+        "to": 63.0,
+        "gain": [
+          [0, 0.45],
+          [5.0, 0.5],
+          [7.8, 0.5],
+          [8.6, 0.24],
+          [11.4, 0.15],
+          [11.8, 0.0],
+          [23.2, 0.0],
+          [23.4, 0.36],
+          [24.5, 0.36],
+          [24.7, 0.15],
+          [25.7, 0.15],
+          [25.9, 0.3],
+          [26.9, 0.3],
+          [27.2, 0.0],
+          [46.6, 0.0],
+          [46.9, 0.3],
+          [47.6, 0.62],
+          [49.9, 0.55],
+          [50.1, 0.0],
+          [53.3, 0.0],
+          [53.5, 0.5],
+          [55.5, 0.25],
+          [56.5, 0.0]
+        ]
+      },
+      {
+        "sound": "wind_bed",
+        "from": 7.6,
+        "to": 59.0,
+        "gain": [
+          [7.6, 0.0],
+          [8.2, 0.35],
+          [11.6, 0.36],
+          [15.3, 0.42],
+          [19.0, 0.3],
+          [19.3, 0.0],
+          [30.8, 0.0],
+          [31.2, 0.3],
+          [34.9, 0.35],
+          [35.1, 0.0],
+          [53.4, 0.0],
+          [54.0, 0.35],
+          [58.2, 0.6],
+          [58.6, 0.0]
+        ]
+      },
+      {
+        "sound": "space_ambience",
+        "from": 15.0,
+        "to": 67.0,
+        "gain": [
+          [15.2, 0.0],
+          [15.6, 0.45],
+          [19.2, 0.45],
+          [23.2, 0.45],
+          [23.5, 0.0],
+          [27.0, 0.0],
+          [27.4, 0.22],
+          [34.9, 0.22],
+          [35.2, 0.4],
+          [39.1, 0.4],
+          [39.3, 0.26],
+          [43.3, 0.26],
+          [43.5, 0.4],
+          [46.7, 0.4],
+          [46.9, 0.0],
+          [49.9, 0.0],
+          [50.1, 0.4],
+          [53.3, 0.4],
+          [53.5, 0.0],
+          [58.2, 0.0],
+          [58.6, 0.5],
+          [62.9, 0.5],
+          [63.0, 0.0],
+          [63.5, 0.3],
+          [67.0, 0.25]
+        ]
+      },
+      {
+        "sound": "bass_rumble",
+        "from": 23.3,
+        "to": 47.6,
+        "gain": [[23.3, 0.0], [23.6, 0.14], [26.8, 0.22], [27.4, 0.22], [46.6, 0.26], [47.4, 0.32], [47.6, 0.0]]
+      }
+    ],
+    "hits": [
+      {"sound": "punch_heavy_0", "at": 0.76, "gain": 0.2},
+      {"sound": "punch_heavy_0", "at": 1.66, "gain": 0.2},
+      {"sound": "punch_heavy_0", "at": 2.56, "gain": 0.2},
+      {"sound": "low_boom_1", "at": 11.6, "gain": 0.42, "align": "peak"},
+      {"sound": "low_boom_1", "at": 15.4, "gain": 0.5, "align": "peak"},
+      {"sound": "shimmer", "at": 19.2, "gain": 0.35, "align": "peak"},
+      {"sound": "sub_boom", "at": 19.2, "gain": 0.6, "align": "peak"},
+      {"synth": "ding", "freq": 660, "at": 23.6, "gain": 0.22},
+      {"synth": "ding", "freq": 660, "at": 24.8, "gain": 0.22},
+      {"synth": "ding", "freq": 660, "at": 26.0, "gain": 0.22},
+      {"sound": "riser", "at": 26.9, "gain": 0.22, "align": "peak"},
+      {"synth": "ding", "freq": 990, "at": 26.9, "gain": 0.25},
+      {"sound": "sub_boom", "at": 26.95, "gain": 0.6, "align": "peak"},
+      {"sound": "force_field", "at": 27.15, "gain": 0.2},
+      {"sound": "low_boom_1", "at": 31.0, "gain": 0.3},
+      {"sound": "sub_boom", "at": 35.1, "gain": 0.42, "align": "peak"},
+      {"synth": "coin", "freq": 1800, "at": 35.5, "gain": 0.13},
+      {"synth": "coin", "freq": 2000, "at": 36.0, "gain": 0.13},
+      {"synth": "coin", "freq": 2200, "at": 36.5, "gain": 0.13},
+      {"synth": "coin", "freq": 2400, "at": 37.0, "gain": 0.13},
+      {"synth": "coin", "freq": 2650, "at": 37.5, "gain": 0.13},
+      {"synth": "coin", "freq": 2900, "at": 38.1, "gain": 0.16},
+      {"sound": "low_boom_1", "at": 39.2, "gain": 0.3},
+      {"sound": "sub_boom", "at": 43.4, "gain": 0.45, "align": "peak"},
+      {"sound": "boom_impact", "at": 47.5, "gain": 1.15, "align": "peak"},
+      {"sound": "sub_boom", "at": 47.5, "gain": 0.7, "align": "peak"},
+      {"sound": "crunch_1", "at": 47.5, "gain": 0.5, "align": "peak"},
+      {"sound": "boom_thunder", "at": 47.7, "gain": 0.32, "align": "peak"},
+      {"sound": "shimmer", "at": 50.4, "gain": 0.3, "align": "peak"},
+      {"sound": "riser", "at": 58.4, "gain": 0.32, "align": "peak"},
+      {"sound": "sub_boom", "at": 58.4, "gain": 0.6, "align": "peak"},
+      {"synth": "ding", "freq": 520, "at": 63.6, "gain": 0.25}
+    ],
+    "ticks": {"event": "milestone", "synth": "coin", "freq": 1500, "step": 1.12, "gain": 0.2}
+  },
+  "cover": {"time": 29.0, "kicker": "WHAT IF EVERYONE ON EARTH", "keyword": "JUMPED", "tail": "AT ONCE?"},
+  "hashtags": ["fyp", "whatif", "science", "physics", "earth"],
+  "preview_times": [1.5, 6.5, 10.0, 13.5, 17.5, 21.5, 24.0, 26.7, 29.0, 33.0, 37.0, 41.0, 45.0, 47.6, 51.5, 55.0, 57.5, 61.0]
+}

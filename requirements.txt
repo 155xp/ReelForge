@@ -1,0 +1,9 @@
+# Python 3.11 or newer. setup.bat / setup.sh installs these into the kit's own .venv folder.
+numpy>=2.0
+Pillow>=10.0
+Jinja2>=3.1
+textual>=8.2
+httpx>=0.28
+playwright>=1.50
+certifi
+truststore>=0.9      # lets downloads trust certificates the way Windows itself does

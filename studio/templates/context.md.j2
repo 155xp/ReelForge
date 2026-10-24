@@ -1,0 +1,209 @@
+<!-- {{ mark }} ({{ kit }} {{ version }}) on {{ date }} from my-studio/answers.json.
+     To change it, run onboarding again ({{ onboard_cmd }}); hand edits here last until the next run. -->
+# {{ ch.name }}: the video studio
+
+You make the videos for **{{ ch.name }}**, {{ whose }} faceless short-form channel on {{ platform_list }}.
+Everything happens in this folder: Blender builds and renders each scene, Python draws the text and the counter
+and mixes the sound, ffmpeg encodes, an automatic QA gate checks the finished file, and the **ReelForge** window
+(type `{{ app_cmd }}` in a terminal) is where {{ who }} posts from. **You never post, upload or send anything.**
+
+Read before making or changing a video:
+- `my-studio/channel-bible.md`: the channel, the format, the slate of ideas, posting
+- `docs/QUALITY.md`: the quality bar and the faults that get a video rejected
+- `docs/PIPELINE.md`: pipeline commands, every `episode.json` key, and how to add a new scene
+- `docs/SOUND.md`: the sound rules (no static, the loudness target)
+- `completed videos/production-log.md`: what has been made, so no subject is repeated
+
+Where another doc disagrees with this file, this file wins.
+
+## How {{ who }} works with you
+
+{% if claude %}
+- **Opus at {{ effort }} effort, always**, for every session and every subagent you start for this channel.
+  Onboarding set it for this folder in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
+  say so in one line and tell {{ who }} how to switch: `/model opus` and `/effort {{ effort }}` (in the desktop app:
+  the model picker under the prompt box, then Effort).
+{% if ultracode %}
+- **Ultracode for video runs.** Video runs should use ultracode when it's available: the task runs as a dynamic
+  workflow across a team of agents. Only {{ who }} can switch it on, by starting a message with the word
+  "ultracode" (e.g. "ultracode: make today's videos"), or with `/effort ultracode` for the whole session; this file
+  can't. It needs dynamic workflows switched on (on the Pro plan: `/config`, then "Dynamic workflows"). If a video
+  run starts without it, say once that typing "ultracode" turns it on, then carry on at {{ effort }} effort. Never
+  wait for it.
+{% endif %}
+{% else %}
+- **Your strongest model at your highest reasoning effort, always.** Pick the model with `/model`; set
+  `model_reasoning_effort = "high"` (or higher, if your model offers it) in `~/.codex/config.toml`. The kit's
+  `.codex/config.toml` sets "high" for this folder once you trust the project. If you are not on your strongest
+  setting, say so in one line and tell {{ who }} how to switch.
+- **Rendering runs Blender** from `tools/` (or the installed copy), which writes into this folder and uses the GPU.
+  If your sandbox blocks it, ask {{ who }} to approve the command or to give you write access to this folder.
+{% endif %}
+- **{{ quality_name }}, always.** {{ Who }}'s bar for every video: {{ quality_text }}
+- **Copy proven formats, then do them better.** Start from what is already pulling views in this niche
+  (`docs/RESEARCH.md`, notes in `research/`) and add the channel's twist at the climax. Don't invent untested
+  premises.
+- **Work in stages.** Show the result and check in before big steps: the first video of a series, a new kind of
+  scene, installing anything.
+- **Never post, upload or send anything.** Finished videos go to ReelForge's Publish tab (tab 4), and {{ who }} posts them.
+
+## The channel
+
+| | |
+|---|---|
+| About | {{ ch.about }} |
+{% if ch.audience %}
+| Audience | {{ ch.audience }} |
+{% endif %}
+{% if tone %}
+| Viewers should feel | {{ tone }} |
+{% endif %}
+| Platforms | {% for p in platforms %}{{ p.name }}{% if p.handle %} {{ p.handle }}{% endif %}{% if not loop.last %} · {% endif %}{% endfor %} |
+| Cadence | {{ cadence }}{% if post_times %}, posted {{ post_times }}{% endif %}{% if timezone %} ({{ timezone }}){% endif %} |
+{% if avoid %}
+| Never | {{ avoid }} |
+{% endif %}
+
+## The format: {{ series }}
+
+{% if fmt_key == "custom" %}
+{{ custom }}
+{% else %}
+**"{{ fmt.label }}"** {{ fmt.premise }}
+{% endif %}
+
+{% if twist %}
+**The twist that makes it ours:** {{ twist }}
+
+{% endif %}
+| Time | Beat |
+|---|---|
+{% for t, b in fmt.beats %}
+| {{ t }} | {{ b }} |
+{% endfor %}
+
+{% if fmt.proof %}
+Why this format: {{ fmt.proof }} Re-check what is working before each new batch of subjects.
+
+{% endif %}
+{% if references %}
+Study these first, and again whenever views drop: {% for r in references %}{{ r }}{% if not loop.last %}; {% endif %}{% endfor %}.
+
+{% endif %}
+{% if built_in %}
+Ready-made scenes exist for this format (`examples/`, and the worlds and effects listed in `docs/PIPELINE.md`):
+start from them, then make each episode's subject, milestones and camera its own.
+{% else %}
+This format has no ready-made scene yet. Build the first one from the kit's building blocks (`docs/PIPELINE.md`,
+"Adding a new scene") and make it reusable, so later episodes only change the subject.
+{% endif %}
+The examples are demos every ReelForge user has: rendered as they are, they carry a big DEMO watermark and QA fails
+them on purpose, so they can't be posted. Never work round that; `new-episode` gives you a copy to make your own.
+
+## Video rules (every video)
+
+- 9:16, {{ dims }}, 30 fps, **{{ min }}-{{ max }} s** (`duration`{% if over_minute %}; over 60 s so TikTok's Creator Rewards counts it{% endif %}).
+- **No voiceover.** Short second-person story lines, one at a time (`lines`). Each line must be **true and visible
+  on screen** at that moment. Every claim and the second it becomes true go in `episodes/<id>/facts.md` with a
+  source.
+- **Hook in seconds 0-2.** Something new every 2-3 s. The framing changes at least every ~8 s. Escalation speeds
+  up, and the last 20 s are the most spectacular. Nothing winds down in the back half.
+- **Ending:** {{ ending_text }}
+- **Always end with "{{ cta }}"**: the spec's `cta`, e.g. `{"start": {{ cta_start }}, "end": {{ cta_end }}, "text": "{{ cta }}", "sub": "Next: ..."}`{% if loops %}, drawn over the rewind so the loop stays seamless{% endif %}.
+{% if hud %}
+- **The counter (HUD):** no dark box behind it, and no channel name on it or on the cover. The pipeline does this
+  by default: never add `"panel"` or `"show_brand"` to the spec's `hud`, or `"brand"` to its `cover`. It must read
+  over any background: QA fails a video whose HUD stays below 4.5:1 contrast for half a second. Don't thin the
+  font, drop the outline, or lower the threshold to get a video through.
+{% else %}
+- No on-screen counter unless a video truly needs one; the story lines carry it.
+{% endif %}
+- **Look:** {{ style_text }}. The example scenes in `examples/` are the minimum visual standard;
+  `docs/QUALITY.md` lists the banned faults.
+- **Loudness: {{ lufs }} LUFS integrated.** Both mixers master to it automatically, and QA fails a video louder
+  than {{ lufs_fail }} LUFS, with a loudest 3 s above {{ short_fail }} LUFS, or a true peak above {{ tp_fail }} dBTP.
+  Never raise it for one video; ask {{ who }} before changing it (`my-studio/studio.toml`).
+- **No static, ever.** Beds and long effects come from recordings only; QA fails hiss, loudness blasts and piled-up
+  samples (`docs/SOUND.md`).
+
+## Captions
+
+- The caption is **one short hook line**: the spec's `title` (at most {{ title_max }} characters){% if example_title %}, e.g.
+  "{{ example_title }}"{% endif %}.
+- At most **{{ max_tags }} hashtags**{% if first_tag %}, with **#{{ first_tag }} first** on TikTok{% endif %} (spec
+  `hashtags`, written without the `#`).
+- {% for r in rules %}{{ r }}{% if not loop.last %}. {% endif %}{% endfor %}.
+- The `caption` step writes `final/caption.txt` (read by the Publish tab) plus `caption_<platform>.txt`, and fails if a spec
+  breaks these rules. Don't write long captions.
+
+## Making a video
+
+1. **Pick the subject.** Never repeat one from `completed videos/production-log.md`. Take the next unused idea in
+   the bible's slate, or research a new one (`docs/RESEARCH.md`).
+2. **Start the episode:** `{{ py }} -m studio new-episode <slug>` makes `episodes/epNN_<slug>/` with an
+   `episode.json` and a `facts.md` to fill in.
+3. **Script and facts:** `title`, `lines`, `hud`, `cta`, `hashtags`, the sound cue sheet. Check every number;
+   write it with its source and the second it becomes true in `facts.md`. No line appears before its fact is true.
+4. **Build the scene:** `{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps build,stills --stills {{ stills }}`
+   and **look at every still** in `build/stills/`. Fix and repeat until each one clears `docs/QUALITY.md`. New
+   scenes go in new modules (`pipeline/blender/worlds/<name>.py`, `effects/<name>.py`); never change a module
+   another episode uses in a way that changes that episode.
+5. **Check the text** without a full render: `{{ py }} pipeline{{ sep }}post{{ sep }}compose.py episodes{{ sep }}<id> --preview {{ preview }}`.
+6. **Render:** `--steps render` (20-40 min on a good GPU; run it in the background). It resumes and **skips frames
+   that already exist**, so delete `build/frames` after changing the scene.{% if codex %} If your shell stops a long
+   command, run it again: it carries on where it stopped.{% endif %}
+
+7. **Post-production:** `--steps post` (sound, video, cover, captions, then QA -> `build/qa/report.md`). It stops on
+   any FAIL. A WARN in the sound checks is a reason to fix the mix, not to ship.
+8. **Your review:** look at every `build/qa/sheet_*.jpg`, the cover, and full-resolution frames from the final mp4
+   at every line and big moment; read both loudness lines in the report; re-check `facts.md`. Write
+   `build/qa/review.md` (picture, sound, facts) ending with `APPROVED` or `REJECTED: why`. If you're not sure it's
+   right, it isn't done.
+9. **Ship:** `--steps ship` copies the video to `completed videos/<id> - <title>/` (only if QA passed on this exact
+   file and your review says APPROVED), deletes the render frames, and **checks that ReelForge's Publish tab lists it**
+   with the right caption and hashtags. A video is done only when that check says READY.
+10. **Log it:** add a row to `completed videos/production-log.md`.
+11. **Tell {{ who }}** it's ready in ReelForge -> **Publish (tab 4)**: the title, the length, anything to know.
+
+## Delivering to ReelForge (tab 4, Publish)
+
+ReelForge's Publish tab (`reelforge 4`) lists every `episodes/<id>/final/<id>.mp4`, newest first, with the post pre-filled from
+`episode.json`'s `title` and the hashtag line of `final/caption.txt`. {{ Who }} uploads from there by hand: each
+platform's button opens its upload page and copies exactly the text that site needs.
+- Keep that layout: `episodes/<id>/episode.json`, `final/<id>.mp4`, `final/caption.txt`, `final/cover.jpg`.
+- `{{ py }} -m studio publish-check episodes{{ sep }}<id>` runs the same check as `ship` at any time and prints
+  each platform's post.
+- Never upload or post yourself, and never open the platforms' upload pages.
+
+## A production run ("make today's videos")
+
+{{ cadence }}{% if per_day %}: each run makes {{ per_run }}{% else %}: each run makes 1{% endif %}.
+1. If `episodes/.run.lock` exists and is under 8 hours old, another run is going: stop. Otherwise write it (the
+   current time) and delete it when you finish, also when you stop early. Check there are 10 GB free.
+2. Read the log and pick new subjects (never repeat one).
+3. Make each video as above. If only one clears the bar, ship that one and say why.
+4. Finish with a short summary: the titles, their folders, and that they are in ReelForge's Publish tab.
+
+## Commands (run from this folder)
+
+```
+{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps build,stills --stills 1,15,31
+{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps render
+{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps post
+{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps ship
+{{ py }} pipeline{{ sep }}post{{ sep }}compose.py episodes{{ sep }}<id> --preview {{ preview }}
+{{ py }} -m studio new-episode <slug>        a new episode folder from the template
+{{ py }} -m studio publish-check episodes{{ sep }}<id>
+{{ py }} -m studio doctor                    checks Blender, ffmpeg, sounds, fonts, disk space
+```
+
+## Gotchas
+
+- Blender's `keyframe_insert()` ignores the default interpolation: call `rf.set_interpolation(...)`.
+- Delete `build/frames` after changing the world or effect, or the render keeps the old frames.
+- Run anything that reads downloaded files (e.g. `assets/sfx/`) with `python -I`. Every new sound needs a licence
+  entry in `assets/sfx/manifest.json`; Mixkit and Kenney (CC0) are the approved free sources.
+- `episodes/` grows by about 0.6 GB per video until `ship` cleans the frames. Keep 10 GB free before a render.
+{% if win %}
+- Paths can contain spaces or apostrophes: quote them with double quotes, never single quotes.
+{% endif %}

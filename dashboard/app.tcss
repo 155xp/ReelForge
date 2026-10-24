@@ -1,0 +1,446 @@
+Screen {
+    background: $background;
+}
+
+/* header: logo, platform status, buttons */
+
+#header {
+    height: 3;
+    background: $panel;
+}
+
+#logo {
+    width: auto;
+    height: 3;
+}
+
+#bell {
+    width: 8;
+    height: 3;
+    margin-left: 1;
+}
+
+#bell:hover {
+    background: $panel-lighten-1;
+}
+
+#status {
+    width: 1fr;
+    height: 3;
+    padding: 0 3;
+    content-align: left middle;
+}
+
+#actions {
+    width: auto;
+    height: 3;
+    padding: 0 1;
+    content-align: right middle;
+}
+
+#main {
+    height: 1fr;
+}
+
+TabbedContent {
+    height: 1fr;
+    width: 1fr;
+}
+
+/* the notifications drawer, on the left */
+
+#drawer {
+    width: 48;
+    height: 1fr;
+    background: $surface;
+    border-right: tall $panel-lighten-2;
+    padding: 0 1;
+}
+
+#drawer-head {
+    height: 1;
+    margin: 1 0;
+}
+
+#notes {
+    height: 1fr;
+    border: none;
+    background: $surface;
+}
+
+#notes > .option-list--option {
+    padding: 0 0 1 0;
+}
+
+/* badges: the account's on the Overview, the highlighted video's on Videos */
+
+#badges, #video-badges {
+    height: 1;
+    padding: 0 1;
+    text-wrap: nowrap;
+}
+
+TabPane {
+    padding: 0 1;
+}
+
+.box {
+    border: round $panel-lighten-2;
+    padding: 0 1;
+}
+
+.box-title {
+    height: 1;
+    color: $text-muted;
+}
+
+.hint {
+    height: 1;
+    margin: 1 0 0 0;
+}
+
+DataTable {
+    background: $background;
+}
+
+/* overview */
+
+#cards {
+    height: 8;
+    margin-top: 1;
+}
+
+.card {
+    width: 1fr;
+    height: 8;
+    padding: 0 1;
+    margin-right: 1;
+    border-title-style: bold;
+}
+
+#cards > .card:last-child {
+    margin-right: 0;
+}
+
+.card-body {
+    height: 3;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+.card-spark {
+    height: 2;
+}
+
+.card-caption {
+    height: 1;
+}
+
+#overview-main {
+    height: 1fr;
+}
+
+#trends {
+    width: 2fr;
+}
+
+#trends-bar {
+    height: 1;
+    padding: 0 1;
+    text-wrap: nowrap;
+}
+
+#views-chart {
+    height: 1fr;
+}
+
+#trends-row {
+    height: 1fr;
+}
+
+#followers-chart, #likes-chart {
+    width: 1fr;
+}
+
+#side {
+    width: 1fr;
+    min-width: 60;
+    max-width: 72;
+}
+
+#top-box {
+    height: 1fr;
+}
+
+#top-table {
+    height: 1fr;
+}
+
+#latest-box {
+    height: auto;
+    max-height: 11;
+}
+
+#latest-body {
+    height: auto;
+}
+
+.chart Plot {
+    height: 1fr;
+}
+
+.chart .empty {
+    height: 1fr;
+    content-align: center middle;
+    color: $text-muted;
+    display: none;
+}
+
+/* videos */
+
+#videos-table {
+    height: 1fr;
+}
+
+#video-detail {
+    height: 40%;
+    min-height: 8;
+}
+
+/* compare */
+
+#episode-list {
+    width: 42;
+    height: 1fr;
+    border: round $panel-lighten-2;
+    border-title-color: $text-muted;
+}
+
+#compare-main {
+    width: 1fr;
+    overflow-y: auto;
+}
+
+#compare-bars-box {
+    height: auto;
+}
+
+#compare-grid {
+    grid-size: 2;
+    grid-gutter: 0 1;
+    height: 26;
+}
+
+#compare-table {
+    height: auto;
+    max-height: 7;
+}
+
+/* publish */
+
+#file-box {
+    width: 1fr;
+    min-width: 40;
+}
+
+#file-list {
+    height: 1fr;
+    border: none;
+    background: $background;
+}
+
+#publish-form {
+    width: 2fr;
+}
+
+#publish-form Label {
+    margin-top: 1;
+    color: $text-muted;
+}
+
+#preview {
+    height: auto;
+    margin-top: 1;
+    padding: 0 1;
+    border: round $panel-lighten-2;
+}
+
+#posted {
+    height: auto;
+    margin-top: 1;
+    padding: 0 1;
+}
+
+#uploads-heading, #manual-heading {
+    margin-top: 1;
+}
+
+.manual-row {
+    height: auto;
+}
+
+.manual-row Button, .copy-spacer {
+    margin-right: 1;
+    min-width: 12;
+}
+
+#uploads-table {
+    height: auto;
+    max-height: 12;
+}
+
+/* accounts */
+
+#accounts-grid {
+    grid-size: 2;
+    grid-gutter: 1 2;
+    padding: 1 0;
+}
+
+.account {
+    padding: 0 1;
+    border-title-style: bold;
+}
+
+.acct-body {
+    height: auto;
+}
+
+.acct-note {
+    height: auto;
+    margin-top: 1;
+}
+
+.acct-chart-title {
+    height: 1;
+    margin-top: 1;
+}
+
+.acct-chart {
+    height: 1fr;
+}
+
+.acct-buttons {
+    height: 3;
+    margin-top: 1;
+}
+
+.acct-buttons Button {
+    margin-right: 1;
+}
+
+/* updates */
+
+#update-box {
+    height: auto;
+    margin-top: 1;
+}
+
+#update-status {
+    height: auto;
+}
+
+#update-buttons {
+    height: 3;
+    margin-top: 1;
+}
+
+#update-buttons Button {
+    margin-right: 1;
+}
+
+#update-progress {
+    margin-top: 1;
+}
+
+#update-step {
+    height: auto;
+    margin-top: 1;
+}
+
+#update-notes-box {
+    height: 1fr;
+    margin-top: 1;
+}
+
+#update-how {
+    height: auto;
+}
+
+/* dialogs */
+
+ModalScreen {
+    align: center middle;
+    background: $background 70%;
+}
+
+#dialog {
+    width: 100;
+    max-width: 95%;
+    height: auto;
+    max-height: 90%;
+    border: thick $primary;
+    background: $surface;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+.dialog-title {
+    text-style: bold;
+    color: $primary;
+    margin-bottom: 1;
+}
+
+#dialog Input {
+    margin-top: 1;
+}
+
+#dialog .ls-row Input {
+    margin-top: 0;
+    width: 18;
+}
+
+.ls-row {
+    height: 3;
+}
+
+.ls-label {
+    width: 1fr;
+    height: 3;
+    content-align: left middle;
+}
+
+.ls-section {
+    margin-top: 1;
+}
+
+#ls-hint {
+    margin: 1 0;
+}
+
+#ls-videos {
+    height: auto;
+    max-height: 40vh;
+}
+
+#episode-choices {
+    height: auto;
+    max-height: 16;
+    margin-top: 1;
+}
+
+#help-body {
+    height: auto;
+    max-height: 30;
+}
+
+.dialog-buttons {
+    dock: bottom;
+    height: 3;
+    margin-top: 1;
+    align-horizontal: right;
+}
+
+.dialog-buttons Button {
+    margin-left: 1;
+}

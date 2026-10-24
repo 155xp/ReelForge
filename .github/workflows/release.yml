@@ -1,0 +1,80 @@
+# Builds the downloads for a release and publishes it when a version tag (v1.2.3) is pushed.
+# Run it by hand (Actions tab, Run workflow) to build the downloads without publishing anything.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  packages:
+    name: Windows zip, macOS zip, Linux tar.gz
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the packages
+        run: python scripts/package.py --out dist --version "${GITHUB_REF_NAME#v}"
+        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build the packages (untagged run)
+        run: python scripts/package.py --out dist
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+
+  installer:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Stage the files
+        shell: pwsh
+        run: |
+          $v = if ("$env:GITHUB_REF" -like "refs/tags/v*") { "$env:GITHUB_REF_NAME".TrimStart("v") } else { python scripts/package.py --print-version }
+          python scripts/package.py --stage-only --out dist --version $v
+          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+      - name: Build the installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:VERSION" scripts\installer.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: dist/*.exe
+
+  release:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [packages, installer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Checksums (the Updates tab checks downloads against them)
+        run: python scripts/package.py --sums-only --out dist
+      - name: Create the GitHub release with the downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la dist
+          gh release create "$GITHUB_REF_NAME" dist/* --title "ReelForge $GITHUB_REF_NAME" --notes-file .github/release-notes.md

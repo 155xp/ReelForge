@@ -1,0 +1,47 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Your channel: answers, settings, bible, backups (made by onboarding; never part of the kit)
+my-studio/
+.claude/settings.local.json
+
+# Your videos and their builds (episodes/ and completed videos/ keep only their placeholders)
+episodes/*
+!episodes/.gitkeep
+completed videos/*
+!completed videos/.gitkeep
+research/*
+!research/README.md
+
+# Downloaded by setup: Blender, ffmpeg, Mixkit sounds (their licence forbids redistribution), the sound cache
+tools/
+assets/sfx/mixkit/
+assets/sfx/_cache/
+
+# The dashboard's private data: stats database, login profile, tokens, its config (written by onboarding)
+dashboard/data/
+dashboard/videos/
+dashboard/config.toml
+*.db
+*.db-*
+tokens*.json
+client_secret*.json
+.env
+.env.*
+
+# Logs and build output
+*.log
+*.part
+*.exe
+*.sqlite*
+*.bak
+logs/
+
+# Example builds (examples/ hold only their specs and fact sheets)
+examples/*/build/
+examples/*/final/
+
+# Release builds (scripts/package.py)
+dist/
