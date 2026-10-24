@@ -6,7 +6,7 @@
 How the new version goes in depends on how this copy got here:
   installer  the Windows installer put it here (unins000.exe is in this folder): the new installer runs quietly
              into the same folder
-  git        a git clone: git pull (only when you haven't changed any files yourself)
+  git        a git clone: git pull (only when you haven't changed the kit's own files yourself)
   zip        anything else: the new version's download is unpacked and copied over this folder
 
 Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the
@@ -298,12 +298,22 @@ def _git_pull(root: Path, progress: Progress) -> None:
     git = shutil.which("git")
     if not git:
         raise UpdateError("This copy is a git clone, but git isn't installed: run git pull yourself.")
-    changed = subprocess.run([git, "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
-                             capture_output=True, text=True).stdout.strip()
-    if changed:
+    diff = subprocess.run([git, "-C", str(root), "diff", "HEAD", "--name-only", "-z"],
+                          capture_output=True, text=True, encoding="utf-8")
+    changed = [p for p in diff.stdout.split("\0") if p]
+    # Onboarding rewrites CLAUDE.md and AGENTS.md, which the kit ships as placeholders: they're set aside for the
+    # pull and put back after it. Any other file you changed stops the update.
+    yours = {p: (root / p).read_bytes() for p in changed if kept(p) and (root / p).is_file()}
+    if diff.returncode != 0 or any(p not in yours for p in changed):
         raise UpdateError("You've changed files in this copy (git status lists them). Commit or stash them, "
                           "then update again.")
-    res = subprocess.run([git, "-C", str(root), "pull", "--ff-only"], capture_output=True, text=True)
+    if yours:
+        subprocess.run([git, "-C", str(root), "checkout", "HEAD", "--", *yours], capture_output=True, text=True)
+    try:
+        res = subprocess.run([git, "-C", str(root), "pull", "--ff-only"], capture_output=True, text=True)
+    finally:
+        for p, data in yours.items():
+            (root / p).write_bytes(data)
     if res.returncode != 0:
         msg = (res.stderr or res.stdout).strip().splitlines()
         raise UpdateError(f"git pull didn't work ({msg[-1] if msg else 'no message'}).")

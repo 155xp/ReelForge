@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -102,6 +105,49 @@ class InstallTest(unittest.TestCase):
         update._write_marker(self.root, "1.0.0", "1.1.0")
         self.assertEqual(update.take_marker(self.root)["to"], "1.1.0")
         self.assertIsNone(update.take_marker(self.root))
+
+
+@unittest.skipUnless(shutil.which("git"), "needs git")
+class GitPullTest(unittest.TestCase):
+    """A git clone that onboarding has written its CLAUDE.md and AGENTS.md into still updates."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(tmp.cleanup)
+        self.dir = Path(tmp.name)
+        self.kit = self.dir / "kit"
+        self.kit.mkdir()
+        self.git(self.kit, "init", "-q")
+        self.commit({"CLAUDE.md": "placeholder\n", "AGENTS.md": "placeholder\n", "README.md": "1.0\n"})
+        self.git(self.dir, "clone", "-q", str(self.kit), "copy")
+        self.copy = self.dir / "copy"
+
+    def git(self, where: Path, *args: str) -> None:
+        env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+               "GIT_COMMITTER_EMAIL": "t@t"}
+        subprocess.run(["git", "-C", str(where), *args], check=True, capture_output=True, env=env)
+
+    def commit(self, files: dict[str, str]) -> None:
+        for rel, text in files.items():
+            (self.kit / rel).write_text(text, encoding="utf-8")
+        self.git(self.kit, "add", "-A")
+        self.git(self.kit, "commit", "-q", "-m", "kit")
+
+    def test_onboarded_files_are_kept(self):
+        (self.copy / "CLAUDE.md").write_text("my channel\n", encoding="utf-8")
+        (self.copy / "AGENTS.md").write_text("my channel\n", encoding="utf-8")
+        self.commit({"README.md": "1.1\n", "CLAUDE.md": "new placeholder\n"})
+        update._git_pull(self.copy, lambda *a: None)
+        self.assertEqual((self.copy / "README.md").read_text(encoding="utf-8"), "1.1\n")
+        self.assertEqual((self.copy / "CLAUDE.md").read_text(encoding="utf-8"), "my channel\n")
+        self.assertEqual((self.copy / "AGENTS.md").read_text(encoding="utf-8"), "my channel\n")
+
+    def test_other_changes_stop_it(self):
+        (self.copy / "README.md").write_text("edited\n", encoding="utf-8")
+        self.commit({"README.md": "1.1\n"})
+        with self.assertRaises(update.UpdateError):
+            update._git_pull(self.copy, lambda *a: None)
+        self.assertEqual((self.copy / "README.md").read_text(encoding="utf-8"), "edited\n")
 
 
 if __name__ == "__main__":
