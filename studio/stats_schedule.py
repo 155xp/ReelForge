@@ -69,10 +69,10 @@ def status() -> str:
 def enable(minutes: int = 60) -> str:
     """Start (or restart) the hourly job. Returns a sentence saying what happened."""
     py, script = _python(), _refresh_script()
-    if not py.exists() or not script.exists():
-        return "Background stats need setup to have finished first (run setup again)."
     if _dry():
         return f"(dry run) would run {script.name} every {minutes} minutes"
+    if not py.exists() or not script.exists():
+        return "Background stats need setup to have finished first (run setup again)."
     if P.WINDOWS:
         ps = f"""
 $a = New-ScheduledTaskAction -Execute {_q(py)} -Argument {_q('"' + str(script) + '"')} -WorkingDirectory {_q(P.DASHBOARD)}
