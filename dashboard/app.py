@@ -134,6 +134,8 @@ class ReelForge(App):
         self.hidden_lines: set[str] = set()  # platforms switched off in the chart keys
         self.hidden_curves: set[str] = set()  # "this" / "typical" switched off in the video chart
         self.trend_state: dict[str, tuple] = {}  # metric -> (frame, series, summary)
+        # metric -> (frame, series) as drawn: a narrow chart combines buckets so its bars keep their gaps
+        self.trend_views: dict[str, tuple] = {}
         self.detail_state: tuple | None = None  # (post, span, series) for the Videos chart
         self.compare_state: dict[str, tuple] = {}  # platform -> (title, series) for the Compare charts
 
@@ -469,7 +471,7 @@ class ReelForge(App):
     def update_cards(self) -> None:
         """The All platforms card and one per platform: totals, 24-hour change, and views per hour."""
         fr = trends.frame("24h", analytics.now())
-        caption = "views per hour · last 24h"
+        captions = ("views per hour · last 24h", "views per hour", "views/h")  # the first that fits
         sums: list[float | None] = [None] * fr.n
         totals: dict[str, list] = {f: [] for f in METRICS}
         changes: dict[str, list] = {f: [] for f in METRICS}
@@ -481,7 +483,7 @@ class ReelForge(App):
             for i, g in enumerate(gains):
                 if g is not None:
                     sums[i] = (sums[i] or 0) + g
-            self.query_one(f"#card-{p.key}", PlatformCard).show(latest, change, _from_first(gains), caption)
+            self.query_one(f"#card-{p.key}", PlatformCard).show(latest, change, _from_first(gains), captions)
             for f in METRICS:
                 if latest is not None and latest[f] is not None:
                     totals[f].append(latest[f])
@@ -490,7 +492,7 @@ class ReelForge(App):
         self.query_one("#card-total", TotalCard).show(
             {f: sum(v) if v else None for f, v in totals.items()},
             {f: sum(v) if v else None for f, v in changes.items()},
-            _from_first(sums), sum(1 for k in self.platforms if k in self.latest), caption)
+            _from_first(sums), sum(1 for k in self.platforms if k in self.latest), captions)
 
     def update_trends(self) -> None:
         fr = trends.frame(self.range, analytics.now())
@@ -507,43 +509,63 @@ class ReelForge(App):
 
         self.query_one("#trends-bar", ActionText).set_parts(parts)
         visible = [p for p in self.platforms.values() if p.key not in self.hidden_lines]
-        marks = self.post_marks(fr)
         for metric in METRICS:
-            self.draw_metric(metric, fr, visible, marks)
+            self.draw_metric(metric, fr, visible)
 
-    def draw_metric(self, metric: str, fr: trends.Frame, visible: list[Platform], marks: list[charts.Mark]) -> None:
-        """Bars of what each platform gained per bucket, stacked; the title carries the total."""
+    def chart_series(self, pts: dict, visible: list[Platform], fr: trends.Frame) -> list[charts.Series]:
+        """Each platform's gains per bucket of the frame, stacked in platform order; the last bucket is still filling
+        up, so it's drawn dimmer."""
+        series = []
+        for p in visible:
+            if p.key in pts:
+                b = trends.bucket(pts[p.key], fr)
+                faint = [i == fr.n - 1 for i in range(fr.n)]
+                series.append(charts.Series(p.key, p.name, p.color, values=b.gains, faint=faint))
+        return series
+
+    def draw_metric(self, metric: str, fr: trends.Frame, visible: list[Platform]) -> None:
+        """Bars of what each platform gained per bucket, stacked; the title carries the total. A chart too narrow for
+        a bar per bucket combines buckets (2 hours, 3 hours ...) so every bar keeps its columns and a gap
+        (trends.frame_fit)."""
         panel = self.query_one(f"#{metric}-chart", ChartPanel)
         pts = {p.key: trends.points(self.account_rows.get(p.key, []), metric) for p in visible}
         pts = {k: v for k, v in pts.items() if v}
         if not pts:
             self.trend_state.pop(metric, None)
+            self.trend_views.pop(metric, None)
             panel.set_title(Text(metric.upper(), style="bold"))
             panel.show_empty("Every platform is hidden: click a name above to show it again." if not visible
                              else None)
             return
-        per = {k: trends.bucket(v, fr) for k, v in pts.items()}
-        series = []
-        for p in visible:
-            if p.key in per:
-                b = per[p.key]
-                faint = [i == fr.n - 1 for i in range(fr.n)]          # the hour still filling up
-                series.append(charts.Series(p.key, p.name, p.color, values=b.gains, faint=faint))
+        series = self.chart_series(pts, visible, fr)
         self.trend_state[metric] = (fr, series, trends.summarise(pts, fr))
-        panel.set_title(self.metric_title(metric, panel.plot.hover))
+        self.trend_views[metric] = (fr, series)
+        drawn: dict = {}  # step -> (frame, series, marks), worked out once per size the chart is drawn at
 
         def draw(w: int, h: int, hover: int | None):
-            return charts.bars(series, fr.n, w, h, _clock(fr), marks, hover)
+            view = trends.frame_fit(self.range, w - 8, fr.now)  # 8: room for the y labels and axis
+            if view.step not in drawn:
+                v_series = series if view.step == fr.step else self.chart_series(pts, visible, view)
+                drawn[view.step] = (view, v_series, self.post_marks(view))
+            view, v_series, marks = drawn[view.step]
+            if self.trend_views.get(metric, (None,))[0] is not view:
+                self.trend_views[metric] = (view, v_series)
+                self.call_later(lambda: panel.set_title(self.metric_title(metric, panel.plot.hover)))
+            return charts.bars(v_series, view.n, w, h, _clock(view), marks, hover)
 
+        panel.set_title(self.metric_title(metric, panel.plot.hover))
         panel.draw(draw, fr.n)
 
     def metric_title(self, metric: str, slot: int | None = None) -> list[tuple[Text, int]]:
-        """The chart's title as (text, importance) parts: the numbers that matter, or the hovered bar's."""
-        fr, series, s = self.trend_state[metric]
+        """The chart's title as (text, importance) parts: the numbers that matter, or the hovered bar's (the bars
+        as drawn, which may each be several buckets combined)."""
+        own, _, s = self.trend_state[metric]
+        fr, series = self.trend_views.get(metric) or self.trend_state[metric][:2]
         span = trends.RANGES[self.range][0].lower()
         parts = [(Text(f"{metric.upper()}  ", style="bold"), 0)]
         if slot is not None and 0 <= slot < fr.n:
-            parts.append((Text(_slot_label(fr, slot) + "  ", style=f"bold {charts.MARK}"), 0))
+            # On a narrow chart the hovered bar's numbers matter more than the chart's name.
+            parts = [(parts[0][0], 2), (Text(_slot_label(fr, slot) + "  ", style=f"bold {charts.MARK}"), 0)]
             vals = [(x, x.values[slot]) for x in series if slot < len(x.values) and x.values[slot] is not None]
             if not vals:
                 parts.append((Text("no readings yet", style=MUTED), 0))
@@ -552,22 +574,25 @@ class ReelForge(App):
             for x, v in vals:
                 parts.append((Text(f"{SHORT.get(x.key, x.key)} {fmt_num(v)}  ", style=x.color), 1))
             if slot == fr.n - 1:
-                parts.append((Text("so far", style=MUTED), 2))
+                parts.append((Text("so far", style=MUTED), 3))
             return parts
-        unit = {"h": "per hour", "day": "per day"}.get(fr.unit(), f"per {fr.unit()}")
+        unit = {"h": "per hour", "day": "per day"}.get(fr.unit(), f"per {fr.unit()}")  # as drawn
         parts.append((Text(unit + "   ", style=MUTED), 5))
         if s.latest is not None:
             parts.append((Text.assemble((fmt_num(s.latest), "bold"), (" total   ", MUTED)), 0))
         if s.gained:
             parts.append((Text.assemble(change_text(s.gained), (f" in {span}   ", MUTED)), 1))
-        if s.pace is not None and fr.hourly:
+        if s.pace is not None and own.hourly:
             parts.append((Text(f"now {fmt_num(s.pace)}/h   ", style=MUTED), 2))
         if s.change is not None:
             up = s.change >= 0
             parts.append((Text(f"{'▲' if up else '▼'} {abs(s.change) * 100:.0f}% vs the {span} before   ",
                                style=GOOD if up else BAD), 3))
-        if s.best:
-            parts.append((Text(f"best {fmt_num(s.best)} {_when(fr, s.best_at)}", style=MUTED), 4))
+        drawn = [(sum(vals), i) for i in range(fr.n)
+                 if (vals := [x.values[i] for x in series if i < len(x.values) and x.values[i] is not None])]
+        if drawn and max(drawn)[0] > 0:  # the tallest bar, as drawn
+            best, i = max(drawn)
+            parts.append((Text(f"best {fmt_num(best)} {_when(fr, i)}", style=MUTED), 4))
         return parts
 
     def post_marks(self, fr: trends.Frame) -> list[charts.Mark]:
@@ -1778,19 +1803,36 @@ def _clock(fr: trends.Frame):
     return lambda pw: charts.clock_labels(fr.starts, pw, fr.step.total_seconds() / 3600)
 
 
+def _hours(a: datetime, b: datetime) -> str:
+    """A bucket's hours: 6–8 PM, 10 AM–2 PM."""
+    start, end = fmt_clock(a).replace(":00", ""), fmt_clock(b).replace(":00", "")
+    return f"{start[:-3]}–{end}" if start[-2:] == end[-2:] else f"{start}–{end}"
+
+
+def _days(a: datetime, b: datetime) -> str:
+    """A bucket's days: Oct 20, or Oct 20–22 when it's several days combined."""
+    last = (b - timedelta(hours=12)).date()  # the bucket's last day (b is the midnight after it)
+    if last <= a.date():
+        return f"{a:%b} {a.day}"
+    return f"{a:%b} {a.day}–" + (f"{last.day}" if last.month == a.month else f"{last:%b} {last.day}")
+
+
 def _slot_label(fr: trends.Frame, i: int) -> str:
+    """The hovered bar: Fri 7 PM, Fri 6–8 PM, Fri Oct 24, Oct 20–22."""
     a, b = fr.starts[i], fr.ends[i]
     if fr.daily:
-        return f"{a:%a} {a:%b} {a.day}"
+        days = _days(a, b)
+        return days if "–" in days else f"{a:%a} {days}"
     if fr.hourly:
         return f"{a:%a} {fmt_clock(a).replace(':00', '')}"
-    return f"{a:%a} {fmt_clock(a).replace(':00', '')}–{fmt_clock(b).replace(':00', '')}"
+    return f"{a:%a} {_hours(a, b)}"
 
 
-def _when(fr: trends.Frame, t: datetime | None) -> str:
-    if t is None:
-        return ""
+def _when(fr: trends.Frame, i: int) -> str:
+    """When bucket i was, after a number: at 8 PM (Fri), 6–8 PM (Fri), on Oct 20, Oct 20–22."""
+    a, b = fr.starts[i], fr.ends[i]
     if fr.daily:
-        return f"on {t:%b} {t.day}"
-    same_day = t.date() == fr.now.date()
-    return f"at {fmt_clock(t).replace(':00', '')}" + ("" if same_day else f" {t:%a}")
+        days = _days(a, b)
+        return days if "–" in days else f"on {days}"
+    day = "" if a.date() == fr.now.date() else f" {a:%a}"
+    return (f"at {fmt_clock(a).replace(':00', '')}" if fr.hourly else _hours(a, b)) + day

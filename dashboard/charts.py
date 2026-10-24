@@ -1,9 +1,11 @@
 """Charts drawn in text: stacked bars and lines, with round-number axes, event marks and a hover read-out.
 
-Bars use the eighth blocks (▁▂▃▄▅▆▇) so their tops land within 1/8 of a row, and full cells are drawn as
-background colour, which Windows Terminal (and screenshots) show without seams. Lines use thin box-drawing
-strokes; running totals can be drawn as a filled area with a smooth top edge instead. The x axis is in "slots"
-(buckets of time, or hours since posting).
+Bars are all the same width with a one-column gap between them (a caller too narrow for that combines buckets
+first: trends.frame_fit). A stacked bar is drawn in whole cells of background colour, which Windows Terminal (and
+screenshots) show without seams: each cell takes the colour of the platform that fills most of it, so no thin
+slivers or lines appear inside a stack, and only the top cell uses an eighth block (▁▂▃▄▅▆▇) so the bar's height
+lands within 1/8 of a row. Lines use thin box-drawing strokes; running totals can be drawn as a filled area with a
+smooth top edge instead. The x axis is in "slots" (buckets of time, or hours since posting).
 """
 
 from __future__ import annotations
@@ -177,6 +179,7 @@ class Layout:
     per: float = 1.0  # columns per slot
     first: int = 0  # the first slot drawn (bars show only the newest slots when there are more than columns)
     slots: int = 0  # how many slots are drawn
+    bar: int = 0  # bar charts: how many columns wide each bar is (the rest of its slot is the gap after it)
 
     def height(self, v: float) -> float:
         """v as a height above the plot bottom, in rows (0..ph)."""
@@ -191,6 +194,14 @@ class Layout:
         j = slot - self.first
         c0 = int(j * self.per)
         return range(c0, max(int((j + 1) * self.per), c0 + 1))
+
+    def col(self, x: float) -> int:
+        """The plot column of x (in slots). On a bar chart it's a column of x's own bar, never the gap after it,
+        so a mark or an axis label lands on the bar it belongs to."""
+        if not self.bar:
+            return int((x - self.first) * self.per)
+        j = math.floor(x)
+        return self.columns(j).start + min(int((x - j) * self.bar), self.bar - 1)
 
     def slot_at(self, c: int) -> int | None:
         """The slot drawn in plot column c: the exact inverse of columns()."""
@@ -226,10 +237,11 @@ def _layout(w: int, h: int, lo: float, hi: float, whole: bool, xaxis: bool) -> L
 
 
 def _place(lay: Layout, slots: float, newest_first: bool = False) -> None:
-    """Map slots to columns; bars that wouldn't each get a column keep only the newest slots."""
+    """Map slots to columns; bars that wouldn't each get a column and a gap keep only the newest slots that do."""
     n = int(math.ceil(slots))
-    if newest_first and n > lay.pw:
-        lay.first, lay.slots, lay.per = n - lay.pw, lay.pw, 1.0
+    if newest_first and n * 2 > lay.pw:
+        keep = max(lay.pw // 2, 1)
+        lay.first, lay.slots, lay.per = n - keep, keep, lay.pw / keep
     else:
         lay.first, lay.slots, lay.per = 0, n, lay.pw / max(slots, 1e-9)
 
@@ -255,7 +267,7 @@ def _frame(canvas: Canvas, lay: Layout, xlabels, xaxis: bool) -> list[Text]:
     if xaxis:
         axis, under, free = ["─"] * lay.pw, [" "] * lay.pw, 0
         for x, label in xlabels:
-            c = int((x - lay.first) * lay.per)
+            c = lay.col(x)
             if not 0 <= c < lay.pw:
                 continue
             axis[c] = "┬"
@@ -292,96 +304,134 @@ def _label(text: str, width: int = 28) -> str:
 def _marks(canvas: Canvas, lay: Layout, marks: list[Mark]) -> None:
     """Dotted lines where videos went up (through empty cells only), each labelled along the top row.
 
-    Marks that land within a couple of columns of each other share one line and one label. A label that doesn't
-    fit is shortened (down to a few letters); a mark with no room to say which video it is is left out, so there is
-    never an arrow that doesn't say what it points at.
+    Marks that land within a couple of columns of each other share one line and one label. A label reads to the
+    right of its mark, or to the left when there's no room on the right. When the labels don't all fit, they're all
+    shortened alike (down to three letters and "…") until every mark has one; a mark with no room even then is left
+    out, so there is never an arrow that doesn't say what it points at.
     """
     groups: list[tuple[int, list[str]]] = []
     for m in sorted(marks, key=lambda m: m.x):
-        c = int((m.x - lay.first) * lay.per)
+        c = lay.col(m.x)
         if not 0 <= c < lay.pw:
             continue  # outside what's drawn
         if groups and c - groups[-1][0] <= 2:
             groups[-1][1].append(_label(m.label))
         else:
             groups.append((c, [_label(m.label)]))
-    free = 0
-    for c, labels in groups:
-        text = " + ".join(label for label in labels if label)
-        placed = None
-        tries = [text] + [text[:keep - 1].rstrip() + "…" for keep in range(len(text) - 1, 3, -1)] if text else []
-        for short in tries:  # the whole label, then shorter, down to four characters
-            # It reads to the right of its mark, or to the left of it when there's no room on the right.
-            for label, first in (("▼ " + short, c), (short + " ▼", c - len(short) - 1)):
-                if first >= free and first + len(label) <= lay.pw and \
-                        all(canvas.blank(0, k) for k in range(first, first + len(label))):
-                    placed = (label, first)
-                    break
-            if placed:
-                break
-        if placed is None:
+    if not groups:
+        return
+    texts = [" + ".join(label for label in labels if label) for _, labels in groups]
+    blank = [canvas.blank(0, k) for k in range(lay.pw)]
+
+    def place(caps: list[int]) -> list[tuple[str, int] | None]:
+        """Left to right, each label as long as its cap and the room allow: [(label, first column)] or None."""
+        out, end = [], None  # end: the column just after the last label
+        for (c, _), text, cap in zip(groups, texts, caps):
+            # A label reading right starts one column after the last one; one reading left (ending in its arrow)
+            # keeps three columns away, so two labels never run together as if they were one.
+            after_r, after_l = (0, 0) if end is None else (end + 1, end + 3)
+            right = left = 0  # blank columns from the mark rightwards, and leftwards
+            while c >= after_r and c + right < lay.pw and blank[c + right]:
+                right += 1
+            while c - left >= after_l and blank[c - left]:
+                left += 1
+            room_r, room_l = min(cap, len(text), right - 2), min(cap, len(text), left - 2)
+            keep = max(room_r, room_l)
+            if not text or keep < min(4, len(text)):
+                out.append(None)
+                continue
+            short = text if keep >= len(text) else text[:keep - 1].rstrip() + "…"
+            spot = ("▼ " + short, c) if room_r >= keep else (short + " ▼", c - len(short) - 1)
+            out.append(spot)
+            end = spot[1] + len(spot[0])
+        return out
+
+    longest = max(len(t) for t in texts)
+    best = place([longest] * len(texts))
+    for cap in range(longest - 1, 3, -1):  # too crowded: shorten them all alike (the last one can use what's left)
+        if all(best):
+            break
+        trial = place([cap] * (len(texts) - 1) + [longest])
+        if sum(map(bool, trial)) > sum(map(bool, best)):
+            best = trial
+    for (c, _), spot in zip(groups, best):
+        if spot is None:
             continue
-        label, first = placed
+        label, first = spot
         for r in range(1, lay.ph):
             if canvas.blank(r, c):
                 canvas.put(r, c, "┊", blend(MARK, 0.5))
         for k, ch in enumerate(label):
             canvas.put(0, first + k, ch, MARK)
-        free = first + len(label) + 1
 
 
 def bars(series: list[Series], slots: int, w: int, h: int, xlabels=(), marks: list[Mark] = (),
          hover: int | None = None, xaxis: bool = True) -> tuple[list[Text], Layout]:
-    """Stacked bars, one per slot, series stacked bottom-up in the order given."""
+    """Stacked bars, one per slot, series stacked bottom-up in the order given. Every bar is the same width with at
+    least a one-column gap after it; a chart too narrow even for that shows only its newest bars."""
     xaxis = xaxis and h >= 5
     totals = [sum(v for s in series if i < len(s.values) and (v := s.values[i]) and math.isfinite(v))
               for i in range(slots)]
-    lay = _layout(w, h, 0, max(totals, default=0) or 1, True, xaxis)
+    peak = max(totals, default=0) or 1
+    if marks:  # keep the top row clear of bars, so the marks' labels have somewhere to go
+        rows = max(h - (2 if xaxis else 0), 2)
+        peak *= rows / (rows - 1)
+    lay = _layout(w, h, 0, peak, True, xaxis)
     _place(lay, slots, newest_first=True)
     canvas = Canvas(lay.pw, lay.ph)
     _hover(canvas, lay, hover)
     _grid(canvas, lay)
-    gap = 1 if lay.per >= 3 else 0
+    gap = 1 if lay.per >= 2 else 0
+    lay.bar = max(int(lay.per) - gap, 1)
     for i in range(lay.first, lay.first + lay.slots):
-        cols = lay.columns(i)
-        cols = range(cols.start, max(cols.stop - gap, cols.start + 1))
-        edges, colors = [0.0], []
+        c0 = lay.columns(i).start
+        cols = range(c0, min(c0 + lay.bar, lay.pw))
+        segments, top = [], 0.0  # (bottom, top, colour) in eighths of a row
         for s in series:
             v = s.values[i] if i < len(s.values) else None
             if not v or not math.isfinite(v):
                 continue
             faint = i < len(s.faint) and s.faint[i]
-            edges.append(edges[-1] + lay.height(v) * 8)
-            colors.append(blend(s.color, 0.55) if faint else s.color)
-        for k in range(lay.ph):  # k: rows up from the bottom
-            lo8 = k * 8
-            parts = [(max(a, lo8) - lo8, min(b, lo8 + 8) - lo8, col)
-                     for (a, b), col in zip(zip(edges, edges[1:]), colors) if min(b, lo8 + 8) > max(a, lo8)]
-            if not parts:
-                continue
-            r = lay.ph - 1 - k
-            top = parts[-1][1]
-            if top < 7.5:
-                # The stack ends in this cell: keep its height exact, in the colour that fills most of it.
-                n = int(round(top))
-                if n:
-                    fg = max(parts, key=lambda p: p[1] - p[0])[2]
-                    for c in cols:
-                        canvas.put(r, c, EIGHTHS[n], fg)
-                continue
-            lower = parts[0]
-            split = int(round(lower[1]))
-            upper = max(parts[1:], key=lambda p: p[1] - p[0])[2] if len(parts) > 1 else lower[2]
-            for c in cols:
-                if split >= 8 or upper == lower[2]:
-                    canvas.put(r, c, " ", None, lower[2])
-                elif split <= 0:
-                    canvas.put(r, c, " ", None, upper)
-                else:
-                    canvas.put(r, c, EIGHTHS[split], lower[2], upper)
+            segments.append((top, top + lay.height(v) * 8, blend(s.color, 0.55) if faint else s.color))
+            top = segments[-1][1]
+        _stack(canvas, lay, cols, segments)
     if marks:
         _marks(canvas, lay, list(marks))
     return _frame(canvas, lay, xlabels, xaxis), lay
+
+
+def _stack(canvas: Canvas, lay: Layout, cols: range, segments: list[tuple[float, float, str]]) -> None:
+    """One stacked bar. Each whole cell is the colour of the segment that fills most of it, so a boundary between
+    platforms lands on a cell edge and a platform too thin to see joins its neighbour (its number is still in the
+    hover read-out); only the top cell keeps 1/8-row precision, as an eighth block. That top piece takes the colour
+    of the cell under it unless one platform fills at least half a row of it, so it's never a thin line of another
+    colour."""
+    if not segments:
+        return
+    top = segments[-1][1]
+    eighths = int(round(top))
+    if eighths <= 0:
+        return
+
+    def colour(lo: float, hi: float) -> tuple[str, float]:
+        """The colour covering most of lo..hi (eighths of a row), and how much of it it covers."""
+        best, cover = segments[-1][2], 0.0
+        for a, b, col in segments:
+            if min(b, hi) - max(a, lo) > cover:
+                best, cover = col, min(b, hi) - max(a, lo)
+        return best, cover
+
+    full, rest = divmod(eighths, 8)
+    for k in range(min(full, lay.ph)):
+        col = colour(8 * k, 8 * k + 8)[0]
+        for c in cols:
+            canvas.put(lay.ph - 1 - k, c, " ", None, col)
+    if rest and full < lay.ph:
+        col, cover = colour(8 * full, top)
+        if full and cover < 4:
+            col = colour(8 * full - 8, 8 * full)[0]
+        for c in cols:
+            canvas.put(lay.ph - 1 - full, c, EIGHTHS[rest], col)
 
 
 def _hug(ys: list[float]) -> tuple[float, float]:
@@ -527,7 +577,7 @@ class Plot(Widget):
         self.refresh()
 
     def render(self) -> Text:
-        if not self.draw_fn or self.size.width < 16 or self.size.height < 4:
+        if not self.draw_fn or self.size.width < 10 or self.size.height < 4:
             self.layout_ = None
             return Text()
         rows, self.layout_ = self.draw_fn(self.size.width, self.size.height, self.hover)

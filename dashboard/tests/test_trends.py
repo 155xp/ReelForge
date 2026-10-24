@@ -172,5 +172,43 @@ class RegressionTest(unittest.TestCase):
         self.assertTrue(all(g is None for g in b.gains[-5:]))
 
 
+class FitTest(unittest.TestCase):
+    """Charts too narrow for a bar per bucket combine buckets, so every bar keeps a column and a gap."""
+
+    def test_buckets_combine_to_fit(self):
+        now = datetime(2026, 10, 24, 19, 30, tzinfo=UTC)
+        self.assertEqual(trends.frame_fit("24h", 200, now).n, 24)
+        # Thin hourly bars would fit in 60 columns, but bars of two hours, twice as wide, look cleaner.
+        self.assertEqual(trends.frame_fit("24h", 60, now).step, timedelta(hours=2))
+        for key in trends.RANGES:
+            for cols in (12, 20, 30, 40, 60, 90, 140):
+                fr = trends.frame_fit(key, cols, now)
+                if fr.step != trends.FIT_STEPS[key][-1]:
+                    self.assertLessEqual(fr.n * 2, cols, (key, cols))
+                # the buckets join up, the last one holds now, and nothing in the range is left out
+                self.assertTrue(all(b == a for a, b in zip(fr.ends, fr.starts[1:])))
+                self.assertIsNotNone(fr.index(now.astimezone()))
+                self.assertLessEqual(fr.starts[0], trends.frame(key, now).starts[0], (key, cols))
+                self.assertGreater(fr.ends[0], trends.frame(key, now).starts[0], (key, cols))
+
+    def test_combined_buckets_add_up(self):
+        now = datetime(2026, 10, 24, 19, 30, tzinfo=UTC)
+        pts = [(now - timedelta(hours=30 - h), 100.0 * h) for h in range(31)]  # read every hour, 100 an hour
+        fr = trends.frame_fit("24h", 40, now)
+        self.assertEqual(fr.step, timedelta(hours=2))
+        two = trends.bucket(pts, fr)
+        self.assertEqual(two.gains.count(None), 0)
+        hours = (now - fr.starts[0]).total_seconds() / 3600
+        self.assertAlmostEqual(sum(two.gains), 100 * hours, delta=1e-6)  # everything from the first bar on
+        self.assertTrue(all(abs(g - 200) < 1e-6 for g in two.gains[:-1]))  # two hours a bar
+
+    def test_multi_day_buckets(self):
+        now = datetime(2026, 10, 24, 19, 30, tzinfo=UTC)
+        fr = trends.frame_span(timedelta(days=30), timedelta(days=2), now)
+        self.assertEqual(fr.n, 15)
+        self.assertEqual(fr.unit(), "2 days")
+        self.assertEqual((fr.ends[-1] - fr.starts[-1]).days, 2)
+
+
 if __name__ == "__main__":
     unittest.main()

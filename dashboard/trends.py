@@ -25,6 +25,14 @@ RANGES = {
     "7d": ("7D", timedelta(days=7), timedelta(hours=6)),
     "30d": ("30D", timedelta(days=30), timedelta(days=1)),
 }
+# Bucket sizes a chart falls back to when it's too narrow for a bar per bucket (every bar needs a column and a
+# one-column gap): the range's own size first, then neighbouring buckets combined, coarsest last.
+FIT_STEPS = {
+    "24h": [timedelta(hours=h) for h in (1, 2, 3, 4, 6, 8, 12)],
+    "48h": [timedelta(hours=h) for h in (1, 2, 3, 4, 6, 8, 12, 24)],
+    "7d": [timedelta(hours=h) for h in (6, 12, 24)],
+    "30d": [timedelta(days=d) for d in (1, 2, 3, 5, 6, 10)],
+}
 # Readings further apart than this (or than one bucket, whichever is longer) leave a gap: no bar is drawn for it.
 GAP = timedelta(minutes=95)
 STALE = timedelta(hours=2)  # a platform not read for this long doesn't count towards "now X/h"
@@ -54,9 +62,12 @@ class Frame:
         return self.step >= timedelta(days=1)
 
     def unit(self) -> str:
-        """What one bucket is, for labels: "h", "6h" or "day"."""
+        """What one bucket is, for labels: "h", "6h", "day" or "2 days"."""
+        if self.daily:
+            days = round(self.step / timedelta(days=1))
+            return "day" if days == 1 else f"{days} days"
         hours = round(self.step.total_seconds() / 3600)
-        return "day" if self.daily else "h" if hours == 1 else f"{hours}h"
+        return "h" if hours == 1 else f"{hours}h"
 
     def index(self, t: datetime) -> int | None:
         """The bucket a moment falls in, or None if it's outside the frame."""
@@ -79,13 +90,30 @@ def frame_since(start: datetime, now: datetime | None = None) -> Frame:
     return frame_span(step * max(math.ceil(age / step) + 1, 2), step, now)
 
 
+def frame_fit(key: str, columns: int, now: datetime | None = None) -> Frame:
+    """The range's frame with buckets wide enough for its bars in `columns` columns: the finest bucket size that
+    gives every bar two columns and a gap, or failing that one column and a gap (thin bars with gaps of one or two
+    columns look ragged), combining 2, 3, 4 ... of the range's own buckets into one. Combined buckets start at round
+    times, so the first one starts at or before the range's own first bucket: nothing in the range is left out."""
+    _, span, own = RANGES[key]
+    first = frame_span(span, own, now).starts[0]
+    frames = []
+    for step in FIT_STEPS[key]:
+        fr = frame_span(span + step, step, now)
+        keep = next(i for i in range(fr.n) if fr.ends[i] > first)
+        frames.append(Frame(fr.starts[keep:], fr.ends[keep:], fr.now, step))
+    return next((fr for per in (3, 2) for fr in frames if fr.n * per <= columns), frames[-1])
+
+
 def frame_span(span: timedelta, step: timedelta, now: datetime | None = None) -> Frame:
     now = (now or analytics.now()).astimezone()
     n = max(round(span / step), 1)
     if step >= timedelta(days=1):
-        # Whole local days, built from dates so each midnight gets its own daylight-saving offset.
+        # Whole local days, built from dates so each midnight gets its own daylight-saving offset. Buckets of k days
+        # end with the one that holds today.
+        k = max(round(step / timedelta(days=1)), 1)
         today = now.date()
-        days = [today - timedelta(days=n - 1 - i) for i in range(n + 1)]
+        days = [today + timedelta(days=1 - k * (n - j)) for j in range(n + 1)]
         bounds = [datetime.combine(d, time()).astimezone() for d in days]
     elif step == timedelta(hours=1):
         # Hours are counted on the UTC clock, so a daylight-saving change never makes a 2-hour or 0-hour bucket.

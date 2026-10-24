@@ -3,6 +3,7 @@ platform cards and account panels."""
 
 from __future__ import annotations
 
+from rich.cells import cell_len
 from rich.style import Style
 from rich.text import Text
 from textual import events
@@ -72,13 +73,12 @@ def chips(*items, gap: str = " ") -> Text:
 
 
 def fit(parts: list[tuple[Text, int]], width: int) -> Text:
-    """Join title parts, leaving out the least important (highest number) ones until it fits `width`."""
+    """Join title parts, leaving out the least important (highest number) ones until it fits `width`. If even the
+    ones that always show (0) don't fit, the last of them go too, so nothing is cut off halfway (a number, a button);
+    only a first part wider than everything is cut."""
     keep = list(parts)
     while len(keep) > 1 and sum(t.cell_len for t, _ in keep) > width:
-        worst = max(range(len(keep)), key=lambda i: (keep[i][1], i))
-        if keep[worst][1] == 0:
-            break
-        keep.pop(worst)
+        keep.pop(max(range(len(keep)), key=lambda i: (keep[i][1], i)))
     out = Text()
     for t, _ in keep:
         out.append_text(t)
@@ -120,6 +120,70 @@ def score_text(score: float | None) -> Text:
 
 def num(n, style: str = "") -> Text:
     return Text(fmt_num(n), style=style, justify="right")
+
+
+def short_num(n: float | None) -> str:
+    """A number in as few characters as it reads in: 13K, 9.4K, 1K, 1.2M (fmt_num keeps more digits)."""
+    if n is None:
+        return "—"
+    if abs(n) >= 999_500:
+        v, suffix = n / 1_000_000, "M"
+    elif abs(n) >= 999.5:
+        v, suffix = n / 1_000, "K"
+    else:
+        return f"{n:.0f}"
+    return (f"{v:.0f}" if abs(v) >= 9.95 else f"{v:.1f}".rstrip("0").rstrip(".")) + suffix
+
+
+CARD_LABELS = ("followers", "views", "likes")
+
+
+def card_lines(values: dict, changes: dict, width: int) -> list[Text]:
+    """A card's followers, views and likes, each with its 24-hour change, made to fit the width without cutting
+    anything off. As the card narrows, the margin goes first, then the " 24h" after each change, then the changes
+    get shorter (+1.03K -> +1K), then the totals (12.9K -> 13K), then the lining up, then the changes, then the
+    labels."""
+
+    def build(value_fmt, change_fmt, suffix: str, margin: int | None, aligned: bool,
+              labels: bool = True) -> list[Text]:
+        shown = {k: value_fmt(values.get(k)) for k in CARD_LABELS}
+        number_w = 0 if margin is None else max(len(s) for s in shown.values()) + margin  # None: not lined up
+        lines = []
+        for k in CARD_LABELS:
+            line = Text(f"{shown[k]:>{number_w}}", style="bold")
+            if labels:
+                line.append(" " + (f"{k:<9}" if aligned else k), style=MUTED)
+            n = changes.get(k) if change_fmt else None
+            if n:
+                sign = "+" if n > 0 else "−"
+                line.append(f" {sign}{change_fmt(abs(n))}{suffix}", style=GOOD if n > 0 else BAD)
+            lines.append(line)
+        return lines
+
+    for step in ((fmt_num, fmt_num, " 24h", 2, True), (fmt_num, fmt_num, " 24h", 0, True),
+                 (fmt_num, fmt_num, "", 0, True), (fmt_num, short_num, "", 0, True),
+                 (short_num, short_num, "", 0, True), (short_num, short_num, "", 0, False),
+                 (short_num, short_num, "", None, False), (short_num, None, "", 0, True),
+                 (short_num, None, "", None, False)):
+        lines = build(*step)
+        if all(line.cell_len <= width for line in lines):
+            return lines
+    return [line if line.cell_len <= width else Text() for line in build(short_num, None, "", 0, False, False)]
+
+
+def wrap_lines(text: Text, width: int) -> list[Text]:
+    """Each line of the text, wrapped at spaces to fit the width (a word too long for it is left out)."""
+    out = []
+    for line in text.split("\n"):
+        while line.cell_len > width:
+            cut = line.plain.rfind(" ", 0, width + 1)
+            if cut <= 0:
+                break
+            out.append(line[:cut])
+            line = line[cut + 1:]
+        if line.cell_len <= width:
+            out.append(line)
+    return out
 
 
 def change_text(n: float | None, suffix: str = "") -> Text:
@@ -267,9 +331,12 @@ class Bars(Widget):
             top = max((v for _, v, _, _ in rows), default=0) or 1
             for label, value, color, shown in rows:
                 n = max(value, 0) / top * bar_w
-                bar = "█" * int(n) + (EIGHTHS[int((n % 1) * 8)] if (n % 1) * 8 >= 1 else "")
+                # Whole cells in background colour (no seams between them, in a terminal or a screenshot), then
+                # the last eighth-wide piece.
+                part = EIGHTHS[int((n % 1) * 8)] if (n % 1) * 8 >= 1 else ""
                 out.append(f"{label:<{label_w}}", style=color)
-                out.append(bar.ljust(bar_w), style=color)
+                out.append(" " * int(n), style=Style(bgcolor=color))
+                out.append(part.ljust(bar_w - int(n)), style=color)
                 out.append(f" {shown}\n")
             out.append("\n")
         return out
@@ -291,46 +358,56 @@ class _Card(Vertical):
         self.styles.border = ("round", self.color)
         self.styles.border_title_color = self.color
 
-    def numbers(self, values: dict, changes: dict) -> None:
-        """Three lines that never wrap: the " 24h" after each change goes when the card is too narrow for it."""
-        self._numbers = (values, changes)
-        width = self.query_one(".card-body", Static).content_region.width or 1000
-        shown = {label: fmt_num(values.get(label)) for label in ("followers", "views", "likes")}
-        number_w = max(len(s) for s in shown.values()) + (2 if width >= 28 else 0)
-        lines = []
-        for label in ("followers", "views", "likes"):
-            line = Text(f"{shown[label]:>{number_w}} ", style="bold")
-            line.append(f"{label:<10}", style=MUTED)
-            change = change_text(changes.get(label), " 24h")
-            if line.cell_len + change.cell_len > width:
-                change = change_text(changes.get(label))
-            line.append_text(change)
-            lines.append(line)
-        self.query_one(".card-body", Static).update(Text("\n").join(lines))
+    _body = None  # the width -> lines the card shows
+    _captions: tuple[str, ...] = ()
+    _titles: tuple[str, ...] = ()  # the name on the border, then shorter ones for a narrow card
 
-    def on_resize(self) -> None:
-        if getattr(self, "_numbers", None):
-            self.numbers(*self._numbers)
+    def numbers(self, values: dict, changes: dict) -> None:
+        self._body = lambda width: card_lines(values, changes, width)
+        self.fit()
 
     def message(self, text: Text) -> None:
-        self._numbers = None
-        self.query_one(".card-body", Static).update(text)
+        self._body = lambda width: wrap_lines(text, width)
+        self.fit()
 
-    def spark(self, gains: list[float], caption: str) -> None:
+    def spark(self, gains: list[float], captions: tuple[str, ...] = ()) -> None:
+        """Views per hour, with the first of the captions that fits under it."""
         spark = self.query_one(Sparkline)
         # A sparkline of all zeros draws as solid blocks, so only show it once views are coming in.
         spark.display = any(gains)
         spark.data = gains or [0]
-        self.query_one(".card-caption", Static).update(Text(caption if any(gains) else "", style=MUTED))
+        self._captions = captions if any(gains) else ()
+        self.fit()
+
+    def fit(self) -> None:
+        """Nothing on a card is ever cut off: its lines get shorter as the card narrows (worked out from the card's
+        own width, which is known before its lines' is)."""
+        width = self.outer_size.width  # the whole card, border and all
+        if not width:
+            return  # not laid out yet; on_resize fits it
+        pad = 0 if width < 18 else 1  # a narrow card gives its padding to the numbers
+        if self.styles.padding.left != pad:
+            self.styles.padding = (0, pad)
+        inner = max(width - 2 - 2 * pad, 0)  # inside the border and the padding
+        if self._titles:
+            self.border_title = next((t for t in self._titles if len(t) + 6 <= width), self._titles[-1])
+        if self._body:
+            self.query_one(".card-body", Static).update(Text("\n").join(self._body(inner)))
+        caption = next((c for c in self._captions if cell_len(c) <= inner), "")
+        self.query_one(".card-caption", Static).update(Text(caption, style=MUTED))
+
+    def on_resize(self) -> None:
+        self.fit()
 
 
 class PlatformCard(_Card):
     def __init__(self, platform: Platform):
         super().__init__(platform.color, id=f"card-{platform.key}")
         self.platform = platform
+        self._titles = (platform.name, SHORT.get(platform.key, platform.name))
         self.border_title = platform.name
 
-    def show(self, latest, changes: dict, gains: list[float], caption: str = "") -> None:
+    def show(self, latest, changes: dict, gains: list[float], captions: tuple[str, ...] = ()) -> None:
         p = self.platform
         if latest is not None:
             self.numbers(dict(latest), changes)
@@ -339,7 +416,7 @@ class PlatformCard(_Card):
             self.message(Text.assemble(("not tracking yet\n", MUTED), ("Accounts tab: ", MUTED), (how, "bold")))
         else:
             self.message(Text("waiting for the first refresh", style=MUTED))
-        self.spark(gains, caption)
+        self.spark(gains, captions)
 
 
 class TotalCard(_Card):
@@ -347,14 +424,16 @@ class TotalCard(_Card):
 
     def __init__(self):
         super().__init__(GOOD, id="card-total")
+        self._titles = ("All platforms", "All")
         self.border_title = "All platforms"
 
-    def show(self, totals: dict, changes: dict, gains: list[float], tracked: int, caption: str = "") -> None:
+    def show(self, totals: dict, changes: dict, gains: list[float], tracked: int,
+             captions: tuple[str, ...] = ()) -> None:
         if tracked:
             self.numbers(totals, changes)
         else:
             self.message(Text("no stats yet", style=MUTED))
-        self.spark(gains, caption)
+        self.spark(gains, captions)
 
 
 class AccountPanel(Vertical):
