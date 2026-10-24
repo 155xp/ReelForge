@@ -7,7 +7,8 @@ first-run screens and every tab of the ReelForge window on its demo data, the wa
 Nothing on this computer changes (STUDIO_DRY_SYSTEM=1), the demo data goes to a scratch database, and no window
 opens: each screen is drawn headless with Textual, saved as SVG, then turned into a PNG by Playwright's browser.
 The pictures leave out the demo's DEMO labels (REELFORGE_SCREENSHOTS=1), always have colour (NO_COLOR is ignored
-here), and draw the logo's block characters as exact rectangles, since browsers have no font for them.
+here), and draw block characters (the logo's, and the tops and ends of the charts' bars and areas) as exact
+rectangles, the way Windows Terminal draws them: a browser's fonts leave seams between them, or have none at all.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ APP_SHOTS = {  # name: (tab, notifications drawer open, select the first video, 
     "app-notifications": ("overview", True, False, APP_SIZE, OUT),
     "app-videos": ("videos", False, False, APP_SIZE, OUT),
     "app-compare": ("compare", False, False, APP_SIZE, OUT),
-    "app-publish": ("publish", False, True, APP_SIZE, OUT),
+    "app-publish": ("publish", False, True, GUIDE_SIZE, OUT),   # wide enough for every upload button in one view
     "app-accounts": ("accounts", False, False, APP_SIZE, OUT),
     "app-updates": ("updates", False, False, APP_SIZE, OUT),
     "overview": ("overview", True, False, GUIDE_SIZE, GUIDE),
@@ -78,7 +79,7 @@ async def app_shot(name: str, work: Path) -> Path:
 
 
 async def first_run_shot(name: str, work: Path) -> Path:
-    from studio import firstrun, setup_flow
+    from studio import firstrun, setup_flow, sounds
     from studio import paths as P
 
     start, step = FIRST_RUN_SHOTS[name]
@@ -91,7 +92,7 @@ async def first_run_shot(name: str, work: Path) -> Path:
         Item("ffmpeg", "ffmpeg", "turns the frames and sound into your video", False, "about 115 MB from gyan.dev",
              115),
         Item("sounds", "Sound effects", "booms, whooshes and hits for your videos", False,
-             "31 from Mixkit, about 55 MB", 55),
+             f"{sounds.mixkit_count()} from Mixkit, about 55 MB", 55),
         Item("command", "The reelforge command", "type reelforge in any terminal to open it", False,
              "no admin rights needed"),
         Item("shortcut", "Desktop shortcut", "a ReelForge icon on your desktop", True, "ready"),
@@ -115,25 +116,28 @@ async def first_run_shot(name: str, work: Path) -> Path:
 
 # ---------------------------------------------------------------- block characters as rectangles
 
-SUB = 6           # sub-rows per cell: sextants use 2 each (3 rows), half blocks 3 each (2 rows)
+# A cell is 8 sub-columns by 24 sub-rows: halves, sextants' thirds and the charts' eighths all land on that grid.
+COLS, ROWS = 8, 24
 OVERLAP = 1.0     # px: neighbouring rectangles overlap, so no hairline shows between them
-BLOCKS = {        # character -> (column, first sub-row, end sub-row) on a 2 x 6 grid
-    "\u2588": [(0, 0, 6), (1, 0, 6)],
-    "\u258c": [(0, 0, 6)],
-    "\u2590": [(1, 0, 6)],
-    "\u2580": [(0, 0, 3), (1, 0, 3)],
-    "\u2584": [(0, 3, 6), (1, 3, 6)],
+BLOCKS = {        # character -> [(first sub-column, end, first sub-row, end)]
+    "\u2588": [(0, 8, 0, 24)],
+    "\u2580": [(0, 8, 0, 12)],
+    "\u2590": [(4, 8, 0, 24)],
+    "\u2594": [(0, 8, 0, 3)],
+    "\u2595": [(7, 8, 0, 24)],
+    **{chr(0x2580 + k): [(0, 8, 24 - 3 * k, 24)] for k in range(1, 8)},   # \u2581\u2582\u2583\u2584\u2585\u2586\u2587: the bars' and areas' tops
+    **{chr(0x2590 - k): [(0, k, 0, 24)] for k in range(1, 8)},            # \u2589\u258a\u258b\u258c\u258d\u258e\u258f: the Compare bars' ends
 }
 
 
-def parts(ch: str) -> list[tuple[int, int, int]] | None:
+def parts(ch: str) -> list[tuple[int, int, int, int]] | None:
     if ch in BLOCKS:
         return BLOCKS[ch]
     if not 0x1FB00 <= ord(ch) <= 0x1FB3B:
         return None
     bits = ord(ch) - 0x1FB00 + 1   # the sextants are the patterns 1..62 without 21 and 42 (the half blocks)
     bits += (bits >= 21) + (bits >= 41)
-    return [(p % 2, p // 2 * 2, p // 2 * 2 + 2) for p in range(6) if bits >> p & 1]
+    return [(p % 2 * 4, p % 2 * 4 + 4, p // 2 * 8, p // 2 * 8 + 8) for p in range(6) if bits >> p & 1]
 
 
 def draw_blocks(svg: str) -> str:
@@ -155,24 +159,20 @@ def draw_blocks(svg: str) -> str:
         top = float(y) - 18.5 if top is None else top
         cw = float(length) / len(text)
         fill = fills.get(cls.split()[0], "#ffffff")
-        on = [[False] * (2 * len(text)) for _ in range(SUB)]
-        for i, cell in enumerate(cells):
-            for col, r0, r1 in cell or []:
-                for r in range(r0, r1):
-                    on[r][2 * i + col] = True
-        for r, row in enumerate(on):
-            c = 0
-            while c < len(row):
-                if not row[c]:
-                    c += 1
-                    continue
-                e = c
-                while e < len(row) and row[e]:
-                    e += 1
-                rects.append(f'<rect x="{float(x) + c * cw / 2:.2f}" y="{top + r * pitch / SUB:.2f}" '
-                             f'width="{(e - c) * cw / 2 + OVERLAP:.2f}" height="{pitch / SUB + OVERLAP:.2f}" '
-                             f'fill="{fill}" shape-rendering="crispEdges"/>')
-                c = e
+        # Every piece, in sub-cells from the text's start; side-by-side pieces of the same height become one.
+        pieces = sorted((r0, r1, COLS * i + c0, COLS * i + c1)
+                        for i, cell in enumerate(cells) for c0, c1, r0, r1 in cell or [])
+        merged: list[list[int]] = []
+        for r0, r1, c0, c1 in pieces:
+            if merged and merged[-1][:2] == [r0, r1] and merged[-1][3] == c0:
+                merged[-1][3] = c1
+            else:
+                merged.append([r0, r1, c0, c1])
+        for r0, r1, c0, c1 in merged:
+            rects.append(f'<rect x="{float(x) + c0 * cw / COLS:.2f}" y="{top + r0 * pitch / ROWS:.2f}" '
+                         f'width="{(c1 - c0) * cw / COLS + OVERLAP:.2f}" '
+                         f'height="{(r1 - r0) * pitch / ROWS + OVERLAP:.2f}" '
+                         f'fill="{fill}" shape-rendering="crispEdges"/>')
         new = "".join("&#160;" if cell or ch == " " else html.escape(ch) for ch, cell in zip(text, cells))
         return m.group(0).replace(">" + body + "</text>", ">" + new + "</text>")
 
