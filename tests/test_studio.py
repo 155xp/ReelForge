@@ -110,6 +110,26 @@ class Logo(unittest.TestCase):
                 self.assertEqual(logo.rows(anvil), 3)
                 self.assertEqual(set("".join(big.grid)) - {"."}, {"W", "R"})   # white "reel", red "forge"
 
+    def test_hand_drawn_anvil(self):
+        for art in (logo.Art(logo.ANVIL_SEXTANT, 2, 3), logo.Art(logo.ANVIL_HALF, 1, 2)):
+            self.assertEqual(len(art.grid), 3 * art.sub_h)                       # the header's 3 rows
+            self.assertEqual({len(r) for r in art.grid}, {logo.width(art) * art.sub_w})
+            self.assertEqual(set("".join(art.grid)), {"W", "."})                 # a white anvil
+            self.assertLessEqual(logo.width(art), 11)                             # no wider than before
+
+    def test_windows_terminal(self):
+        def found(env, window=""):
+            with mock.patch.dict(os.environ, env, clear=True), \
+                    mock.patch.object(logo, "_console_window_class", return_value=window):
+                return logo.windows_terminal()
+
+        self.assertTrue(found({"WT_SESSION": "1"}))                                # started by Windows Terminal
+        self.assertTrue(found({}, "PseudoConsoleWindow"))                         # handed to it: desktop shortcut
+        self.assertFalse(found({}, "ConsoleWindowClass"))                         # the old Windows console
+        self.assertFalse(found({"TERM_PROGRAM": "vscode"}, "PseudoConsoleWindow"))   # another modern terminal
+        with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": "0", "WT_SESSION": "1"}):
+            self.assertFalse(logo.sextants())                                     # the override still wins
+
     def test_terminal_cells(self):
         with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": "1"}):
             lines = logo.ansi(logo.big())

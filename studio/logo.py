@@ -1,8 +1,9 @@
 """ReelForge's logo for the terminal: a white anvil, then "reel" in white and "forge" in red.
 
-Standard library only, so setup can draw it before any packages are installed. The art (studio/logo_art.py, made
-by scripts/make_logo.py from the logo itself) is a grid of sub-pixels. In Windows Terminal each cell shows 2 x 3 of
-them with the sextant characters, which it draws exactly; anywhere else each cell shows 1 x 2 with half blocks.
+Standard library only, so setup can draw it before any packages are installed. The art is a grid of sub-pixels:
+the full logo (studio/logo_art.py) is made by scripts/make_logo.py from the logo itself, and the anvil on its own
+is drawn by hand below, so it stays sharp that small. In Windows Terminal each cell shows 2 x 3 sub-pixels with the
+sextant characters, which it draws exactly; anywhere else each cell shows 1 x 2 with half blocks.
 
   big()     the full logo, 8 rows tall: the first-run screens
   anvil()   the anvil alone, 3 rows tall: small spots like the app's header
@@ -23,6 +24,29 @@ RED = "#e8213a"
 PALETTE = {"W": WHITE, "R": RED}
 TAGLINE = "Your AI makes the videos. You post them."
 
+# The anvil of assets/logo/reelforge-anvil.png, drawn by hand: the horn on the left, the face stepping up from it,
+# the heel on the right, the waist, and the feet with the arch between them. 7 sub-pixels tall in the 3 rows' 9, so
+# it sits centred on the header's line of text with room above and below.
+ANVIL_SEXTANT = [
+    "..................",
+    "......WWWWWWWWWWWW",
+    "WWWWWWWWWWWWWWWW..",
+    "..WWWWWWWWWWW.....",
+    ".......WWWWW......",
+    "......WWWWWWW.....",
+    ".....WWWWWWWWW....",
+    "....WWWW...WWWW...",
+    "..................",
+]
+ANVIL_HALF = [      # the same anvil in half blocks, for terminals without sextants
+    "...WWWWWWWW",
+    "WWWWWWWWW..",
+    "..WWWWWW...",
+    "....WWWW...",
+    "...WWWWW...",
+    "...WW..WW..",
+]
+
 
 @dataclass(frozen=True)
 class Art:
@@ -37,7 +61,34 @@ def sextants() -> bool:
     forced = os.environ.get("REELFORGE_SEXTANTS", "").strip()
     if forced in ("0", "1"):
         return forced == "1"
-    return sys.platform == "win32" and bool(os.environ.get("WT_SESSION"))
+    return sys.platform == "win32" and windows_terminal()
+
+
+def windows_terminal() -> bool:
+    """Whether Windows Terminal is showing this program. It sets WT_SESSION for what it starts itself, but not for a
+    program Windows hands it (opened from a shortcut or by double-clicking a .bat). Then the console's window is a
+    pseudo console's, which only the newer terminals make, and the others (VS Code, WezTerm...) name themselves in
+    TERM_PROGRAM or TERM."""
+    if os.environ.get("WT_SESSION"):
+        return True
+    if any(os.environ.get(k) for k in ("TERM_PROGRAM", "TERM", "TERMINAL_EMULATOR")):
+        return False
+    return _console_window_class() == "PseudoConsoleWindow"
+
+
+def _console_window_class() -> str:
+    """The class of this console's window ("" without one, or off Windows)."""
+    try:
+        import ctypes
+
+        kernel32, user32 = ctypes.WinDLL("kernel32"), ctypes.WinDLL("user32")
+        kernel32.GetConsoleWindow.restype = ctypes.c_void_p
+        user32.GetClassNameW.argtypes = (ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_int)
+        hwnd = kernel32.GetConsoleWindow()
+        name = ctypes.create_unicode_buffer(64)
+        return name.value if hwnd and user32.GetClassNameW(hwnd, name, 64) else ""
+    except (AttributeError, OSError):
+        return ""
 
 
 def big() -> Art:
@@ -45,7 +96,7 @@ def big() -> Art:
 
 
 def anvil() -> Art:
-    return Art(logo_art.ANVIL_SEXTANT, 2, 3) if sextants() else Art(logo_art.ANVIL_HALF, 1, 2)
+    return Art(ANVIL_SEXTANT, 2, 3) if sextants() else Art(ANVIL_HALF, 1, 2)
 
 
 def width(art: Art) -> int:
