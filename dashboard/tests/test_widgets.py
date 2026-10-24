@@ -80,9 +80,9 @@ class DemoTest(unittest.TestCase):
         posted = [db.parse(e["first_post"]).astimezone() for e in db.episodes() if e["first_post"]]
         recent = [t for t in posted if fr.starts[0] <= t < fr.starts[-1] - timedelta(hours=2)]
         self.assertGreaterEqual(len(recent), 1)
-        for t in recent:  # each post makes a spike in the next few hours
+        for t in recent:  # each post makes a spike: its next few hours beat the hours before it at least twice over
             i = fr.index(t)
-            self.assertGreater(max(hours[i:i + 3]), 3 * typical, t)
+            self.assertGreater(max(hours[i:i + 3]), 2 * max(hours[max(0, i - 3):i], default=0.0), t)
         self.assertLess(min(hours), typical / 2)  # and the night is quiet
 
     def test_notifications_name_real_videos(self):
