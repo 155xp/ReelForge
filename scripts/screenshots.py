@@ -10,6 +10,9 @@ opens: each screen is drawn headless with Textual, saved as SVG, then turned int
 The pictures leave out the demo's DEMO labels (REELFORGE_SCREENSHOTS=1), always have colour (NO_COLOR is ignored
 here), and draw block characters (the logo's, and the tops and ends of the charts' bars and areas) as exact
 rectangles, the way Windows Terminal draws them: a browser's fonts leave seams between them, or have none at all.
+
+Retaking all of them also writes docs/screenshots/SOURCES.txt (scripts/shot_sources.py): what they were drawn from.
+A release won't build once any of that changes, so every release has screenshots of the ReelForge it ships.
 """
 
 from __future__ import annotations
@@ -239,6 +242,10 @@ async def main(names: list[str]) -> int:
             svgs.append(svg)
         OUT.mkdir(parents=True, exist_ok=True)
         await to_png(svgs)
+    if set(names) == {*FIRST_RUN_SHOTS, *APP_SHOTS}:
+        import shot_sources
+
+        print("wrote", shot_sources.record().relative_to(ROOT))
     return 0
 
 

@@ -6,6 +6,9 @@
 
 Every package holds the files git tracks, inside a ReelForge-<v>/ folder, plus that system's double-click
 launchers and a START-HERE.txt. Executable bits are set for the shell scripts so macOS and Linux can run them.
+
+It won't build while the README's screenshots are older than ReelForge's look (scripts/shot_sources.py): retake them
+all with scripts/screenshots.py and commit them first. --allow-old-screenshots builds anyway, for a local test.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ import sys
 import tarfile
 import zipfile
 from pathlib import Path
+
+import shot_sources
 
 ROOT = Path(__file__).resolve().parent.parent
 EXECUTABLE = (".sh", ".command", "bin/reelforge")
@@ -148,6 +153,7 @@ def main() -> int:
     ap.add_argument("--stage-only", action="store_true")
     ap.add_argument("--print-version", action="store_true")
     ap.add_argument("--sums-only", action="store_true", help="just (re)write dist/SHA256SUMS.txt")
+    ap.add_argument("--allow-old-screenshots", action="store_true", help="build even if the screenshots are out of date")
     args = ap.parse_args()
     v = (args.version or version()).lstrip("v")
     if args.print_version:
@@ -160,6 +166,13 @@ def main() -> int:
         # Its files would say another version, so every copy's Updates tab would offer this release forever.
         print(f"error: packaging {v} but studio/__init__.py says KIT_VERSION = {version()!r}: change that first",
               file=sys.stderr)
+        return 1
+    changed = shot_sources.stale()
+    if changed and not args.allow_old_screenshots:
+        # Every release's README shows the ReelForge it ships.
+        print("error: the README's screenshots are older than ReelForge's look (changed since: "
+              + ", ".join(changed[:6]) + (", ..." if len(changed) > 6 else "") + "). Retake them all with "
+              "scripts/screenshots.py and commit docs/screenshots/ and dashboard/docs/ first.", file=sys.stderr)
         return 1
     files = tracked()
     args.out.mkdir(parents=True, exist_ok=True)
