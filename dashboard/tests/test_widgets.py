@@ -133,5 +133,37 @@ class AppFitTest(unittest.TestCase):
             asyncio.run(run(size, drawer))
 
 
+class TestCopyHeader(unittest.TestCase):
+    """A test copy (TEST-COPY.txt in the ReelForge folder) says TEST in the header and the window title."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(setattr, db, "_path", db._path)
+        db.init(Path(tmp.name) / "demo.db")
+        demo.seed()
+
+    def test_test_badge(self):
+        from unittest import mock
+
+        from dashboard import app as window
+        from dashboard import config
+
+        async def run(test_copy: bool) -> tuple[str, str]:
+            with mock.patch.object(window, "TEST_COPY", test_copy):
+                app = window.ReelForge(config.load_config(), demo.platforms(), demo=True)
+                async with app.run_test(size=(150, 45)) as pilot:
+                    await pilot.pause(0.3)
+                    content = app.query_one("#status").content
+                    return app.title, content.plain if isinstance(content, Text) else str(content)
+
+        title, header = asyncio.run(run(True))
+        self.assertTrue(title.startswith("ReelForge TEST"), title)
+        self.assertTrue(header.startswith(" TEST "), header)
+        title, header = asyncio.run(run(False))
+        self.assertNotIn("TEST", title)
+        self.assertNotIn("TEST", header)
+
+
 if __name__ == "__main__":
     unittest.main()

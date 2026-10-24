@@ -21,6 +21,7 @@ FONTS = ROOT / "assets" / "fonts"
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 EXAMPLES = ROOT / "examples"
 DASHBOARD = ROOT / "dashboard"            # the ReelForge window: stats and publishing
+TEST_COPY = ROOT / "TEST-COPY.txt"        # marks a second ReelForge folder for trying things (see test_copy())
 
 WINDOWS = sys.platform == "win32"
 MAC = sys.platform == "darwin"
@@ -47,3 +48,15 @@ def free_gb(path: Path = ROOT) -> float:
 
 def env_flag(name: str) -> bool:
     return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def test_copy() -> bool:
+    """A test copy (a second ReelForge folder for trying changes or replaying setup) has TEST-COPY.txt in it. Its
+    window says TEST, and it never changes the computer: the reelforge command, the hourly stats job and the desktop
+    shortcut stay with your main ReelForge folder."""
+    return TEST_COPY.exists()
+
+
+def dry_system() -> bool:
+    """Leave the PATH, the scheduler and the desktop alone: STUDIO_DRY_SYSTEM=1 (tests), or a test copy."""
+    return env_flag("STUDIO_DRY_SYSTEM") or test_copy()

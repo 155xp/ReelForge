@@ -216,6 +216,58 @@ class StatsJobOwner(unittest.TestCase):
         self.assertTrue(self.changed())
 
 
+class TestCopy(unittest.TestCase):
+    """A folder with TEST-COPY.txt in it is a test copy: it leaves the reelforge command, the hourly stats job and
+    the desktop shortcut alone, even without STUDIO_DRY_SYSTEM."""
+
+    def setUp(self):
+        import tempfile
+
+        from studio import command, setup_flow, stats_schedule
+        from studio import paths as P
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.marker = Path(tmp.name) / "TEST-COPY.txt"
+        self.marker.write_text("a test copy", encoding="utf-8")
+        touched = AssertionError("a test copy changed the computer")
+        for patch in (mock.patch.dict(os.environ, {"STUDIO_DRY_SYSTEM": ""}),
+                      mock.patch.object(P, "TEST_COPY", self.marker),
+                      mock.patch.object(command, "_win_set_user_path", side_effect=touched),
+                      mock.patch.object(stats_schedule, "_ps", side_effect=touched),
+                      mock.patch.object(setup_flow, "make_shortcut", side_effect=touched),
+                      mock.patch("subprocess.run", side_effect=touched)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_the_marker_makes_it_a_test_copy(self):
+        from studio import paths as P
+
+        self.assertTrue(P.test_copy())
+        self.assertTrue(P.dry_system())
+        self.marker.unlink()
+        self.assertFalse(P.test_copy())
+        self.assertFalse(P.dry_system())
+
+    def test_nothing_on_the_computer_changes(self):
+        import contextlib
+        import io
+
+        from studio import command, setup_flow, stats_schedule
+
+        self.assertIn("test copy", command.enable())
+        self.assertIn("test copy", command.disable())
+        self.assertTrue(stats_schedule.enable().startswith(stats_schedule.TEST_COPY))
+        self.assertIn(stats_schedule.TEST_COPY, stats_schedule.disable())
+        self.assertEqual(stats_schedule.status(), "off")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            stats_schedule.main(["status"])
+        self.assertIn(stats_schedule.TEST_COPY, out.getvalue())
+        shortcut = setup_flow.Item("shortcut", "Desktop shortcut", "a ReelForge icon on your desktop", False)
+        self.assertIn("test copy", setup_flow.apply(shortcut))
+
+
 class SetupPlan(unittest.TestCase):
     def test_missing_tools_are_listed(self):
         from studio import setup_flow

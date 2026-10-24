@@ -38,6 +38,10 @@ try:  # the ReelForge folder's own package: its version and the updater
 except Exception:  # run on its own, outside a ReelForge folder
     KIT_VERSION, kit_update = "", None
 
+# A test copy (a second ReelForge folder for trying changes, marked by TEST-COPY.txt; see studio/paths.py) says TEST
+# in the header and the window title, so it's never mistaken for the real one.
+TEST_COPY = (config.APP_DIR.parent / "TEST-COPY.txt").exists()
+
 THEME = Theme(
     name="reelforge-dashboard",
     primary="#3dff9a",
@@ -110,7 +114,8 @@ class ReelForge(App):
         self.start_tab = tab if tab in TABS else "overview"
         self.start_drawer = drawer
         name = config.channel_name(cfg)
-        self.title = f"ReelForge · {name}" if name else "ReelForge"
+        kit = "ReelForge TEST" if TEST_COPY else "ReelForge"
+        self.title = f"{kit} · {name}" if name else kit
         self.note_seen = 0  # the newest notification already shown as a pop-up
         self.update_info: dict | None = None  # the last answer from the update check (studio.update.check)
         self.updating = False
@@ -448,6 +453,9 @@ class ReelForge(App):
 
     def update_header(self) -> None:
         t = Text()
+        if TEST_COPY:
+            t.append(" TEST ", style="bold #ffffff on #e8213a")
+            t.append("   ")
         if self.demo and not SCREENSHOTS:
             t.append(" DEMO ", style="bold #0a0c0f on #ffcc33")
             t.append("   ")

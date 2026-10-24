@@ -21,8 +21,9 @@ MARK = "# added by ReelForge"
 
 
 def _dry() -> bool:
-    """STUDIO_DRY_SYSTEM=1: say what would happen without changing PATH or files outside the kit (tests)."""
-    return P.env_flag("STUDIO_DRY_SYSTEM")
+    """STUDIO_DRY_SYSTEM=1 (tests) or a test copy: say what would happen without changing PATH or files outside
+    the kit."""
+    return P.dry_system()
 
 
 def _norm(p: str) -> str:
@@ -89,6 +90,8 @@ def status() -> str:
 
 def enable() -> str:
     """Turn the command on. Returns a sentence saying what happened."""
+    if P.test_copy():
+        return "Left alone in a test copy: reelforge still opens your main ReelForge."
     if _dry():
         return "(dry run) would add the reelforge command"
     if P.WINDOWS:
@@ -118,6 +121,8 @@ def enable() -> str:
 
 
 def disable() -> str:
+    if P.test_copy():
+        return "Left alone in a test copy: it never changes the reelforge command."
     if _dry():
         return "(dry run) would remove the reelforge command"
     if P.WINDOWS:

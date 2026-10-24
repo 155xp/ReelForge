@@ -11,7 +11,8 @@ removes the job.
 
 A computer has one such job, and it belongs to the ReelForge folder whose refresh.pyw it runs. Another copy (a test
 install, say) never takes it over or turns it off while that folder is still there; once the folder is gone (moved
-or deleted), turning the job on from the new copy moves it there.
+or deleted), turning the job on from the new copy moves it there. A test copy (TEST-COPY.txt in its folder) never
+touches the job at all.
 """
 
 from __future__ import annotations
@@ -28,6 +29,8 @@ TASK = "ReelForge stats"
 MAC_LABEL = "com.reelforge.stats"
 CRON_MARK = "# reelforge-stats"
 ELSEWHERE = "Another ReelForge folder"  # how enable() starts when the job belongs to another copy
+TEST_COPY = "Background stats are off in a test copy"  # how enable() starts in a test copy, which leaves the job alone
+TEST_COPY_NOTE = f"{TEST_COPY} (the hourly job stays with your main ReelForge folder)."
 
 
 def _python(windowless: bool = True) -> Path:
@@ -42,8 +45,9 @@ def _refresh_script() -> Path:
 
 
 def _dry() -> bool:
-    """STUDIO_DRY_SYSTEM=1: report what would happen without touching the system's scheduler (tests)."""
-    return os.environ.get("STUDIO_DRY_SYSTEM", "").strip() in ("1", "true", "yes")
+    """STUDIO_DRY_SYSTEM=1 (tests) or a test copy: report what would happen without touching the system's
+    scheduler."""
+    return P.dry_system()
 
 
 def _ps(script: str) -> subprocess.CompletedProcess:
@@ -116,6 +120,8 @@ def status() -> str:
 def enable(minutes: int = 60) -> str:
     """Start (or restart) the hourly job. Returns a sentence saying what happened."""
     py, script = _python(), _refresh_script()
+    if P.test_copy():
+        return TEST_COPY_NOTE
     if _dry():
         return f"(dry run) would run {script.name} every {minutes} minutes"
     if not py.exists() or not script.exists():
@@ -169,6 +175,8 @@ Register-ScheduledTask -TaskName {_q(TASK)} -Action $a -Trigger $t -Settings $s 
 
 def disable() -> str:
     """Stop this folder's hourly job (one that belongs to another ReelForge folder stays). Returns a sentence."""
+    if P.test_copy():
+        return TEST_COPY_NOTE
     if _dry():
         return "(dry run) would remove the background job"
     try:
@@ -201,6 +209,8 @@ def main(argv: list[str]) -> int:
         print(enable())
     elif cmd == "off":
         print(disable())
+    elif cmd == "status" and P.test_copy():
+        print(TEST_COPY_NOTE)
     elif cmd == "status":
         state = status()
         if state == "other":

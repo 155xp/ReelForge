@@ -9,7 +9,8 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $Root
 $env:PYTHONUTF8 = "1"
-try { $Host.UI.RawUI.WindowTitle = "ReelForge setup" } catch { }
+$Title = if (Test-Path -LiteralPath (Join-Path $Root "TEST-COPY.txt")) { "ReelForge TEST setup" } else { "ReelForge setup" }
+try { $Host.UI.RawUI.WindowTitle = $Title } catch { }
 
 # The old Windows console opens small; make room for the first-run box if the screen allows (Windows Terminal
 # keeps its own size and ignores this).

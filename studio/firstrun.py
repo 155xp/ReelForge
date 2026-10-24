@@ -319,7 +319,9 @@ class DoneScreen(tui.Framed):
         try:
             if s["platforms"].get("background_stats", True):
                 msg = stats_schedule.enable()
-                if msg.startswith(stats_schedule.ELSEWHERE):     # another copy's job, left alone
+                if msg.startswith(stats_schedule.TEST_COPY):       # a test copy leaves the job alone
+                    lines.append((None, msg))
+                elif msg.startswith(stats_schedule.ELSEWHERE):     # another copy's job, left alone
                     lines.append((None, "Background stats: " + msg))
                 else:
                     ok = not msg.startswith(("Couldn't", "Background stats need"))
@@ -332,6 +334,9 @@ class DoneScreen(tui.Framed):
             lines.append((False, f"Background stats couldn't be set up ({e}). Try: reelforge stats on"))
         if command.status() == "on":
             lines.append((True, "Type reelforge in any new terminal window to open ReelForge."))
+        elif P.test_copy():
+            lines.append((None, "This is a test copy: typing reelforge in a terminal still opens your main "
+                                "ReelForge."))
         else:
             lines.append((None, "To open ReelForge by typing reelforge in a terminal, run setup again and tick "
                                 "the reelforge command."))
@@ -430,6 +435,6 @@ def run(start: str = "tools"):
     if sys.platform == "win32":
         import ctypes
 
-        ctypes.windll.kernel32.SetConsoleTitleW(f"{KIT_NAME} setup")
+        ctypes.windll.kernel32.SetConsoleTitleW(f"{KIT_NAME} TEST setup" if P.test_copy() else f"{KIT_NAME} setup")
     return FirstRun(start).run()
 

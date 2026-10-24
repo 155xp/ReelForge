@@ -139,7 +139,9 @@ def apply(item: Item, progress=None) -> str:
     if item.key == "command":
         return command.enable()
     if item.key == "shortcut":
-        if P.env_flag("STUDIO_DRY_SYSTEM"):
+        if P.test_copy():
+            return "Left alone in a test copy: it never adds a desktop shortcut."
+        if P.dry_system():
             return "(dry run) would add the desktop shortcut"
         return f"shortcut added ({make_shortcut()})"
     raise ValueError(item.key)
