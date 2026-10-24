@@ -101,20 +101,27 @@ class JsonFormat(unittest.TestCase):
 
 class Logo(unittest.TestCase):
     def test_sizes_and_colours(self):
-        big, anvil = logo.big(), logo.anvil()
-        self.assertEqual(len(big), 16)
-        self.assertEqual({len(r) for r in big}, {logo.width(big)})
-        self.assertLessEqual(logo.width(big), 110)              # fits a 120-column terminal inside the box
-        self.assertEqual(logo.rows(anvil), 3)
-        self.assertEqual(set("".join(big)) - {"."}, {"W", "R"})   # white "reel", red "forge", nothing else
+        for mode in ("1", "0"):                                  # sextants (Windows Terminal) and half blocks
+            with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": mode}):
+                big, anvil = logo.big(), logo.anvil()
+                self.assertEqual(logo.rows(big), 8)
+                self.assertEqual({len(r) for r in big.grid}, {logo.width(big) * big.sub_w})
+                self.assertLessEqual(logo.width(big), 110)       # fits a 120-column terminal inside the box
+                self.assertEqual(logo.rows(anvil), 3)
+                self.assertEqual(set("".join(big.grid)) - {"."}, {"W", "R"})   # white "reel", red "forge"
 
     def test_terminal_cells(self):
-        lines = logo.ansi(logo.big())
+        with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": "1"}):
+            lines = logo.ansi(logo.big())
         self.assertEqual(len(lines), 8)
         self.assertTrue(all(line.endswith("\x1b[0m") for line in lines))
-        top, bottom = logo.cells(["W.", ".R"])[0]
+        top, bottom = logo.cells(logo.Art(["W.", ".R"], 1, 2))[0]
         self.assertEqual(top, ("▀", logo.WHITE, None))
         self.assertEqual(bottom, ("▄", logo.RED, None))
+        # sextants: the top-left part only, then everything but the top-right part
+        (a, b), = logo.cells(logo.Art(["W.W.", "..WW", "..WW"], 2, 3))
+        self.assertEqual(a, (chr(0x1FB00), logo.WHITE, None))
+        self.assertEqual(b, (chr(0x1FB00 + 61 - 1 - 2), logo.WHITE, None))
 
 
 class SystemChanges(unittest.TestCase):
