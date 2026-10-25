@@ -311,8 +311,8 @@ def _refresh(platforms: dict[str, Platform], cfg: dict, manual: bool, force: boo
                 errors.append(f"Matching posts to videos failed ({type(e).__name__}: {e}); it tries again next "
                               "refresh.")
             # Round numbers passed since the last read. A platform read for the first time only sets the starting
-            # point.
-            _tell(lambda: notify.check_milestones(read, {k for k in read if k not in latest}))
+            # point. Views across every platform add up the connected ones (those this refresh was given).
+            _tell(lambda: notify.check_milestones(read, {k for k in read if k not in latest}, on=set(platforms)))
     finally:
         if read:  # every other window reloads (app.ReelForge.keep_in_step)
             try:

@@ -13,7 +13,7 @@ import { Fitted, Line } from "../ui/Line"
 import { OptionList, Table } from "../ui/Lists"
 import { Panel, Scroll } from "../ui/Panels"
 import { useDash } from "./state"
-import type { FilesView, PreviewView, TableView } from "./types"
+import type { FilesView, PlatformInfo, PreviewView, TableView } from "./types"
 
 export function Publish() {
   return (
@@ -74,6 +74,7 @@ function Form() {
   const preview = useView<PreviewView>(s.bridge, "preview")
   const posted = useView<{ line: Segs; done: Record<string, boolean> }>(s.bridge, "posted")
   const uploads = useView<TableView>(s.bridge, "uploads")
+  const connected = useView<{ platforms: PlatformInfo[] }>(s.bridge, "platforms")
   useEffect(() => {
     // the preview of the form as it is (another tab and back, or nothing picked yet)
     s.bridge.send("form_changed", s.caption, s.tags)
@@ -82,13 +83,13 @@ function Form() {
     s.set({ caption, tags })
     s.bridge.send("form_changed", caption, tags)
   }
-  const ps = init.platforms
+  const ps = connected?.platforms ?? init.platforms // only the connected platforms have buttons
   const copies = init.copies
   // Each copy button sits under its platform's button, both as wide as the wider label.
   const widths: Record<string, number> = Object.fromEntries(
     ps.map((p) => [p.key, Math.max(`${p.name} →`.length, (copies[p.key]?.[1] ?? "").length) + 4]),
   )
-  const openAll = `Open all ${ps.length} →`
+  const openAll = ps.length > 1 ? `Open all ${ps.length} →` : null
   return (
     <Panel flexGrow={1}>
       <Scroll flexGrow={1} scrollY>
@@ -129,13 +130,15 @@ function Form() {
         </box>
         <Scroll scrollX scrollY={false} height={6} flexShrink={0}>
           <box flexDirection="row" height={3} flexShrink={0}>
-            <Button
-              id="open-all"
-              label={openAll}
-              variant="primary"
-              marginRight={1}
-              onPress={() => s.bridge.send("open_all", s.caption, s.tags)}
-            />
+            {openAll ? (
+              <Button
+                id="open-all"
+                label={openAll}
+                variant="primary"
+                marginRight={1}
+                onPress={() => s.bridge.send("open_all", s.caption, s.tags)}
+              />
+            ) : null}
             {ps.map((p) => (
               <Button
                 key={p.key}
@@ -149,7 +152,7 @@ function Form() {
             <Button id="reveal" label="Show file" marginRight={1} onPress={() => s.bridge.send("reveal_file")} />
           </box>
           <box flexDirection="row" height={3} flexShrink={0}>
-            <box width={openAll.length + 4} marginRight={1} flexShrink={0} />
+            {openAll ? <box width={openAll.length + 4} marginRight={1} flexShrink={0} /> : null}
             {ps.map((p) =>
               copies[p.key] ? (
                 <Button
@@ -162,8 +165,14 @@ function Form() {
                 />
               ) : null,
             )}
-            {!copies.x ? (
-              <Button id="copy-caption" label="Copy caption" marginRight={1} onPress={() => s.bridge.send("copy_field", "copy-caption", s.caption, s.tags)} />
+            {ps.length && !ps.some((p) => p.key === "x") ? (
+              // the caption on its own, for when X (whose post it is) isn't connected
+              <Button
+                id="copy-caption-alone"
+                label="Copy caption"
+                marginRight={1}
+                onPress={() => s.bridge.send("copy_field", "copy-caption-alone", s.caption, s.tags)}
+              />
             ) : null}
           </box>
         </Scroll>

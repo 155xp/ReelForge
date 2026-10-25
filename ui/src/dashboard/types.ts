@@ -113,18 +113,25 @@ export interface PreviewView {
   rows: { name: string; color: string; text: string }[]
 }
 
+/** One platform on the Accounts tab: on (connected), login (its handle is in, waiting for the one log-in) or off
+ * (not connected: a box for its @handle, Connect and Sign up). */
 export interface AccountPanelView {
   key: string
   name: string
   color: string
+  state: "on" | "login" | "off"
+  status: Segs // the first line, with Disconnect at its right end while there's room
+  status_short: Segs | null // ... for a narrow panel
+  disconnect: Segs | null
   body: Segs
   note: Segs
-  logs_in: boolean
-  login_label: string
-  profile_disabled: boolean
-  refresh_disabled: boolean
-  show_log: boolean
-  chart: null | {
+  signup?: boolean
+  logs_in?: boolean
+  login_label?: string
+  profile_disabled?: boolean
+  refresh_disabled?: boolean
+  show_log?: boolean
+  chart?: null | {
     heading: Segs
     n: number
     step_h: number
@@ -132,6 +139,11 @@ export interface AccountPanelView {
     values: (number | null)[]
     series: Series[]
   }
+}
+
+export interface AccountsView {
+  panels: AccountPanelView[]
+  hint: Parts | null // "Connect the platforms you post to ..." while one isn't connected
 }
 
 export interface NoteView {

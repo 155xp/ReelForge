@@ -28,6 +28,8 @@ const demo = (tab: string, drawer = false) => ({ demo: true, screenshots: true, 
 export const SHOTS: Record<string, Shot> = {
   "first-run": { screen: "setup", options: { start: "tools" }, size: [120, 34], folder: "docs/screenshots", then: waitForItems },
   "onboarding-format": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toFormatStep },
+  // Your accounts as a new channel sees it: the three recommended platforms, one handle typed in and two to sign up for
+  "onboarding-accounts": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toAccountsStep },
   "first-run-ready": { screen: "setup", options: { start: "done" }, size: [130, 32], folder: "docs/screenshots" },
   "app-overview": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots" },
   "app-notifications": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots" },
@@ -35,7 +37,8 @@ export const SHOTS: Record<string, Shot> = {
   "app-compare": { screen: "dashboard", options: demo("compare"), size: APP, folder: "docs/screenshots" },
   // wide enough for every upload button in one view
   "app-publish": { screen: "dashboard", options: demo("publish"), size: GUIDE, folder: "docs/screenshots", then: pickFirstVideo },
-  "app-accounts": { screen: "dashboard", options: demo("accounts"), size: APP, folder: "docs/screenshots" },
+  // X left unconnected, so Accounts shows its Connect box
+  "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },
   overview: { screen: "dashboard", options: demo("overview", true), size: GUIDE, folder: "dashboard/docs" },
@@ -67,6 +70,12 @@ async function waitForItems(h: Headless) {
 async function toFormatStep(h: Headless) {
   await h.settle(800)
   for (let step = 0; step < 2; step++) await clickText(h, "  Next  ", 4)
+  await h.settle(800)
+}
+
+async function toAccountsStep(h: Headless) {
+  await h.settle(800)
+  for (let step = 0; step < 4; step++) await clickText(h, "  Next  ", 4)
   await h.settle(800)
 }
 
@@ -190,6 +199,7 @@ export async function take(name: string, outDir: string): Promise<string> {
     REELFORGE_QUADRANTS: "1", // the logo's, bell's and ×'s 2 x 2 blocks, as Windows Terminal draws them
     STUDIO_DRY_SYSTEM: "1",
     WT_SESSION: "screenshots", // ✓ rather than √, as in Windows Terminal
+    REELFORGE_SHOT: name, // for the sample data that's only in one picture
   }
   const h = await headless(shot.screen, shot.options, shot.size[0], shot.size[1], env)
   try {

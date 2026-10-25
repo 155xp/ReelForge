@@ -1,6 +1,7 @@
 // The onboarding interview, step by step, then a review: Create my studio writes everything. Mouse and keyboard both
 // work: Tab moves between fields, Enter presses a button, Esc offers to leave. The questions, their defaults and when
-// each shows come from studio/questions.py, through studio/setup_service.py.
+// each shows come from studio/questions.py, through studio/setup_service.py. Your accounts has a sign-up guide for
+// each platform (and the channel's Gmail) for someone without the accounts yet.
 
 import { TextAttributes, type KeyEvent, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard } from "@opentui/react"
@@ -18,11 +19,22 @@ interface Field {
   prompt: string
   required: boolean
   help: string
-  kind: "text" | "number" | "long" | "choice" | "multi" | "yesno"
+  kind: "text" | "number" | "long" | "choice" | "multi" | "yesno" | "handle"
   options: [string, string][]
   value: unknown
   placeholder: string
   visible: boolean
+  platform?: string // a handle's platform, for its sign-up guide
+}
+
+/** How to make one account, or the channel's Gmail (setup_service.signup_guide). */
+interface Guide {
+  key: string
+  title: string
+  why: string
+  steps: string[]
+  button: string
+  account: boolean
 }
 
 interface Step {
@@ -32,6 +44,7 @@ interface Step {
   blurb: string
   fields?: Field[]
   review?: string
+  gmail?: { title: string; why: string; button: string } // Your accounts: a Gmail for the channel first
 }
 
 export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: () => void }) {
@@ -44,6 +57,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
   const [status, setStatus] = useState("")
   const [detail, setDetail] = useState("")
   const [leaving, setLeaving] = useState(false)
+  const [guide, setGuide] = useState<Guide | null>(null)
   const scroll = useRef<ScrollBoxRenderable | null>(null)
 
   const show = (s: Step) => {
@@ -68,7 +82,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
 
   // Esc (or Ctrl+Q) offers to leave, from a text field too: onboarding has no one-key shortcuts to get back to.
   useKeyboard((key: KeyEvent) => {
-    if (leaving) return
+    if (leaving || guide) return
     if (key.name === "escape" || (key.ctrl && (key.name === "q" || key.name === "c"))) {
       key.preventDefault()
       setLeaving(true)
@@ -119,6 +133,15 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
     if (s) show(s)
   }
 
+  /** A platform's sign-up guide (or the Gmail one, "gmail"); the handle you type there goes into its box here. */
+  const signUp = async (key: string) => setGuide(await bridge.call<Guide>("signup_guide", key))
+  const signedUp = (handle: string | null) => {
+    const key = guide?.key
+    setGuide(null)
+    if (key && key !== "gmail" && handle !== null) void change(`handle_${key}`, handle) // counts as typed: your answer
+    setTimeout(() => focus.focus(key && key !== "gmail" ? `w-handle_${key}` : "next"), 30)
+  }
+
   const i = step?.index ?? 0
   return (
     <Frame init={init} step="channel" hint=" Tab moves  ·  Enter presses  ·  Esc to leave " bigMinHeight={48}>
@@ -157,12 +180,23 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
             {step?.blurb ?? ""}
           </text>
           <Scroll ref={scroll} flexGrow={1} scrollY>
+            {step?.gmail ? <GmailOffer offer={step.gmail} onPress={() => void signUp("gmail")} /> : null}
             {step?.review !== undefined ? (
               <Markdown text={step.review} heading="#ffffff" />
             ) : (
               (step?.fields ?? [])
                 .filter((f) => f.visible)
-                .map((f) => <Question key={f.key} f={f} value={raws[f.key]} error={errors[f.key]} check={init.check} onChange={(v) => void change(f.key, v)} />)
+                .map((f) => (
+                  <Question
+                    key={f.key}
+                    f={f}
+                    value={raws[f.key]}
+                    error={errors[f.key]}
+                    check={init.check}
+                    onChange={(v) => void change(f.key, v)}
+                    onSignUp={f.platform ? () => void signUp(f.platform!) : undefined}
+                  />
+                ))
             )}
             {detail ? (
               <text fg={theme.bad} wrapMode="char" flexShrink={0}>
@@ -186,6 +220,15 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
           </box>
         </box>
       </box>
+      {guide ? (
+        <SignupGuide
+          guide={guide}
+          handle={String(raws[`handle_${guide.key}`] ?? "")}
+          check={init.check}
+          bridge={bridge}
+          onDone={signedUp}
+        />
+      ) : null}
       {leaving ? (
         <Modal name="quit" title="Leave onboarding?" width={60}>
           <text flexShrink={0}>Your answers so far won't be saved.</text>
@@ -206,12 +249,14 @@ function Question({
   error,
   check,
   onChange,
+  onSignUp,
 }: {
   f: Field
   value: unknown
   error?: string
   check: string
   onChange: (v: unknown) => void
+  onSignUp?: () => void
 }) {
   const theme = useTheme()
   const id = `w-${f.key}`
@@ -219,6 +264,15 @@ function Question({
   let field
   if (f.kind === "text" || f.kind === "number")
     field = <TextField id={id} value={String(value ?? "")} placeholder={f.placeholder} bad={bad} onChange={onChange} />
+  else if (f.kind === "handle")
+    field = (
+      <box flexDirection="row" height={3} flexShrink={0}>
+        <box flexGrow={1} maxWidth={44} marginRight={2}>
+          <TextField id={id} value={String(value ?? "")} placeholder={f.placeholder} bad={bad} flexGrow={1} onChange={onChange} />
+        </box>
+        {onSignUp ? <Button id={`signup-${f.platform}`} label="No account? Sign up →" minWidth={26} onPress={onSignUp} /> : null}
+      </box>
+    )
   else if (f.kind === "long")
     field = (
       <TextBox
@@ -246,5 +300,107 @@ function Question({
       {field}
       {error ? <text fg={theme.bad}>{error}</text> : null}
     </box>
+  )
+}
+
+/** The box at the top of Your accounts: a Gmail just for the channel first, for someone starting from scratch. */
+function GmailOffer({ offer, onPress }: { offer: { title: string; why: string; button: string }; onPress: () => void }) {
+  const theme = useTheme()
+  return (
+    <box border borderStyle="rounded" borderColor={theme.border} paddingLeft={1} paddingRight={1} marginBottom={1} flexDirection="column" flexShrink={0}>
+      <text attributes={TextAttributes.BOLD} wrapMode="word">
+        {offer.title}
+      </text>
+      <text fg={theme.muted} wrapMode="word">
+        {offer.why}
+      </text>
+      <box flexDirection="row" height={3} marginTop={1} flexShrink={0}>
+        <Button id="gmail" label={offer.button} onPress={onPress} />
+      </box>
+    </box>
+  )
+}
+
+/** How to make one account (or the channel's Gmail): the steps, a button that opens the official sign-up page in your
+ * own browser, and for an account a box for the @handle you end up with. Done hands that handle back (maybe ""),
+ * Back hands back null. ReelForge never makes the account or sees a password. */
+function SignupGuide({
+  guide,
+  handle: start,
+  check,
+  bridge,
+  onDone,
+}: {
+  guide: Guide
+  handle: string
+  check: string
+  bridge: SetupProps["bridge"]
+  onDone: (handle: string | null) => void
+}) {
+  const theme = useTheme()
+  const focus = useFocusManager()
+  const [opened, setOpened] = useState(false)
+  const [handle, setHandle] = useState(start)
+  const [problem, setProblem] = useState("")
+  useKeyboard((key: KeyEvent) => {
+    if (key.name === "escape") {
+      key.preventDefault()
+      onDone(null)
+    }
+  })
+  const open = () => {
+    bridge.send("open_signup", guide.key)
+    setOpened(true)
+    setTimeout(() => focus.focus(guide.account ? "guide-handle" : "guide-done"), 30)
+  }
+  const done = async (typed = handle) => {
+    if (!guide.account) return onDone(null)
+    const res = await bridge.call<{ handle?: string; error?: string }>("signup_handle", typed)
+    if (res.error) setProblem(res.error)
+    else onDone(res.handle ?? "")
+  }
+  return (
+    <Modal name="guide" title={guide.title} width={84}>
+      <text fg={theme.muted} wrapMode="word" flexShrink={0}>
+        {guide.why}
+      </text>
+      <box flexDirection="column" marginTop={1} flexShrink={0}>
+        {guide.steps.map((step, i) => (
+          <box key={i} flexDirection="row" flexShrink={0}>
+            <text attributes={TextAttributes.BOLD} width={4} flexShrink={0}>
+              {`${i + 1}.`.padStart(3)}
+            </text>
+            <text wrapMode="word" flexGrow={1} flexShrink={1}>
+              {step}
+            </text>
+          </box>
+        ))}
+      </box>
+      <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
+        <Button id="guide-open" label={guide.button} variant="primary" autoFocus onPress={open} />
+      </box>
+      {opened ? (
+        <text fg={theme.good} marginLeft={4} flexShrink={0}>
+          {`${check} Opened in your browser. Come back here when you're done.`}
+        </text>
+      ) : null}
+      {guide.account ? (
+        <>
+          <text attributes={TextAttributes.BOLD} marginTop={1} flexShrink={0}>
+            Your @handle
+          </text>
+          <TextField id="guide-handle" value={handle} placeholder="@yourname" bad={!!problem} onChange={setHandle} onSubmit={(v) => void done(v)} />
+          {problem ? (
+            <text fg={theme.bad} wrapMode="word" flexShrink={0}>
+              {problem}
+            </text>
+          ) : null}
+        </>
+      ) : null}
+      <box flexDirection="row" height={3} marginTop={1} gap={2} flexShrink={0}>
+        <Button id="guide-done" label="Done" variant="primary" onPress={() => void done()} />
+        <Button id="guide-back" label="Back" onPress={() => onDone(null)} />
+      </box>
+    </Modal>
   )
 }

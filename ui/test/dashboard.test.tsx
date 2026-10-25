@@ -13,8 +13,8 @@ const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload
 setDefaultTimeout(30_000) // each test starts a real window (2.5 s to draw it) before its clicks and keys
 let open: Headless | null = null
 
-async function window(tab = "overview", size: [number, number] = [180, 50], drawer = false): Promise<Headless> {
-  open = await headless("dashboard", { demo: true, only_demos: true, tab, drawer }, size[0], size[1], PRELOAD)
+async function window(tab = "overview", size: [number, number] = [180, 50], drawer = false, more = {}): Promise<Headless> {
+  open = await headless("dashboard", { demo: true, only_demos: true, tab, drawer, ...more }, size[0], size[1], PRELOAD)
   await open.settle(2500)
   return open
 }
@@ -116,6 +116,33 @@ describe("keys", () => {
     expect(frame(h)).toContain("HOW REELFORGE WORKS")
     await press(h, "return") // Close has the keyboard
     expect(frame(h)).not.toContain("HOW REELFORGE WORKS")
+  })
+})
+
+describe("accounts", () => {
+  test("a platform that isn't connected has a box for its @handle: a typo says why, Sign up shows the steps", async () => {
+    const h = await window("accounts", [180, 50], false, { unconnected: ["x"] })
+    expect(frame(h)).toContain("○ not connected")
+    expect(frame(h)).toContain("Only connected platforms show up in ReelForge. Connect X here any time.")
+    expect(frame(h)).toContain("Disconnect") // on the connected ones
+    await clickText(h, "@yourname", 2)
+    await h.t.mockInput.typeText("two words")
+    await press(h, "return") // Enter connects
+    expect(frame(h)).toContain("That isn't a handle")
+    await clickText(h, " Sign up → ", 2)
+    expect(frame(h)).toContain("MAKE YOUR X ACCOUNT")
+    expect(frame(h)).toContain("Pick a username that matches your channel")
+    await press(h, "escape")
+    expect(frame(h)).not.toContain("MAKE YOUR X ACCOUNT")
+  })
+
+  test("with nothing connected, ReelForge opens on Accounts and offers a Gmail first", async () => {
+    const h = await window("", [180, 50], false, { unconnected: ["tiktok", "youtube", "instagram", "x"] })
+    expect(activeTab(h)).toBe("Accounts")
+    expect(frame(h)).toContain("No accounts connected yet")
+    await clickText(h, " Make a Gmail first ", 2)
+    expect(frame(h)).toContain("MAKE A GMAIL FOR YOUR CHANNEL")
+    expect(frame(h)).not.toContain("Your @handle")
   })
 })
 

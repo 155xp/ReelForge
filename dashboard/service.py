@@ -20,7 +20,7 @@ from studio.bridge import Loop, Service, rpc
 
 from . import analytics, badges, besttime, config, db, desktop, notify, sync, trends, videos
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
-from .platforms import Platform, PlatformError, PublishItem, browser
+from .platforms import Platform, PlatformError, PublishItem, browser, connected
 from .platforms.base import Account, Post
 from .view import (BAD, GOOD, MARK, MUTED, SHORT, TYPICAL, Text, act, change_text, chip, chips, js, legend, num,
                    parts, score_text, tag)
@@ -30,6 +30,10 @@ try:  # the ReelForge folder's own package: its version and the updater
     from studio import update as kit_update
 except Exception:  # run on its own, outside a ReelForge folder
     KIT_VERSION, kit_update = "", None
+try:  # the sign-up guides and how a typed handle is read (the ReelForge folder's too)
+    from studio import signup
+except Exception:
+    signup = None
 
 # A test copy (a second ReelForge folder for trying changes, marked by TEST-COPY.txt; see studio/paths.py) says TEST
 # in the header and the window title, so it's never mistaken for the real one.
@@ -53,6 +57,7 @@ UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer ve
 WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
 COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
           "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
+NOTHING_CONNECTED = "Connect an account on the Accounts tab (5) to see your stats here."
 HELP = [
     ("Overview (1)", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / "
                      "per day on the longer ranges), stacked by platform. Yellow marks show when each video went up. "
@@ -74,8 +79,11 @@ HELP = [
                     "back. Under the videos, Best time to post shows each platform's part of the day whose videos "
                     "got the most views in their first day, and when it next comes round; it needs 2 videos a day old "
                     "in each of 2 parts of the day, with one clearly ahead."),
-    ("Accounts (5)", "Where each platform's stats come from, when they were last read, and the Instagram / X log-in. "
-                     "Type in stats lets you enter the numbers by hand for a platform ReelForge can't read yet."),
+    ("Accounts (5)", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere "
+                     "else. TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No "
+                     "account yet? Sign up opens the platform's own sign-up page, and Disconnect hides one again (its "
+                     "stats stay saved). Each panel says where that platform's stats come from and when they were "
+                     "last read; Type in stats lets you enter the numbers by hand for one ReelForge can't read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
@@ -150,7 +158,12 @@ class Dashboard(Service):
     def __init__(self, loop: Loop):
         super().__init__(loop)
         self.cfg: dict = {}
+        # Every platform (for the Accounts tab, to connect the others), and the connected ones, which show everywhere
+        # else (Platform.connected; stored: the platforms with stats, which keep them on).
+        self.every: dict[str, Platform] = {}
         self.platforms: dict[str, Platform] = {}
+        self.stored: set[str] = set()
+        self.config_seen: float | None = None  # config.toml's time: another window connecting a platform changes it
         self.demo = False
         self.screenshots = False
         self.tab = "overview"
@@ -192,18 +205,25 @@ class Dashboard(Service):
 
     def start(self, options: dict) -> dict:
         """options: tab, drawer, demo, screenshots (the README's pictures: the demo as a set-up account looks),
-        only_demos (the Publish tab lists just the kit's demo videos)."""
+        only_demos (the Publish tab lists just the kit's demo videos), unconnected (demo platforms left unconnected)."""
         from .__main__ import load_platforms
 
-        cfg, platforms = load_platforms(bool(options.get("demo")), options.get("only_demos", False))
-        return self.open(cfg, platforms, options)
+        cfg, every = load_platforms(bool(options.get("demo")), options.get("only_demos", False),
+                                    tuple(options.get("unconnected") or ()))
+        return self.open(cfg, every, options)
 
     def open(self, cfg: dict, platforms: dict[str, Platform], options: dict) -> dict:
-        """Show these platforms with these settings (the stats database is open already); what the window starts with."""
+        """Show these settings and platforms (every one: only the connected ones show, see Platform.connected), with
+        the stats database open already; what the window starts with. No tab asked for: the Overview, or Accounts while
+        nothing is connected."""
         self.demo = bool(options.get("demo"))
         self.screenshots = bool(options.get("screenshots"))
-        self.cfg, self.platforms = cfg, platforms
-        self.tab = options.get("tab") if options.get("tab") in TABS else "overview"
+        self.cfg, self.every = cfg, platforms
+        self.stored = self._safe(db.stored_platforms, set())
+        self.platforms = connected(self.every, self.stored)
+        self.config_seen = _mtime(config.CONFIG_PATH)
+        tab = options.get("tab")
+        self.tab = tab if tab in TABS else "overview" if self.platforms or tab else "accounts"
         saved = db.get_meta("overview_range", "24h")
         self.range = saved if saved in trends.RANGES else "24h"
         self.note_seen = self._safe(notify.newest_id, 0)  # what's already there shows in the drawer, not as pop-ups
@@ -221,21 +241,25 @@ class Dashboard(Service):
             anvil, quads = [], False
         tags = (f"#{videos.FIRST_TAG} " if videos.FIRST_TAG else "") + "#tag #tag"
         return {
-            "platforms": [{"key": p.key, "name": p.name, "color": p.color, "short": SHORT.get(p.key, p.key)}
-                          for p in self.platforms.values()],
+            "platforms": self.platform_info(),
             "tab": self.tab, "drawer": bool(options.get("drawer")), "test": TEST_COPY, "demo": self.demo,
             "screenshots": self.screenshots, "title": "ReelForge TEST" if TEST_COPY else "ReelForge",
             "files": desktop.FILES, "files_window": desktop.FILES_WINDOW, "bin": desktop.BIN,
             "anvil": anvil, "quadrants": quads, "help": HELP, "keys": KEYS, "version": KIT_VERSION,
             "max_tags": videos.MAX_TAGS, "first_tag": videos.FIRST_TAG, "default_tags": self.cfg.get("default_tags", ""),
             "caption_placeholder": "one short line that hooks the viewer", "tags_placeholder": tags,
-            "copies": {k: list(v) for k, v in COPIES.items() if k in self.platforms},
+            "copies": {k: list(v) for k, v in COPIES.items()},
             "badges_how": badges.HOW, "ranges": {k: v[0] for k, v in trends.RANGES.items()},
             "fit_steps": {k: [s.total_seconds() / 3600 for s in v] for k, v in trends.FIT_STEPS.items()},
             "videos_dir": str(config.videos_dir(self.cfg)),
         }
 
+    def platform_info(self) -> list[dict]:
+        return [{"key": p.key, "name": p.name, "color": p.color, "short": SHORT.get(p.key, p.key)}
+                for p in self.platforms.values()]
+
     def started(self) -> None:
+        self.show_platforms()
         self.reload()
         self.scan_files()
         self.update_notes()
@@ -254,6 +278,14 @@ class Dashboard(Service):
     def stop(self) -> None:
         for w in self.loop.workers.values():
             w.is_cancelled = True
+
+    def show_platforms(self) -> None:
+        """Only the connected platforms show anywhere: the window's own parts (the Publish buttons) follow this view,
+        and the rest is sent from self.platforms. What's switched off or filtered to stays only while it's connected."""
+        self.hidden_lines &= set(self.platforms)
+        if self.filter not in self.platforms:
+            self.filter = None
+        self.emit("platforms", {"platforms": self.platform_info()})
 
     def totals(self) -> dict[str, float | None]:
         out = {}
@@ -292,10 +324,16 @@ class Dashboard(Service):
                            key=f"hot:{p['platform']}|{p['post_id']}")
         badges.notify_new(self.posts, self.first_day, self.account_rows, self.platforms)
 
+    def shows_note(self, note: dict) -> bool:
+        """Whether a notification is in the drawer: not one about a platform that isn't connected (it's back once you
+        connect that platform again)."""
+        key = notify.platform_of(note, {k: p.name for k, p in self.every.items()})
+        return key is None or key in self.platforms
+
     def show_new_notes(self) -> None:
         """Pop up what's been added since the last look (a few at most), then refresh the bell and the drawer."""
         new = self._safe(lambda: notify.since(self.note_seen), [])
-        for n in new[-4:]:
+        for n in [n for n in new if self.shows_note(n)][-4:]:
             kind = notify.KINDS.get(n["kind"], notify.KINDS["info"])
             self.notify(n["body"] or "", title=f"{kind[0]} {n['title']}", timeout=12,
                         severity="error" if n["kind"] == "login" else "information")
@@ -365,8 +403,7 @@ class Dashboard(Service):
                 elif result.waited:
                     self.notify(f"Up to date: {result.waited} just read your stats.", timeout=6)
                 elif not any(p.has_stats for p in self.platforms.values()):
-                    self.notify("Nothing to read yet: add your handles in config.toml, or log in on the Accounts "
-                                "tab.")
+                    self.notify("Nothing to read yet: connect an account on the Accounts tab.")
                 else:
                     self.notify("Up to date. Platforms read through the browser wait a bit between reads; "
                                 "R reads them anyway.")
@@ -388,6 +425,7 @@ class Dashboard(Service):
         """Every second, and after each of this window's own reads (read_here): what the other ReelForge windows, and
         the hourly job, are up to. A read one of them has under way shows in the header, one it finished shows here
         too, and so do its notifications and errors."""
+        self.follow_config()  # a platform another window connected or disconnected
         try:
             with db.connect() as c:  # one quick look at the store
                 state, changes, notes = sync.shared(c), db.changes(c), notify.signature(c)
@@ -505,6 +543,10 @@ class Dashboard(Service):
             t.append("● " if live else "○ ", color, act("tab", "accounts"))
             t.append(p.name, f"bold {color}" if live else color, act("tab", "accounts"))
             t.append("    ")
+        if not self.platforms:
+            t.append("No accounts connected yet  ", MUTED)
+            t.append_text(chip("Connect one", act("tab", "accounts")))
+            t.append("    ")
         stamps = [r["ts"] for r in self.latest.values()]
         t.append(f"updated {fmt_ago(max(stamps) if stamps else None)}", MUTED)
         status = self.status or self.elsewhere  # this window's read, or another one's (see keep_in_step)
@@ -557,9 +599,13 @@ class Dashboard(Service):
         if sum(1 for k in self.platforms if k in self.latest):
             total.update(values={f: sum(v) if v else None for f, v in totals.items()},
                          changes={f: sum(v) if v else None for f, v in changes.items()})
+        elif not self.platforms:
+            total["message"] = Text.assemble(("no accounts connected yet\n", MUTED), ("Accounts tab: ", MUTED),
+                                             ("connect one", "bold")).json()
         else:
             total["message"] = Text("no stats yet", MUTED).json()
-        self.emit("cards", {"cards": [total, *cards]})
+        # The All platforms card adds up two or more (or says how to connect the first one).
+        self.emit("cards", {"cards": cards if len(self.platforms) == 1 else [total, *cards]})
 
     def update_trends(self) -> None:
         """The Overview's three charts: what each platform gained per bucket, stacked. Each comes in every bucket
@@ -581,8 +627,9 @@ class Dashboard(Service):
             pts = {p.key: trends.points(self.account_rows.get(p.key, []), metric) for p in visible}
             pts = {k: v for k, v in pts.items() if v}
             if not pts:
-                metrics[metric] = {"empty": "Every platform is hidden: click a name above to show it again."
-                                   if not visible else None}
+                metrics[metric] = {"empty": NOTHING_CONNECTED if not self.platforms else
+                                   "Every platform is hidden: click a name above to show it again." if not visible
+                                   else None}
                 continue
             s = trends.summarise(pts, fr)
             variants = []
@@ -1262,6 +1309,7 @@ class Dashboard(Service):
         item = self.form_item(caption, tags)
         text, what = {
             "copy-caption": (item.title, "Caption"),
+            "copy-caption-alone": (item.title, "Caption"),
             "copy-tiktok": (item.text_for("tiktok"), "TikTok text"),
             "copy-instagram": (item.text_for("instagram"), "Instagram text"),
             "copy-youtube": (item.text_for("youtube"), "YouTube hashtags"),
@@ -1305,11 +1353,32 @@ class Dashboard(Service):
 
     # --- accounts -------------------------------------------------------------------------
 
+    def account_state(self, p: Platform) -> str:
+        """on: connected; login: its handle is in, waiting for the one log-in (Instagram and X); off: not connected."""
+        if p.connected(self.stored):
+            return "on"
+        return "login" if p.public_handle else "off"
+
     def update_accounts(self) -> None:
+        """A panel per platform, in one of three states (account_state): connected, with where its stats come from,
+        how fresh they are, its buttons and its followers over time, and Disconnect at the right of its first line;
+        waiting for its log-in; or not connected, with a box for its @handle, Connect and Sign up."""
         fresh_since = (analytics.now() - timedelta(days=2)).isoformat(timespec="seconds")
         pretend = self.demo and self.screenshots  # the README's pictures show the demo as a set-up account looks
         panels = []
-        for p in self.platforms.values():
+        for p in self.every.values():
+            state = self.account_state(p)
+            panel = {"key": p.key, "name": p.name, "color": p.color, "state": state,
+                     "disconnect": chip("Disconnect", act("disconnect", p.key)).json() if state != "off" else None}
+            if state == "off":
+                then = "" if p.public_stats else ", then log in once in ReelForge's own browser window"
+                panel.update(
+                    status=Text("○ not connected", f"bold {MUTED}").json(), status_short=None,
+                    body=Text(f"Type your @handle and press Connect to see {p.name} in ReelForge{then}. No account "
+                              "yet? Sign up makes one.", MUTED).json(),
+                    note=Text(p.setup_note, MUTED).json(), signup=signup is not None)
+                panels.append(panel)
+                continue
             rows = self.account_rows.get(p.key, [])
             latest = self.latest.get(p.key)
             fresh = any(q["platform"] == p.key and q["published_at"] >= fresh_since for q in self.posts)
@@ -1323,37 +1392,58 @@ class Dashboard(Service):
             source = "demo" if self.demo and not pretend else p.stats_source
             if pretend and logs_in:
                 source = "browser"  # what Instagram and X say once you've logged in
-            body = Text()
+            if state == "login":
+                source = None
+            short = None
             if source == "demo":
-                body.append("● demo data\n", f"bold {GOOD}")
+                status = Text("● demo data", f"bold {GOOD}")
             elif source == "browser":
-                body.append(f"● reading {p.handle} through ReelForge's browser\n", f"bold {GOOD}")
+                status = Text(f"● reading {p.handle} through ReelForge's browser", f"bold {GOOD}")
+                short = Text(f"● reading {p.handle}", f"bold {GOOD}")
             elif source == "public":
-                body.append(f"● public stats for {p.handle}\n", f"bold {GOOD}")
-            elif not p.public_handle:
-                body.append(f'○ add handle = "@you" under [{p.key}] in config.toml\n', f"bold {MUTED}")
+                status = Text(f"● public stats for {p.handle}", f"bold {GOOD}")
+            elif state == "login":
+                status = Text(f"○ {p.handle}: log in once to finish connecting", f"bold {p.color}")
+                short = Text("○ log in once to finish", f"bold {p.color}")
             else:
-                body.append("○ press Log in once to start tracking\n", f"bold {p.color}")
-            body.append(f"last refresh {fmt_ago(latest['ts'] if latest else None)}", MUTED)
-            if due:
-                body.append(f" · next {due}", MUTED)
-            posts = sum(1 for q in self.posts if q["platform"] == p.key)
-            if posts:
-                body.append(f"\n{posts} videos tracked", MUTED)
-                if rows:
-                    since = db.parse(rows[0]["ts"]).astimezone().strftime("%b %d").replace(" 0", " ")
-                    body.append(f" · history since {since}", MUTED)
+                status = Text(f"○ {p.handle}: log in again to keep tracking", f"bold {p.color}")
+                short = Text("○ log in again", f"bold {p.color}")
+            body = Text()
+            if state == "login":
+                body.append(f"{p.name} shows up everywhere in ReelForge once you've logged in, or once you've typed "
+                            "its numbers in by hand.", MUTED)
+            else:
+                body.append(f"last refresh {fmt_ago(latest['ts'] if latest else None)}", MUTED)
+                if due:
+                    body.append(f" · next {due}", MUTED)
+                posts = sum(1 for q in self.posts if q["platform"] == p.key)
+                if posts:
+                    body.append(f"\n{posts} videos tracked", MUTED)
+                    if rows:
+                        since = db.parse(rows[0]["ts"]).astimezone().strftime("%b %d").replace(" 0", " ")
+                        body.append(f" · history since {since}", MUTED)
             if error:
-                body.append(f"\nlast read failed: {error[1]}", BAD)
+                body.append(f"\n\nlast read failed: {error[1]}" if state == "login" else
+                            f"\nlast read failed: {error[1]}", BAD)
             note = "Demo data, made up on this PC." if self.demo and not pretend else p.setup_note
-            panels.append({
-                "key": p.key, "name": p.name, "color": p.color, "body": body.json(), "note": Text(note, MUTED).json(),
-                "logs_in": logs_in, "login_label": "Log in again" if source == "browser" else "Log in",
-                "profile_disabled": not p.public_handle and not pretend,
-                "refresh_disabled": self.demo and not pretend, "show_log": not p.has_stats,
-                "chart": self.followers_chart(p, rows),
-            })
-        self.emit("accounts", {"panels": panels})
+            panel.update(
+                status=status.json(), status_short=short.json() if short else None, body=body.json(),
+                note=Text(note, MUTED).json(), logs_in=logs_in,
+                login_label="Log in again" if source == "browser" else "Log in",
+                profile_disabled=not p.public_handle and not pretend, refresh_disabled=self.demo and not pretend,
+                show_log=not p.has_stats, chart=self.followers_chart(p, rows) if state == "on" else None)
+            panels.append(panel)
+        missing = [p for k, p in self.every.items() if k not in self.platforms]
+        hint = None
+        if not self.platforms:
+            hint = parts([
+                (Text("Connect the platforms you post to: ReelForge only shows the ones you've connected.  ", MUTED), 1),
+                (Text("Starting from scratch? ", "bold"), 0), (chip("Make a Gmail first", act("gmail")), 0),
+                (Text("  it's your YouTube login, and the others can sign up with the same email.", MUTED), 2)])
+        elif missing:
+            hint = parts([(Text(f"Only connected platforms show up in ReelForge. Connect {_either(missing)} here any "
+                                "time.", MUTED), 0)])
+        self.emit("accounts", {"panels": panels, "hint": hint})
 
     def followers_chart(self, p: Platform, rows: list) -> dict | None:
         """An account's followers over the time ReelForge has been reading them: the heading, the points, and each
@@ -1380,21 +1470,21 @@ class Dashboard(Service):
 
     @rpc
     def login(self, key: str) -> None:
-        p = self.platforms[key]
+        p = self.every[key]
         if not p.public_handle:
-            self.notify(f'Add handle = "@you" under [{p.key}] in config.toml first.', severity="warning")
+            self.notify(f"Connect {p.name} with your @handle first.", severity="warning")
             return
         self.loop.run_worker(self._browser_login, p, group="login")
 
     @rpc
     def profile(self, key: str) -> None:
-        p = self.platforms[key]
+        p = self.every[key]
         if p.public_handle:
             desktop.open_url(desktop.profile_url(p.key, p.public_handle))
 
     @rpc
     def refresh_platform(self, key: str) -> None:
-        p = self.platforms[key]
+        p = self.every[key]
         if not p.has_stats:
             self.notify(f"{p.name} isn't set up yet (see the panel).", severity="warning")
             return
@@ -1412,9 +1502,134 @@ class Dashboard(Service):
             self.loop.call_soon(self.notify, msg, f"{p.name} not logged in", "error", 15)
             return
         self.loop.call_soon(self.notify, f"Logged in to {p.name}. Reading your stats now…")
-        self.loop.call_soon(self.update_accounts)
-        self.loop.call_soon(self.update_header)
+        self.loop.call_soon(self.follow_connections)  # connected now, if it was waiting for this
         self.loop.call_soon(self.run_refresh, True, True, p.key)
+
+    # --- connecting and disconnecting -------------------------------------------------------
+
+    @rpc
+    def connect(self, key: str, typed: str) -> str | None:
+        """Connect: the handle typed into a panel that isn't connected yet. What's wrong with it, or None."""
+        p = self.every[key]
+        try:
+            handle = signup.handle_from(typed) if signup else ("@" + typed.strip().lstrip("@") if typed.strip() else "")
+        except ValueError as e:
+            return str(e)
+        if not handle:
+            return f"Type your {p.name} @handle first, or press Sign up to make the account."
+        if self.demo:
+            self.notify("Demo mode: nothing is saved.", timeout=4)
+            return None
+        self.loop.run_worker(self._save_account, p, handle, group="accounts")
+        return None
+
+    @rpc
+    def signup_guide(self, key: str) -> dict | None:
+        """No account yet: the platform's sign-up guide (or the channel's Gmail, "gmail"), as its dialog shows it: a
+        few steps, the button that opens the platform's own sign-up page, and for an account a box for the @handle
+        you end up with, which Connect takes from there."""
+        if signup is None:
+            return None
+        g = signup.GMAIL if key == "gmail" else signup.GUIDES[key]
+        account = g.key != "gmail"
+        steps = [f"Press {g.button}: the page opens in your browser.", *g.steps]
+        if account:
+            steps.append("Type your @handle below and press Connect." + (
+                " ReelForge then opens its own browser window for the one log-in." if g.logs_in else ""))
+        return {"key": g.key, "title": g.title.upper(), "why": g.why, "steps": steps, "button": f"{g.button} →",
+                "account": account}
+
+    @rpc
+    def open_signup(self, key: str) -> None:
+        if signup is not None:
+            signup.open_page((signup.GMAIL if key == "gmail" else signup.GUIDES[key]).url)
+
+    @rpc
+    def disconnect_info(self, key: str) -> dict | None:
+        """Are you sure? What the Disconnect dialog says: it hides the platform everywhere and stops its reads, and
+        its stats stay."""
+        p = self.every.get(key)
+        if p is None or not p.public_handle:
+            return None
+        if self.demo:
+            self.notify("Demo mode: nothing is saved.", timeout=4)
+            return None
+        note = Text()
+        note.append(f"{p.name}  ", f"bold {p.color}")
+        note.append(p.handle, "bold")
+        note.append(f"\n\nReelForge stops reading {p.name}, and its cards, charts, columns, filters, upload buttons and "
+                    "notifications leave every tab. Everything it has read so far stays saved, so connecting it again "
+                    "(on this tab, with the same @handle) brings it all back.", MUTED)
+        if p.browser_stats:
+            note.append(f"\nYou stay logged in to {p.name} in ReelForge's browser.", MUTED)
+        return {"key": key, "title": f"DISCONNECT {p.name.upper()}?", "note": note.json()}
+
+    @rpc
+    def disconnect(self, key: str) -> None:
+        p = self.every.get(key)
+        if p is not None and p.public_handle and not self.demo:
+            self.loop.run_worker(self._save_account, p, "", group="accounts")
+
+    def _save_account(self, p: Platform, handle: str) -> None:
+        """Connect a platform with its handle, or disconnect it (""): your settings change (config.save_handle), then
+        it shows up everywhere, or leaves, straight away."""
+        try:
+            config.save_handle(p.key, handle)
+        except Exception as e:
+            self.loop.call_soon(self.notify, f"Couldn't save {p.name}'s handle: {e}", "", "error", 12)
+            return
+        self.loop.call_soon(self.account_saved, p, handle)
+
+    def account_saved(self, p: Platform, handle: str) -> None:
+        p.cfg["handle"] = handle
+        self.config_seen = _mtime(config.CONFIG_PATH)
+        self.follow_connections()
+        self.tell_others()
+        if not handle:
+            self.notify(f"ReelForge stops reading {p.name} and hides it everywhere. Its stats so far stay saved: "
+                        "connect it again to see them.", title=f"{p.name} disconnected", timeout=12)
+        elif p.key in self.platforms:
+            self.notify(f"Reading {handle}'s stats now…", title=f"{p.name} connected", timeout=8)
+            self.run_refresh(True, True, p.key)
+        else:  # Instagram and X: the one log-in comes next (its own message says where)
+            self.loop.run_worker(self._browser_login, p, group="login")
+
+    def follow_connections(self) -> None:
+        """Show what's connected now, everywhere: after a connect or a disconnect (here or in another window), a
+        log-in, or a platform's first stats."""
+        self.stored = self._safe(db.stored_platforms, self.stored)
+        now = connected(self.every, self.stored)
+        if list(now) != list(self.platforms):
+            self.platforms = now
+            self.show_platforms()
+            self.reload()
+            self.update_notes()
+            if self.tab == "publish":
+                self.scan_files()
+        else:
+            self.update_accounts()
+        self.update_header()
+
+    def follow_config(self) -> None:
+        """Another ReelForge window connected or disconnected a platform: its handle changed in config.toml."""
+        if self.demo:
+            return
+        seen = _mtime(config.CONFIG_PATH)
+        if seen == self.config_seen:
+            return
+        self.config_seen = seen
+        try:
+            fresh = config.load_config()
+        except config.ConfigError:
+            return
+        changed = False
+        for key, p in self.every.items():
+            handle = str((fresh.get(key) or {}).get("handle", ""))
+            if handle != str(p.cfg.get("handle", "")):
+                p.cfg["handle"] = handle
+                changed = True
+        if changed:
+            self.loop.call_soon(self.follow_connections)
 
     # --- typed-in stats --------------------------------------------------------------------
 
@@ -1422,7 +1637,7 @@ class Dashboard(Service):
     def log_stats(self, start: str | None = None) -> dict | None:
         """Type in numbers for platforms ReelForge can't read itself (Instagram and X before logging in): what the
         dialog shows."""
-        manual = [p for p in self.platforms.values() if not p.has_stats]
+        manual = [p for p in self.every.values() if p.public_handle and not p.has_stats]
         if not manual:
             self.notify("Every platform already gets its stats automatically.")
             return None
@@ -1468,7 +1683,7 @@ class Dashboard(Service):
         return None
 
     def _save_logged(self, key: str, followers: int | None, views: dict[int, int]) -> None:
-        p = self.platforms[key]
+        p = self.every[key]
         episodes = {e["id"]: e for e in db.episodes()}
         posts = []
         for episode_id, n in views.items():
@@ -1489,6 +1704,8 @@ class Dashboard(Service):
         self.tell_others()
         self.notify(f"{p.name} stats saved.", timeout=3)
         self.reload()
+        if key not in self.platforms:  # its first numbers connect it
+            self.follow_connections()
 
     # --- fixing an episode link --------------------------------------------------------------
 
@@ -1535,7 +1752,7 @@ class Dashboard(Service):
     def update_notes(self) -> None:
         """The bell's red dot, and the drawer's list (newest first)."""
         self.notes_sig = self._safe(notify.signature, None)  # first: a change after it shows next (keep_in_step)
-        notes = self._safe(notify.recent, [])
+        notes = [n for n in self._safe(notify.recent, []) if self.shows_note(n)]
         items = []
         for n in notes:
             icon, color, _ = notify.KINDS.get(n["kind"], notify.KINDS["info"])
@@ -1822,6 +2039,19 @@ def slot_info(fr: trends.Frame) -> list[dict]:
         out.append({"label": _slot_label(fr, i), "when": _when(fr, i), "hour": a.hour, "day": a.day,
                     "weekday": f"{a:%a}", "clock": fmt_clock(a).replace(":00", ""), "date": f"{a:%b} {a.day}"})
     return out
+
+
+def _either(ps: list[Platform]) -> str:
+    """'Instagram', 'Instagram or X', 'TikTok, Instagram or X'."""
+    names = [p.name for p in ps]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+
+
+def _mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
 
 
 def _hours_since(ts: str | None) -> float:

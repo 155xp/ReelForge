@@ -22,6 +22,19 @@ export type Dialog =
   | { kind: "log"; data: LogData }
   | { kind: "remove"; data: { path: string; note: import("../lib/styled").Segs; bin: string } }
   | { kind: "episode"; data: EpisodeData }
+  | { kind: "signup"; data: SignupData }
+  | { kind: "disconnect"; data: { key: string; title: string; note: import("../lib/styled").Segs } }
+
+/** A sign-up guide (dashboard/service.py signup_guide): its steps, the button that opens the platform's own sign-up
+ * page, and for an account (not the Gmail) a box for the @handle you end up with. */
+export interface SignupData {
+  key: string
+  title: string
+  why: string
+  steps: string[]
+  button: string
+  account: boolean
+}
 
 export interface LogData {
   platforms: { key: string; name: string }[]
@@ -49,6 +62,8 @@ export class DashState {
   note: string | null = null // the highlighted notification
   caption = ""
   tags = ""
+  handles: Record<string, string> = {} // what's typed into each unconnected platform's @handle box
+  handleErrors: Record<string, string> = {} // ... and what's wrong with it
   private listeners = new Set<() => void>()
   private version = 0
   private pickTimer: ReturnType<typeof setTimeout> | null = null
@@ -86,6 +101,12 @@ export class DashState {
     if (open) this.bridge.send("drawer_opened")
   }
 
+  /** Connect a platform with the @handle typed for it: what's wrong with it shows under its box. */
+  async connect(key: string, typed: string) {
+    const error = await this.bridge.call<string | null>("connect", key, typed)
+    this.set({ handles: { ...this.handles, [key]: typed }, handleErrors: { ...this.handleErrors, [key]: error ?? "" } })
+  }
+
   /** Frame a card or account panel in yellow for a few seconds (one at a time). */
   pick(id: string) {
     if (this.pickTimer) clearTimeout(this.pickTimer)
@@ -98,7 +119,7 @@ export class DashState {
     return this.tab === "overview" ? this.top : this.tab === "videos" ? this.video : this.tab === "compare" ? this.compareRow : null
   }
 
-  async openDialog(kind: "log" | "remove" | "episode", call: Promise<any>) {
+  async openDialog(kind: "log" | "remove" | "episode" | "signup" | "disconnect", call: Promise<any>) {
     const data = await call
     if (data) this.set({ dialog: { kind, data } as Dialog })
   }
@@ -116,6 +137,10 @@ export class DashState {
         return void this.openDialog("episode", b.call("fix_episode", this.highlighted()))
       case "remove_picked":
         return void this.openDialog("remove", b.call("remove_menu", null))
+      case "gmail":
+        return void this.openDialog("signup", b.call("signup_guide", "gmail"))
+      case "disconnect":
+        return void this.openDialog("disconnect", b.call("disconnect_info", args[0]))
       case "close_drawer":
         return this.toggleDrawer(false)
       case "refresh":

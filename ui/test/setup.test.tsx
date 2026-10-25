@@ -55,15 +55,15 @@ describe("the tools", () => {
 describe("onboarding", () => {
   test("Next and Back walk the steps, from the answers saved last time", async () => {
     const h = await screen("onboard", [140, 46])
-    expect(frame(h)).toContain("1/8  You")
+    expect(frame(h)).toContain("1/9  You")
     await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("2/8  Your channel")
+    expect(frame(h)).toContain("2/9  Your channel")
     expect(frame(h)).toContain("Night Physics")
     await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("3/8  Your format")
+    expect(frame(h)).toContain("3/9  Your format")
     expect(frame(h)).toContain("What if X doubled every 2 seconds?")
     await clickText(h, "  Back  ", 4)
-    expect(frame(h)).toContain("2/8  Your channel")
+    expect(frame(h)).toContain("2/9  Your channel")
   })
 
   test("a different format brings its own suggestions", async () => {
@@ -76,6 +76,26 @@ describe("onboarding", () => {
     await clickText(h, "What if <disaster> hit your city?", 2)
     await h.settle(500)
     expect(frame(h)).not.toContain("Doubling")
+  })
+
+  test("Your accounts: a platform's sign-up guide hands back the @handle you made", async () => {
+    const h = await screen("onboard", [140, 46])
+    for (let step = 0; step < 4; step++) await clickText(h, "  Next  ", 4)
+    expect(frame(h)).toContain("5/9  Your accounts")
+    expect(frame(h)).toContain("Make a Gmail")
+    await clickText(h, "No account? Sign up", 2) // TikTok's, the first
+    expect(frame(h)).toContain("Make your TikTok account")
+    expect(frame(h)).toContain("Pick a username that matches your channel")
+    await press(h, "TAB") // from the button that opens the page to the box for the handle
+    await h.t.mockInput.typeText("not a handle!")
+    await press(h, "RETURN")
+    expect(frame(h)).toContain("isn't a handle")
+    for (let i = 0; i < 13; i++) h.t.mockInput.pressKey("BACKSPACE")
+    await h.t.mockInput.typeText("tiktok.com/@nightphysics")
+    await press(h, "RETURN")
+    expect(frame(h)).not.toContain("Make your TikTok account")
+    expect(frame(h)).toContain("@nightphysics")
+    expect(h.exits).toEqual([])
   })
 
   test("Esc asks first; Keep going stays, Leave leaves", async () => {

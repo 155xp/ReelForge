@@ -92,6 +92,14 @@ class Platform:
     def has_stats(self) -> bool:
         return self.stats_source is not None
 
+    def connected(self, stored=frozenset()) -> bool:
+        """Whether this platform is on in ReelForge: its card, charts and their keys, Videos filter, Compare chart,
+        Publish buttons, best time and notifications. It is once you've added your handle on the Accounts tab and
+        ReelForge can read it: straight away for TikTok and YouTube, after the one log-in for Instagram and X. Stats
+        already stored for it (`stored`: the platforms with any) keep it on too, so a log-in that runs out, or stats
+        typed in by hand, never hide its history."""
+        return bool(self.public_handle) and (not self.browser_stats or self.logged_in or self.key in stored)
+
     @property
     def uses_browser(self) -> bool:
         """Whether a refresh opens ReelForge's background browser (slower, so it refreshes less often)."""

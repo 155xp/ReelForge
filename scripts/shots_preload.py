@@ -7,6 +7,7 @@ changes: it only swaps what ReelForge would find here for the same things on a f
   - The first-run screens show a neutral folder (C:\\Users\\you\\ReelForge) and what a computer with nothing installed
     sees, and the last screen a new channel's (Night Physics) with nothing turned on here.
   - Onboarding starts from a sample channel's answers, so its later steps can be shown.
+  - A sign-up guide's button opens nothing: no browser ever opens from a picture or a test.
 """
 
 from __future__ import annotations
@@ -64,6 +65,12 @@ def _dashboard() -> None:
     pathlib.Path.stat = stat
 
 
+# Your accounts as a new channel sees it: the three recommended platforms, one handle typed in and two to sign up for.
+ACCOUNTS_ANSWERS = {"creator": "Sam", "channel_name": "Night Physics", "handle_tiktok": "@nightphysics",
+                    "about": "Mind-bending what-if videos: everyday things pushed to impossible extremes, with real "
+                             "science."}
+
+
 def _first_run() -> None:
     from studio import command, setup_flow, setup_service, sounds, stats_schedule, tools
     from studio import paths as P
@@ -91,6 +98,8 @@ def _first_run() -> None:
                                                 "is on, even with ReelForge closed.")
     command.status = lambda: "on"
     answers = json.loads((ROOT / "scripts" / "shots_answers.json").read_text(encoding="utf-8"))
+    if os.environ.get("REELFORGE_SHOT") == "onboarding-accounts":
+        answers = ACCOUNTS_ANSWERS
     setup_service.saved_answers = lambda: dict(answers)
 
 
@@ -104,6 +113,13 @@ def _list_modules() -> None:
             f.writelines(f"{m.__file__}\n" for m in list(sys.modules.values()) if getattr(m, "__file__", None))
 
 
+def _no_browser() -> None:
+    from studio import signup
+
+    signup.open_page = lambda url: None
+
+
 atexit.register(_list_modules)
 _dashboard()
 _first_run()
+_no_browser()

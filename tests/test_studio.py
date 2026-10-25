@@ -29,7 +29,7 @@ class Questions(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(a["format"], "doubling")
         self.assertEqual(a["series"], "Doubling")
-        self.assertEqual(a["platforms"], list(settings.PLATFORMS))
+        self.assertEqual(a["platforms"], list(settings.RECOMMENDED))
 
     def test_required_and_conditional(self):
         _, problems = questions.validate({})

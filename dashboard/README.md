@@ -16,8 +16,10 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | `reelforge notifications` | the Overview with the notifications drawer open |
 | `reelforge --demo` | a tour on made-up numbers: nothing is read or saved |
 
-Onboarding fills in your handles. TikTok and YouTube stats start straight away; for Instagram and X, go to
-**Accounts (5)** and press **Log in** once (see below). It looks best in Windows Terminal with the window maximised.
+ReelForge shows only the platforms you've connected: onboarding connects the ones you give it a handle for, and
+**Accounts (5)** connects (or disconnects) any of them later. TikTok and YouTube stats start straight away; Instagram
+and X need **Log in** once (see below). With nothing connected yet, ReelForge opens on Accounts. It looks best in
+Windows Terminal with the window maximised.
 Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**6** switch tabs, **r** / **R**
 refresh / force a refresh, **Tab** moves between buttons, lists and fields (**Enter** presses, the arrows move through
 a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q** quits.
@@ -44,7 +46,7 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 | **2 Videos** | Every video on every platform: views, **views 12 hours in** (so new and old videos compare fairly; "in 5h" until a video is that old, — when the computer was off then), likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet, with when each post went up (date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in. |
 | **3 Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. |
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
-| **5 Accounts** | Where each platform's stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
+| **5 Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
 | **6 Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
@@ -159,12 +161,14 @@ video it was matters more than when it went up, so take it as a time to try rath
 
 | Setting | |
 |---|---|
-| `handle` under `[tiktok]`, `[youtube]`, `[instagram]`, `[x]` | your handle on each platform; blank leaves the platform out |
+| `handle` under `[tiktok]`, `[youtube]`, `[instagram]`, `[x]` | your handle on each platform: **Connect** on the Accounts tab sets it and **Disconnect** clears it; blank leaves the platform out everywhere |
 | `default_tags` | hashtags for videos that don't bring their own |
 | `refresh_minutes` | how often ReelForge re-reads stats while it's open (Instagram/X wait at least an hour) |
 | `videos_dir` | an extra folder of videos to post (default `dashboard/videos`) |
 
-Onboarding writes this file; run onboarding again to change your answers, or edit it and reopen ReelForge.
+Onboarding writes this file; run onboarding again to change your answers, or edit it and reopen ReelForge. Connecting
+or disconnecting a platform on the Accounts tab changes your onboarding answers to match, so your AI's notes cover the
+platforms you're connected to and running onboarding again keeps them.
 
 ## Your data
 

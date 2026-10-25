@@ -268,6 +268,12 @@ def platforms_with_posts_since(since: str) -> set[str]:
         return {r[0] for r in db.execute("SELECT DISTINCT platform FROM posts WHERE published_at >= ?", (since,))}
 
 
+def stored_platforms() -> set[str]:
+    """The platforms ReelForge has any stats for (read, or typed in): see Platform.connected."""
+    with connect() as db:
+        return {r[0] for r in db.execute("SELECT DISTINCT platform FROM account_stats")}
+
+
 def get_meta(key: str, default=None, conn: sqlite3.Connection | None = None):
     if conn is None:
         with connect() as db:

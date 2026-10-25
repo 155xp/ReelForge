@@ -123,7 +123,7 @@ class OnboardTest(unittest.TestCase):
         self.assertIsNone(self.svc.onboard_change("format", "custom"))  # not a change
 
     def test_a_custom_length_needs_min_and_max(self):
-        self.svc.onboard_step(4)
+        self.svc.onboard_step([k for k, _ in self.start["steps"]].index("look"))
         self.svc.onboard_change("length", "custom")
         res = self.svc.onboard_next({"length": "custom", "length_custom": "about a minute"})
         self.assertEqual(res["errors"]["length_custom"], "Write it as min-max seconds, e.g. 20-30")

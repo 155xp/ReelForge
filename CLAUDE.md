@@ -25,6 +25,10 @@ their answers (their channel, format, platforms, style, caption rules and qualit
    - Ask them conversationally, a few at a time, offering the options as choices and the defaults as suggestions.
      Skip questions whose `only_if` doesn't apply. `background_stats` adds an hourly background job that reads
      their stats while ReelForge is closed: ask it plainly; their answer is the permission.
+   - No account on a platform yet? Help them make it: each handle question has its `signup` page and steps, and the
+     first has `gmail`, a new Gmail just for the channel to offer first (it signs them in to YouTube, and the
+     others can sign up with it). They sign up themselves, in their own browser: never make an account for them or
+     ask for a password. A handle they skip, they can connect later on ReelForge's Accounts tab (tab 5).
    - Write their answers to `my-studio/answers.json` (`{"key": value, ...}`), then run
      `.venv\Scripts\python -m studio onboard --answers my-studio/answers.json`. It checks the answers and says
      what to fix.

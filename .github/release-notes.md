@@ -21,6 +21,10 @@
   - **The hourly stats job** is a launchd agent on a Mac and a systemd timer on Linux (or a cron job without systemd).
   - **Fixed:** an update on a Mac could leave ReelForge's launchers unable to run, and setup's colours were wrong in
     macOS's Terminal before macOS 26.
+- **Only the platforms you use.** Onboarding asks where you post, with TikTok, YouTube Shorts and Instagram Reels
+  ticked to start, and helps you make any account you don't have yet, starting with a new Gmail for your channel.
+  ReelForge then shows only the platforms you've connected, with no empty cards, charts or buttons for the others,
+  and the Accounts tab connects or disconnects one any time.
 - **Views 12h.** The Videos tab and Top performers show each video's views 12 hours after it went up, so a video from
   this morning and one from last week compare fairly (until then it says when the number comes in). Export CSV has
   them too, between the 6 and 24 hour columns.

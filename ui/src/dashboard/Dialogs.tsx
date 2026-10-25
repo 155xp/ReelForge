@@ -1,4 +1,5 @@
-// Dialogs over the window: how ReelForge works, typing in stats, removing a video, and which video a post is.
+// Dialogs over the window: how ReelForge works, typing in stats, removing a video, which video a post is, making an
+// account (or the channel's Gmail), and disconnecting one.
 
 import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
@@ -8,7 +9,8 @@ import { Button } from "../ui/Button"
 import { RadioSet, TextField } from "../ui/Fields"
 import { OptionList } from "../ui/Lists"
 import { Modal, Scroll, Wrapped } from "../ui/Panels"
-import { useDash, type EpisodeData, type LogData } from "./state"
+import { useFocusManager } from "../lib/focus"
+import { useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
   const s = useDash()
@@ -18,6 +20,8 @@ export function Dialogs() {
   if (d.kind === "help") return <Help close={close} />
   if (d.kind === "log") return <LogStats data={d.data} close={close} />
   if (d.kind === "remove") return <Remove data={d.data} close={close} />
+  if (d.kind === "signup") return <SignUp data={d.data} close={close} />
+  if (d.kind === "disconnect") return <Disconnect data={d.data} close={close} />
   return <EpisodePicker data={d.data} close={close} />
 }
 
@@ -198,6 +202,96 @@ function EpisodePicker({ data, close }: { data: EpisodeData; close: () => void }
       <Buttons>
         <Button id="ep-cancel" label="Cancel" onPress={close} />
         <Button id="ep-pick" label="This one" variant="primary" disabled={!selected} onPress={() => selected && choose(selected)} />
+      </Buttons>
+    </Modal>
+  )
+}
+
+/** Making an account you don't have yet (or the channel's Gmail): a few steps, a button that opens the platform's own
+ * sign-up page in your usual browser, and a box for the @handle you end up with, which Connect connects. ReelForge
+ * never makes the account, fills in a form or sees a password. */
+function SignUp({ data, close }: { data: SignupData; close: () => void }) {
+  const s = useDash()
+  const focus = useFocusManager()
+  const [opened, setOpened] = useState(false)
+  const [handle, setHandle] = useState(s.handles[data.key] ?? "")
+  const [problem, setProblem] = useState("")
+  const open = () => {
+    s.bridge.send("open_signup", data.key)
+    setOpened(true)
+    setTimeout(() => focus.focus(data.account ? "su-handle" : "su-done"), 30)
+  }
+  const done = (typed = handle) => {
+    if (!data.account) return close()
+    if (!typed.trim()) return setProblem("Type your new @handle first.")
+    close()
+    void s.connect(data.key, typed)
+  }
+  return (
+    <Modal name="signup" title={data.title} width={84}>
+      <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
+        {data.why}
+      </text>
+      <box flexDirection="column" marginTop={1} flexShrink={0}>
+        {data.steps.map((step, i) => (
+          <box key={i} flexDirection="row" flexShrink={0}>
+            <text attributes={TextAttributes.BOLD} width={4} flexShrink={0}>
+              {`${i + 1}.`.padStart(3)}
+            </text>
+            <text wrapMode="word" flexGrow={1} flexShrink={1}>
+              {step}
+            </text>
+          </box>
+        ))}
+      </box>
+      <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
+        <Button id="su-open" label={data.button} variant="primary" autoFocus onPress={open} />
+      </box>
+      {opened ? (
+        <text fg={DASH.good} marginLeft={4} flexShrink={0}>
+          ✓ Opened in your browser. Come back here when you're done.
+        </text>
+      ) : null}
+      {data.account ? (
+        <>
+          <text attributes={TextAttributes.BOLD} marginTop={1} flexShrink={0}>
+            Your @handle
+          </text>
+          <TextField id="su-handle" value={handle} placeholder="@yourname" bad={!!problem} onChange={setHandle} onSubmit={(v) => done(v)} />
+          {problem ? (
+            <text fg={DASH.bad} flexShrink={0}>
+              {problem}
+            </text>
+          ) : null}
+        </>
+      ) : null}
+      <Buttons>
+        <Button id="su-cancel" label="Cancel" onPress={close} />
+        <Button id="su-done" label={data.account ? "Connect" : "Done"} variant={data.account ? "primary" : "default"} onPress={() => done()} />
+      </Buttons>
+    </Modal>
+  )
+}
+
+/** Are you sure? Disconnecting a platform hides it everywhere in ReelForge and stops its reads; its stats stay. */
+function Disconnect({ data, close }: { data: { key: string; title: string; note: import("../lib/styled").Segs }; close: () => void }) {
+  const s = useDash()
+  return (
+    <Modal name="disconnect" title={data.title}>
+      {lines(data.note).map((l, i) => (
+        <Wrapped key={i} segs={l.length ? l : [[" ", ""]]} flexGrow={0} />
+      ))}
+      <Buttons>
+        <Button id="dc-cancel" label="Cancel" autoFocus onPress={close} />
+        <Button
+          id="disconnect"
+          label="Disconnect"
+          variant="error"
+          onPress={() => {
+            close()
+            s.bridge.send("disconnect", data.key)
+          }}
+        />
       </Buttons>
     </Modal>
   )

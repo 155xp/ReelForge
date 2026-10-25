@@ -13,7 +13,7 @@ import os
 import subprocess
 import traceback
 
-from . import KIT_NAME, command, doctor, generate, logo, setup_flow, stats_schedule, tools, tui
+from . import KIT_NAME, command, doctor, generate, logo, setup_flow, signup, stats_schedule, tools, tui
 from . import paths as P
 from . import settings as S
 from .bridge import Loop, Service, rpc
@@ -27,6 +27,9 @@ BLURBS = {
     "format": "Start from a format that is already pulling views. Your AI copies what works, then does it better.",
     "platforms": "Where your videos go. ReelForge shows your stats for each one, and you post from its Publish "
                  "tab.",
+    "accounts": "Type your @handle on each, or press Sign up to make the account now. ReelForge opens each sign-up "
+                "page in your own browser and never sees your passwords. No rush: you can connect any of them later "
+                "on ReelForge's Accounts tab.",
     "look": "How your videos look and sound.",
     "posting": "How each post is written, and how often you post.",
     "quality": "How hard your AI should push on every video.",
@@ -180,11 +183,14 @@ class Setup(Service):
         v = self.answers.get(q.key)
         if q.kind == "long":
             v = "\n".join(v) if isinstance(v, list) else ("" if v is None else str(v))
-        elif q.kind in ("text", "number"):
+        elif q.kind in ("text", "number", "handle"):
             v = "" if v is None else str(v)
-        return {"key": q.key, "prompt": q.prompt, "required": q.required, "help": q.help, "kind": q.kind,
-                "options": [list(o) for o in q.options], "value": v, "placeholder": q.placeholder_for(self.answers),
-                "visible": q.visible(self.answers)}
+        out = {"key": q.key, "prompt": q.prompt, "required": q.required, "help": q.help, "kind": q.kind,
+               "options": [list(o) for o in q.options], "value": v, "placeholder": q.placeholder_for(self.answers),
+               "visible": q.visible(self.answers)}
+        if q.kind == "handle":
+            out["platform"] = q.key.removeprefix("handle_")  # its "No account? Sign up" opens that guide
+        return out
 
     @rpc
     def onboard_step(self, i: int) -> dict:
@@ -197,7 +203,38 @@ class Setup(Service):
         else:
             self.answers = defaults_for(self.answers)
             out["fields"] = [self.field(q) for q in self.step_questions(key)]
+        if key == "accounts":  # the box at the top: a Gmail just for the channel first, for someone starting from scratch
+            out["gmail"] = {"title": "Starting from scratch? Make a Gmail for your channel first.",
+                            "why": signup.GMAIL.why, "button": "Make a Gmail →"}
         return out
+
+    # ---------------------------------------------------------------- making accounts
+
+    @rpc
+    def signup_guide(self, key: str) -> dict:
+        """How to make one account (or the channel's Gmail, "gmail"): its steps, the button that opens the official
+        sign-up page in your own browser, and for an account a box for the @handle you end up with."""
+        g = signup.GMAIL if key == "gmail" else signup.GUIDES[key]
+        steps = [f"Press {g.button}: the page opens in your browser.", *g.steps]
+        if g.key != "gmail":
+            steps.append("Type your @handle below." + (" It also needs one log-in in ReelForge, so ReelForge can read "
+                                                       "your stats: it asks for it when you open ReelForge."
+                                                       if g.logs_in else ""))
+        return {"key": g.key, "title": g.title, "why": g.why, "steps": steps, "button": f"{g.button} →",
+                "account": g.key != "gmail"}
+
+    @rpc
+    def open_signup(self, key: str) -> None:
+        signup.open_page((signup.GMAIL if key == "gmail" else signup.GUIDES[key]).url)
+
+    @rpc
+    def signup_handle(self, typed: str) -> dict:
+        """The handle typed into a sign-up guide: {"handle": "@name"} for its box on the step (maybe ""), or
+        {"error": ...} to show in the guide."""
+        try:
+            return {"handle": signup.handle_from(typed)}
+        except ValueError as e:
+            return {"error": str(e)}
 
     @staticmethod
     def _same(a, b) -> bool:
@@ -283,15 +320,18 @@ class Setup(Service):
                 if not q.visible(a):
                     continue
                 v = a.get(q.key)
+                skipped = "_(skipped)_"
                 if q.kind == "choice":
                     v = dict(q.options).get(v, v)
                 elif q.kind == "multi":
-                    v = ", ".join(dict(q.options).get(x, x) for x in (v or []))
+                    v = ", ".join(dict(q.options).get(x, x).split("   ·")[0] for x in (v or []))
                 elif q.kind == "yesno":
                     v = "Yes" if v else "No"
+                elif q.kind == "handle":
+                    skipped = "_(not yet: connect it any time on ReelForge's Accounts tab)_"
                 elif isinstance(v, str) and "\n" in v:
                     v = "; ".join(x.strip() for x in v.splitlines() if x.strip())
-                lines.append(f"- **{q.prompt}** {v if v not in (None, '') else '_(skipped)_'}")
+                lines.append(f"- **{q.prompt}** {v if v not in (None, '') else skipped}")
             lines.append("")
         if problems:
             lines += ["### Needs fixing", *[f"- {p}" for p in problems]]
@@ -322,6 +362,11 @@ class Setup(Service):
         return [S.PLATFORM_NAMES[p] for p in ("instagram", "x")
                 if p in s["platforms"]["enabled"] and s["platforms"]["handles"].get(p)]
 
+    def to_connect(self) -> list[str]:
+        """The platforms you post to without a handle yet (no account yet): you connect them on the Accounts tab."""
+        s = S.load()
+        return [S.PLATFORM_NAMES[p] for p in s["platforms"]["enabled"] if not s["platforms"]["handles"].get(p)]
+
     @rpc
     def done_info(self) -> dict:
         """The last screen: what was made, what to do next; the background stats follow as "system"."""
@@ -346,14 +391,20 @@ class Setup(Service):
         steps.append(seg_line(("  3. ", "bold"),
                               ("When it's done, it's waiting in ReelForge → Publish (tab 4), ready for you to post.",
                                "")))
-        logins = self.needs_login()
-        login = ""
+        logins, missing = self.needs_login(), self.to_connect()
+        login = []
         if logins:
-            login = (f"{' and '.join(logins)} {'needs' if len(logins) == 1 else 'need'} a one-time log-in so ReelForge "
-                     "can read your stats: Open ReelForge takes you to the Accounts tab.")
-        return {"head": lines, "written": written, "steps": steps, "login": login,
+            login.append(f"{' and '.join(logins)} {'needs' if len(logins) == 1 else 'need'} a one-time log-in so "
+                         "ReelForge can read your stats: Open ReelForge takes you to the Accounts tab.")
+        if missing:
+            names = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " and " + missing[-1]
+            one = len(missing) == 1
+            login.append(f"When you've made your {names} {'account' if one else 'accounts'}, connect "
+                         f"{'it' if one else 'them'} on ReelForge's Accounts tab: until then ReelForge leaves "
+                         f"{'it' if one else 'them'} out.")
+        return {"head": lines, "written": written, "steps": steps, "login": "\n".join(login),
                 "open": "Open ReelForge to log in" if logins else "Open ReelForge",
-                "tab": "accounts" if logins else "overview"}
+                "tab": "accounts" if logins or missing else "overview"}
 
     def _apply_system(self) -> None:
         s = S.load()
