@@ -66,6 +66,50 @@ class NotifyTest(DbTest):
         db.init(path)
         self.assertTrue(notify.add("info", "hello"))
 
+    def test_a_deleted_one_is_gone_for_good(self):
+        notify.add("hot", "Taking off on TikTok", key="hot:tiktok|1")
+        notify.add("update", "ReelForge 1.2.0 is out", key="update:1.2.0")
+        first = notify.newest_id() - 1
+        notify.delete(first)
+        self.assertEqual(self.titles(), ["ReelForge 1.2.0 is out"])
+        self.assertEqual([n["title"] for n in notify.since(0)], ["ReelForge 1.2.0 is out"])  # no pop-up for it either
+        self.assertEqual(notify.unread(), 1)
+        # The next refresh sees the same video still taking off: it isn't told again.
+        self.assertFalse(notify.add("hot", "Taking off on TikTok", key="hot:tiktok|1"))
+        self.assertEqual(self.titles(), ["ReelForge 1.2.0 is out"])
+
+    def test_a_deleted_log_in_comes_back_only_when_it_breaks_again(self):
+        notify.add("login", "Log in to X again", key="login:x")
+        notify.delete(notify.newest_id())
+        self.assertFalse(notify.add("login", "Log in to X again", key="login:x"))  # still logged out: no news
+        notify.release("login:x")  # it works again
+        self.assertTrue(notify.add("login", "Log in to X again", key="login:x"))  # and breaks again: new news
+        self.assertEqual(self.titles(), ["Log in to X again"])
+
+    def test_deleted_ones_are_tidied_like_read_ones(self):
+        for i in range(5):
+            notify.add("info", f"note {i}")
+        notify.delete(notify.newest_id() - 4)  # the oldest
+        notify.tidy(keep=2)  # nothing's read, so only the deleted one can go
+        with db.connect() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM notifications").fetchone()[0], 4)
+        self.assertEqual(self.titles(), ["note 4", "note 3", "note 2", "note 1"])
+
+    def test_an_older_database_gets_the_deleted_column(self):
+        path = self.dir / "older.db"
+        with closing(sqlite3.connect(path)) as c:  # notifications as ReelForge 1.0.4 made them
+            c.execute("""CREATE TABLE notifications (id INTEGER PRIMARY KEY, ts TEXT NOT NULL, kind TEXT NOT NULL,
+                         key TEXT UNIQUE, title TEXT NOT NULL, body TEXT, tab TEXT, read INTEGER NOT NULL DEFAULT 0)""")
+            c.execute("INSERT INTO notifications (ts, kind, key, title) VALUES ('2026-10-24T10:00:00+00:00', 'hot',"
+                      " 'hot:tiktok|1', 'Taking off on TikTok')")
+            c.commit()
+        db.init(path)
+        self.assertEqual(self.titles(), ["Taking off on TikTok"])
+        self.assertEqual(len(list(self.dir.glob("older.db.bak-*-schema"))), 1)  # saved before it was changed
+        notify.delete(notify.newest_id())
+        self.assertEqual(notify.recent(), [])
+        self.assertFalse(notify.add("hot", "Taking off on TikTok", key="hot:tiktok|1"))
+
     def test_short_names(self):
         self.assertEqual([notify.short(n) for n in (100, 1_000, 2_500, 25_000, 1_000_000, 2_500_000)],
                          ["100", "1K", "2.5K", "25K", "1M", "2.5M"])

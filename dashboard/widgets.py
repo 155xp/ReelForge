@@ -6,15 +6,19 @@ from __future__ import annotations
 import os
 
 from rich.cells import cell_len
+from rich.console import Group
 from rich.style import Style
+from rich.table import Table
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Button, OptionList, Sparkline, Static
+from textual.widgets.option_list import OptionDoesNotExist
 
 from .analytics import fmt_ago, fmt_delta, fmt_num
 from .charts import Plot
@@ -268,6 +272,44 @@ class VideoList(OptionList):
                 self.post_message(self.Menu(self.get_option_at_index(index).id))
             return
         await super()._on_click(event)
+
+
+def note_prompt(mark: Text, title: Text, rest: Text, delete: str) -> Group:
+    """A notification in the drawer: its unread dot and icon (mark), its title beside them (wrapped under itself),
+    a × at the right end of the first line that runs the app action `delete`, then the rest of it underneath.
+
+    The × is a "@click" link, so the drawer's link styles colour it (app.tcss) and Textual lights it up under the
+    mouse; NoteList keeps a click on it from opening the notification as well."""
+    head = Table.grid(expand=True)
+    head.add_column(width=mark.cell_len)
+    head.add_column(ratio=1)
+    head.add_column(width=3)
+    head.add_row(mark, title, Text(" × ", style=Style(bold=True) + Style.from_meta({"@click": delete})))
+    return Group(head, rest)
+
+
+class NoteList(OptionList):
+    """The notifications in the drawer. Click one to open it, its × (see note_prompt) to delete it; Delete deletes the
+    highlighted one."""
+
+    BINDINGS = [Binding("delete", "app.delete_note", "Delete", show=False)]
+
+    async def _on_click(self, event: events.Click) -> None:
+        if "@click" in event.style.meta:  # the ×: run its action, and don't open the notification too
+            event.prevent_default()
+            await self.broker_event("click", event)
+
+    def drop(self, option_id: str) -> None:
+        """Take one notification out where it is: the list doesn't scroll, and the highlight stays on the one it was on
+        (or moves to the next, if it was on this one)."""
+        try:
+            index = self.get_option_index(option_id)
+        except OptionDoesNotExist:
+            return
+        highlighted = self.highlighted
+        self.remove_option(option_id)
+        if highlighted is not None and highlighted > index:
+            self.highlighted = highlighted - 1
 
 
 class ChartPanel(Vertical):

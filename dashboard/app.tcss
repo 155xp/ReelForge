@@ -62,10 +62,17 @@ TabbedContent {
     margin: 1 0;
 }
 
+/* Each notification's × (a link, see widgets.note_prompt): a small button like the chips, red under the mouse. */
 #notes {
     height: 1fr;
     border: none;
     background: $surface;
+    link-style: none;
+    link-color: #c9d1d9;
+    link-background: #1c222b;
+    link-style-hover: none;
+    link-color-hover: #ffffff;
+    link-background-hover: $error;
 }
 
 #notes > .option-list--option {

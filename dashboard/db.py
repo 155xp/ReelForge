@@ -66,7 +66,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     title TEXT NOT NULL,
     body TEXT,
     tab TEXT,
-    read INTEGER NOT NULL DEFAULT 0
+    read INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -89,7 +90,8 @@ def init(path: Path) -> None:
         db.execute("PRAGMA journal_mode=WAL")
         db.executescript(SCHEMA)
         have = {r["name"] for r in db.execute("PRAGMA table_info(posts)")}
-    if not have.issuperset((*LATEST_COLUMNS, "link")):
+        notes = {r["name"] for r in db.execute("PRAGMA table_info(notifications)")}
+    if not have.issuperset((*LATEST_COLUMNS, "link")) or "deleted" not in notes:
         _migrate()
 
 
@@ -100,8 +102,9 @@ def _migrate() -> None:
     with connect() as db:
         db.execute("BEGIN IMMEDIATE")  # a second ReelForge starting at the same moment waits here, then finds it done
         have = {r["name"] for r in db.execute("PRAGMA table_info(posts)")}
+        notes = {r["name"] for r in db.execute("PRAGMA table_info(notifications)")}
         missing = [c for c in LATEST_COLUMNS if c not in have]
-        if not missing and "link" in have:
+        if not missing and "link" in have and "deleted" in notes:
             return
         backup("schema")
         # Each post keeps its latest numbers too, so listing posts never scans the history.
@@ -121,6 +124,8 @@ def _migrate() -> None:
             db.executemany("UPDATE posts SET link = ? WHERE platform = ? AND post_id = ?",
                            [("caption" if p["episode_id"] in named[p["platform"], p["post_id"]] else "hand",
                              p["platform"], p["post_id"]) for p in linked])
+        if "deleted" not in notes:  # the × on a notification hides it (see notify.delete)
+            db.execute("ALTER TABLE notifications ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
 
 
 def backup(why: str) -> Path:

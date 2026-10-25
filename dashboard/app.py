@@ -30,8 +30,8 @@ from .platforms import Platform, PlatformError, PublishItem, browser
 from .platforms.base import Account, Post
 from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
 from .widgets import (BAD, GOOD, MUTED, SCREENSHOTS, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell,
-                      ChartPanel, Logo, PlatformCard, TotalCard, VideoList, change_text, chip, chips, clickable,
-                      frame, legend, num, score_text, tag)
+                      ChartPanel, Logo, NoteList, PlatformCard, TotalCard, VideoList, change_text, chip, chips,
+                      clickable, frame, legend, note_prompt, num, score_text, tag)
 
 try:  # the ReelForge folder's own package: its version and the updater
     from studio import KIT_VERSION
@@ -158,7 +158,7 @@ class ReelForge(App):
             yield from self.compose_tabs(ps)
             with Vertical(id="drawer"):
                 yield ActionText(id="drawer-head")
-                yield OptionList(id="notes")
+                yield NoteList(id="notes")
 
     def compose_tabs(self, ps: list[Platform]) -> ComposeResult:
         with TabbedContent(initial=self.start_tab):
@@ -1538,6 +1538,30 @@ class ReelForge(App):
     def update_notes(self) -> None:
         """The bell's red dot, and the drawer's list (newest first)."""
         notes = self._safe(notify.recent, [])
+        self.update_bell(notes)
+        box = self.query_one("#notes", NoteList)
+        keep = box.highlighted
+        box.clear_options()
+        if not notes:
+            box.add_option(Option(Text("Nothing yet. Updates, milestones, badges and finished videos show up "
+                                       "here.", style=MUTED), disabled=True))
+            return
+        for n in notes:
+            icon, color, _ = notify.KINDS.get(n["kind"], notify.KINDS["info"])
+            mark = Text("● " if not n["read"] else "  ", style=f"bold {BAD}")
+            mark.append(f"{icon} ", style=f"bold {color}")
+            rest = Text()
+            for part in textwrap.wrap(n["body"] or "", 36)[:3]:
+                rest.append(f"    {part}\n", style=MUTED)
+            rest.append(f"    {fmt_ago(n['ts'])}", style="#5c6370")
+            title = Text(n["title"], style="bold" if not n["read"] else "")
+            box.add_option(Option(note_prompt(mark, title, rest, f"app.delete_note({n['id']})"),
+                                  id=f"note-{n['id']}"))
+        if keep is not None and keep < box.option_count:
+            box.highlighted = keep
+
+    def update_bell(self, notes: list[dict]) -> None:
+        """The bell's red dot, and the drawer's heading: how many are unread, Mark all read and Close."""
         unread = sum(1 for n in notes if not n["read"])
         self.query_one("#bell", Bell).show(unread)
         head = Text("NOTIFICATIONS  ", style="bold")
@@ -1548,25 +1572,6 @@ class ReelForge(App):
             parts.append((Text(" "), 0))
         parts.append((chip("Close", "close_drawer"), 0))
         self.query_one("#drawer-head", ActionText).set_parts(parts)
-        box = self.query_one("#notes", OptionList)
-        keep = box.highlighted
-        box.clear_options()
-        if not notes:
-            box.add_option(Option(Text("Nothing yet. Updates, milestones, badges and finished videos show up "
-                                       "here.", style=MUTED), disabled=True))
-            return
-        for n in notes:
-            icon, color, _ = notify.KINDS.get(n["kind"], notify.KINDS["info"])
-            line = Text()
-            line.append("● " if not n["read"] else "  ", style=f"bold {BAD}")
-            line.append(f"{icon} ", style=f"bold {color}")
-            line.append(n["title"], style="bold" if not n["read"] else "")
-            for part in textwrap.wrap(n["body"] or "", 36)[:3]:
-                line.append(f"\n    {part}", style=MUTED)
-            line.append(f"\n    {fmt_ago(n['ts'])}", style="#5c6370")
-            box.add_option(Option(line, id=f"note-{n['id']}"))
-        if keep is not None and keep < box.option_count:
-            box.highlighted = keep
 
     @on(OptionList.OptionSelected, "#notes")
     @db_safe
@@ -1645,6 +1650,23 @@ class ReelForge(App):
     def action_mark_all_read(self) -> None:
         notify.mark_all_read()
         self.update_notes()
+
+    @db_safe
+    def action_delete_note(self, note_id: int | None = None) -> None:
+        """A notification's ×, or Delete on the highlighted one: it leaves the drawer for good (see notify.delete)."""
+        box = self.query_one("#notes", NoteList)
+        if note_id is None:
+            option = box.highlighted_option
+            if option is None or not (option.id or "").startswith("note-"):
+                return
+            note_id = int(option.id[5:])
+        notify.delete(note_id)
+        notes = self._safe(notify.recent, [])
+        if notes:
+            box.drop(f"note-{note_id}")  # where it is: deleting one far down doesn't jump the list back to the top
+            self.update_bell(notes)
+        else:
+            self.update_notes()  # "Nothing yet"
 
     # --- badges -------------------------------------------------------------------------------
 

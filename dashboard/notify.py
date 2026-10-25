@@ -9,7 +9,8 @@
 
 They're kept in the stats database, so the hourly background refresh adds them while ReelForge is closed, and the
 bell shows a red dot until you've read them. Each has a key, so the same event is never told twice. The key also
-names what the notification is about, so clicking it shows that thing (see target).
+names what the notification is about, so clicking it shows that thing (see target). The × on one deletes it: it stays
+in the database, hidden, so its key still keeps that event from being told again (see delete).
 """
 
 from __future__ import annotations
@@ -113,9 +114,10 @@ def unread() -> int:
 
 
 def recent(limit: int = 80) -> list[dict]:
-    """Newest first."""
+    """Newest first, leaving out deleted ones."""
     with db.connect() as c:
-        return [dict(r) for r in c.execute("SELECT * FROM notifications ORDER BY id DESC LIMIT ?", (limit,))]
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM notifications WHERE deleted = 0 ORDER BY id DESC LIMIT ?", (limit,))]
 
 
 def newest_id() -> int:
@@ -126,7 +128,16 @@ def newest_id() -> int:
 def since(after_id: int) -> list[dict]:
     """Notifications added after `after_id`, oldest first (for the pop-ups when a refresh adds some)."""
     with db.connect() as c:
-        return [dict(r) for r in c.execute("SELECT * FROM notifications WHERE id > ? ORDER BY id", (after_id,))]
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM notifications WHERE id > ? AND deleted = 0 ORDER BY id", (after_id,))]
+
+
+def delete(note_id: int) -> None:
+    """The × on a notification: it leaves the drawer for good. It's only hidden (and counts as read), so its key
+    still stops the same event being told again: a refresh would otherwise add a video that's still taking off, or an
+    update that's still out, straight back. Like a read one, it's dropped once KEEP newer ones are there."""
+    with db.connect() as c:
+        c.execute("UPDATE notifications SET deleted = 1, read = 1 WHERE id = ?", (note_id,))
 
 
 def mark_read(note_id: int) -> None:
