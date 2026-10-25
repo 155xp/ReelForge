@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import math
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean, median
@@ -22,6 +23,7 @@ from textual.widgets import (Button, DataTable, Input, Label, Markdown, OptionLi
                              TabPane)
 from textual.widgets.data_table import ColumnKey
 from textual.widgets.option_list import Option
+from textual.worker import get_current_worker
 
 from . import analytics, badges, besttime, charts, config, db, desktop, notify, sync, trends, videos
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
@@ -70,6 +72,7 @@ HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days)
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
 PICKED_FOR = 4  # seconds a clicked notification's card or account panel stays framed
+WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
 
 
 def db_safe(method):
@@ -90,6 +93,22 @@ def minutes_setting(cfg: dict, key: str, default: float) -> float:
         return max(float(cfg.get(key, default)), 0.0)
     except (TypeError, ValueError):
         return default
+
+
+class Running:
+    """How many of this window's reads are under way (on worker threads): each `with` block counts as one."""
+
+    def __init__(self) -> None:
+        self.count = 0
+        self._lock = threading.Lock()
+
+    def __enter__(self) -> None:
+        with self._lock:
+            self.count += 1
+
+    def __exit__(self, *exc) -> None:
+        with self._lock:
+            self.count -= 1
 
 
 class ReelForge(App):
@@ -145,6 +164,15 @@ class ReelForge(App):
         self.detail_state: tuple | None = None  # (post, span, series) for the Videos chart
         self.compare_state: dict[str, tuple] = {}  # platform -> (title, series) for the Compare charts
         self.picked: tuple | None = None  # (widget, timer): the card or panel a clicked notification framed
+        # What the other ReelForge windows did, as this one last looked (see keep_in_step): the store's change count
+        # this window shows (db.bump), the shared read state (sync.shared), the notifications as the drawer last
+        # showed them (notify.signature), and what another one is reading right now, for the header.
+        self.changes = 0
+        self.sync_seen: dict | None = None
+        self.notes_sig: tuple | None = None
+        self.elsewhere = ""
+        self.reading = Running()  # this window's own reads: each reloads the window itself when it's done
+        self.catching_up = False  # a reload for what another window read is being worked out
 
     # --- layout ---------------------------------------------------------------------------
 
@@ -294,6 +322,7 @@ class ReelForge(App):
         self.query_one("#uploads-heading", ActionText).update(Text("RECENT UPLOADS", style="bold"))
 
         self.last_seen = db.get_meta("last_seen")  # totals when ReelForge was last open, for "since you last looked"
+        self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
         self.reload()
         self.scan_files()
         self.update_notes()
@@ -305,6 +334,7 @@ class ReelForge(App):
         if minutes:
             self.set_interval(min(300, max(minutes * 60, 60)), lambda: self.run_refresh(manual=False))
         self.set_interval(30, self.tick)
+        self.set_interval(WATCH_EVERY, self.keep_in_step)
         # Say what changed while ReelForge was closed once the first refresh is in (or after a while without one).
         self.set_timer(45, self.welcome_back)
 
@@ -363,6 +393,14 @@ class ReelForge(App):
         except sqlite3.Error:
             return default
 
+    def tell_others(self) -> None:
+        """Something every window shows changed in this one (typed-in stats, an episode, an upload page opened, a
+        hidden video): the other ReelForge windows load it (see keep_in_step). This one shows it already, unless
+        another window changed something too meanwhile: then this one loads that."""
+        changes = self._safe(db.bump, None)
+        if changes == self.changes + 1:
+            self.changes = changes
+
     def tick(self) -> None:
         """Every half minute: the "updated" time, and the charts once a new hour (or day) starts."""
         self.update_header()
@@ -375,36 +413,105 @@ class ReelForge(App):
 
     @work(thread=True, exclusive=True, group="refresh", exit_on_error=False)
     def run_refresh(self, manual: bool, force: bool = False, only: str | None = None) -> None:
+        """Read the stats (or wait for another window's read; see sync.refresh), then show them here. The other
+        windows show them too (keep_in_step)."""
         platforms = {only: self.platforms[only]} if only in self.platforms else self.platforms
-        try:
-            done, errors = sync.refresh(platforms, self.cfg, manual, force,
-                                        on_status=lambda s: self.call_from_thread(self.set_status, s))
-            # Crunch the numbers here, off the UI thread, so the screen never stalls.
-            data = self.load_data() if done else None
-        except Exception as e:  # the database was busy, say: report it, keep running
-            done, errors, data = [], [f"{type(e).__name__}: {e}"], None
-        self.call_from_thread(self.after_refresh, done, errors, manual, data)
+        worker = get_current_worker()
+        with self.reading:
+            try:
+                result = sync.refresh(platforms, self.cfg, manual, force,
+                                      on_status=lambda s: self.call_from_thread(self.set_status, s),
+                                      stop=lambda: worker.is_cancelled)
+                # Crunch the numbers here, off the UI thread, so the screen never stalls.
+                data = self.load_data() if result.done else None
+            except Exception as e:  # the database was busy, say: report it, keep running
+                result, data = sync.Result(errors=[f"{type(e).__name__}: {e}"]), None
+            if result.busy and worker.is_cancelled:
+                return  # it stopped waiting: a newer refresh took over, or ReelForge is closing
+            self.call_from_thread(self.after_refresh, result, manual, data)
 
-    def after_refresh(self, done: list[str], errors: list[str], manual: bool, data: dict | None) -> None:
+    def after_refresh(self, result: sync.Result, manual: bool, data: dict | None) -> None:
         self.set_status("")
-        for e in errors:
+        for e in result.errors:
             self.notify(e, title="Refresh failed", severity="error", timeout=10)
-        if done:
-            self.reload(data)
-            self.celebrate()
-            self.show_new_notes()
-            if self.last_seen is not None:
-                self.welcome_back()
-            else:
-                self.save_seen()
+        if result.done:
+            self.show_new_data(result.changes, data)
         else:
             self.update_accounts()
-            if manual and not errors:
-                if not any(p.has_stats for p in self.platforms.values()):
-                    self.notify("Nothing to read yet: add your handles in config.toml, or log in on the Accounts tab.")
+            if manual and not result.errors:
+                if result.busy:
+                    who = result.waited or "ReelForge"  # None: this window's own automatic read
+                    self.notify(f"{who[0].upper()}{who[1:]} has been reading your stats for {sync.WAIT // 60} "
+                                "minutes, so this one stopped waiting. Try again in a moment.", severity="warning",
+                                timeout=10)
+                elif result.waited:
+                    self.notify(f"Up to date: {result.waited} just read your stats.", timeout=6)
+                elif not any(p.has_stats for p in self.platforms.values()):
+                    self.notify("Nothing to read yet: add your handles in config.toml, or log in on the Accounts "
+                                "tab.")
                 else:
                     self.notify("Up to date. Platforms read through the browser wait a bit between reads; "
                                 "R reads them anyway.")
+        self.keep_in_step(read_here=True)  # what another window read meanwhile, or while this one waited for it
+
+    def show_new_data(self, changes: int | None, data: dict | None) -> None:
+        """New numbers on screen, whichever window read them (changes: the store's change count they go with), with
+        the notifications they bring and, the first time, how much changed since you last looked."""
+        self.changes = max(self.changes, changes or 0)
+        self.reload(data)
+        self.celebrate()
+        self.show_new_notes()
+        if self.last_seen is not None:
+            self.welcome_back()
+        else:
+            self.save_seen()
+
+    def keep_in_step(self, read_here: bool = False) -> None:
+        """Every second, and after each of this window's own reads (read_here): what the other ReelForge windows, and
+        the hourly job, are up to. A read one of them has under way shows in the header, one it finished shows here
+        too, and so do its notifications and errors."""
+        try:
+            with db.connect() as c:  # one quick look at the store
+                state, changes, notes = sync.shared(c), db.changes(c), notify.signature(c)
+        except sqlite3.Error:
+            return  # busy: the next look
+        run = sync.reading_elsewhere(state)
+        elsewhere = f"refreshing {run['what']}…" if run else ""
+        header = elsewhere != self.elsewhere
+        self.elsewhere = elsewhere
+        if state != self.sync_seen and sync.adopt(state):  # their errors, and when each platform is read next
+            self.sync_seen = state
+            self.update_accounts()
+            header = True
+        if header:
+            self.update_header()
+        # What another ReelForge saved since this window last loaded, worked out off the UI thread (a read under way
+        # here reloads this window itself when it's done).
+        if changes > self.changes and not self.catching_up and (read_here or not self.reading.count):
+            self.catching_up = True
+            self.load_shared(changes)
+        if notes != self.notes_sig:
+            self.show_new_notes()
+            # Another window's update check (a new version comes with a notification): the Updates tab says so too.
+            info = self._safe(lambda: db.get_meta("update_check"), None)
+            if info and info != self.update_info and not self.demo and not self.updating:
+                self.update_info = info
+                self.show_update()
+
+    @work(thread=True, group="shared", exit_on_error=False)
+    def load_shared(self, changes: int) -> None:
+        try:
+            data = self.load_data()
+        except Exception:
+            data = None  # the database was busy: the next look tries again
+        self.call_from_thread(self.shared_loaded, changes, data)
+
+    def shared_loaded(self, changes: int, data: dict | None) -> None:
+        self.catching_up = False
+        if data is not None and changes > self.changes:  # not older than what this window shows
+            self.show_new_data(changes, data)
+            if self.query_one(TabbedContent).active == "publish":
+                self.scan_files()  # a video another window hid, or posted
 
     @work(thread=True, group="maintenance", exit_on_error=False)
     def compact_db(self) -> None:
@@ -481,8 +588,9 @@ class ReelForge(App):
             t.append("    ")
         stamps = [r["ts"] for r in self.latest.values()]
         t.append(f"updated {fmt_ago(max(stamps) if stamps else None)}", style=MUTED)
-        if self.status:
-            t.append(f"    {self.status}", style="#ffcc33")
+        status = self.status or self.elsewhere  # this window's read, or another one's (see keep_in_step)
+        if status:
+            t.append(f"    {status}", style="#ffcc33")
         self.query_one("#status", ActionText).update(t)
 
     # --- overview -------------------------------------------------------------------------
@@ -1147,6 +1255,7 @@ class ReelForge(App):
                 if other else ""))
         else:
             return
+        self.tell_others()
         if self.selected_file == path:
             self.selected_file = None
             self.update_posted()
@@ -1156,6 +1265,7 @@ class ReelForge(App):
     def action_unhide_videos(self) -> None:
         if db.get_meta("hidden_videos", []):
             db.set_meta("hidden_videos", [])
+            self.tell_others()
             self.notify("Hidden videos are back on the list.")
             self.scan_files()
 
@@ -1299,6 +1409,7 @@ class ReelForge(App):
             db.create_episode(item.title or item.video.stem, str(item.video))
         for p in platforms:
             db.log_upload(p.key, item.video.name, "manual", message="opened the upload page")
+        self.tell_others()
         self.episodes = db.episodes()
         self.update_uploads()
         self.update_episode_list()
@@ -1496,6 +1607,7 @@ class ReelForge(App):
         if followers is None and self.latest.get(key):
             followers = self.latest[key]["followers"]
         db.record_snapshot(key, Account(handle=p.handle, followers=followers), posts)
+        self.tell_others()
         self.notify(f"{p.name} stats saved.", timeout=3)
         self.reload()
 
@@ -1515,6 +1627,7 @@ class ReelForge(App):
             return
         episode = None if choice == "none" else int(choice[3:])
         db.set_post_episode(post["platform"], post["post_id"], episode)
+        self.tell_others()
         title = next((e["title"] for e in self.episodes if e["id"] == episode), None)
         self.notify(f"Filed under: {title}" if title else "Marked as not one of your videos.", timeout=5)
         self.reload()
@@ -1540,6 +1653,7 @@ class ReelForge(App):
 
     def update_notes(self) -> None:
         """The bell's red dot, and the drawer's list (newest first)."""
+        self.notes_sig = self._safe(notify.signature, None)  # first: a change after it shows next (keep_in_step)
         notes = self._safe(notify.recent, [])
         self.update_bell(notes)
         box = self.query_one("#notes", NoteList)
@@ -1669,11 +1783,14 @@ class ReelForge(App):
             if option is None or not (option.id or "").startswith("note-"):
                 return
             note_id = int(option.id[5:])
+        drawn = self._safe(notify.signature, None) == self.notes_sig  # the drawer shows every change so far
         notify.delete(note_id)
         notes = self._safe(notify.recent, [])
         if notes:
             box.drop(f"note-{note_id}")  # where it is: deleting one far down doesn't jump the list back to the top
             self.update_bell(notes)
+            if drawn:  # so keep_in_step doesn't draw it all again
+                self.notes_sig = self._safe(notify.signature, None)
         else:
             self.update_notes()  # "Nothing yet"
 

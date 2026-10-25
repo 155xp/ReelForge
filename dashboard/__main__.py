@@ -111,8 +111,9 @@ def _terminal_profile() -> None:
 
 
 def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:
-    """One stats read, then new videos and (every few hours) the update check, all saved for the next look."""
-    done, errors = sync.refresh(platforms, cfg, manual=True)
+    """One stats read, then new videos and (every few hours) the update check, all saved for the next look. Open
+    ReelForge windows show what it read."""
+    result = sync.refresh(platforms, cfg, manual=True, who="job")
     db.compact()
     if not demo:
         for extra in (lambda: notify.check_videos(cfg), _check_updates):
@@ -120,7 +121,13 @@ def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:
                 extra()
             except Exception:
                 pass  # extras: a hiccup here never fails the read
-    lines = ["refreshed: " + (", ".join(done) or "nothing due"), *("error: " + e for e in errors)]
+    if result.busy:  # another ReelForge has been reading all along: it saves what it reads
+        done = f"nothing ({result.waited or sync.WHO['window']} was still reading after {sync.WAIT // 60} minutes)"
+    elif result.done:
+        done = ", ".join(result.done)
+    else:
+        done = "nothing due" + (f" ({result.waited} had just read them)" if result.waited else "")
+    lines = [f"refreshed: {done}", *("error: " + e for e in result.errors)]
     print("\n".join(lines))
     # A scheduled refresh has no window to read, so it also keeps a short log.
     log = config.DATA_DIR / "refresh.log"
@@ -130,7 +137,7 @@ def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:
         log.write_text("\n".join([*old, *(f"{stamp}  {line}" for line in lines)]) + "\n", "utf-8")
     except OSError:
         pass
-    return 1 if errors else 0
+    return 1 if result.errors or result.busy else 0
 
 
 def _check_updates() -> None:

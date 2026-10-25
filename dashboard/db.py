@@ -268,9 +268,11 @@ def platforms_with_posts_since(since: str) -> set[str]:
         return {r[0] for r in db.execute("SELECT DISTINCT platform FROM posts WHERE published_at >= ?", (since,))}
 
 
-def get_meta(key: str, default=None):
-    with connect() as db:
-        row = db.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+def get_meta(key: str, default=None, conn: sqlite3.Connection | None = None):
+    if conn is None:
+        with connect() as db:
+            return get_meta(key, default, db)
+    row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
     if row is None:
         return default
     try:
@@ -282,6 +284,21 @@ def get_meta(key: str, default=None):
 def set_meta(key: str, value) -> None:
     with connect() as db:
         db.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, json.dumps(value)))
+
+
+def bump() -> int:
+    """Count a change every ReelForge window shows (new stats, an episode, an upload, a hidden video): a window that
+    sees the count go up reloads (app.ReelForge.keep_in_step). Returns the new count."""
+    with connect() as db:
+        db.execute("""INSERT INTO meta VALUES ('changes', '1')
+                      ON CONFLICT (key) DO UPDATE SET value = CAST(value AS INTEGER) + 1""")
+        return int(db.execute("SELECT value FROM meta WHERE key = 'changes'").fetchone()[0])
+
+
+def changes(conn: sqlite3.Connection | None = None) -> int:
+    """How many changes bump has counted."""
+    count = get_meta("changes", 0, conn)
+    return count if isinstance(count, int) else 0
 
 
 def post_series(since: str) -> dict[tuple[str, str], list[tuple[str, int]]]:

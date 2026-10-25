@@ -208,6 +208,10 @@ HELP = [
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
                       "all deletes them all. The hourly background job (reelforge stats on) adds them while "
                       "ReelForge is closed."),
+    ("Several windows", "Open ReelForge as many times as you like (one on the Overview and one on Publish, say). "
+                        "They take turns reading your stats, and as soon as one of them (or the hourly job) has read "
+                        "them, every window shows the new numbers, notifications and errors. r in a window while "
+                        "another one is reading waits for that read instead of starting another."),
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]

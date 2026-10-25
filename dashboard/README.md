@@ -21,6 +21,12 @@ Onboarding fills in your handles. TikTok and YouTube stats start straight away; 
 Everything is a button on the page it applies to; the only keys are **1**-**6** to switch tabs and **r** / **R** to
 refresh / force a refresh.
 
+You can have ReelForge open in several windows at once, each on its own tab (the Overview in one, Publish in
+another). They share one set of stats: one window reads them at a time, with **refreshing …** in every window's top
+bar meanwhile, and as soon as it's done every window shows the new numbers, notifications and errors. The hourly
+background job's reads show up the same way. **r** in a window while another one is reading waits for that read
+instead of reading everything again.
+
 On Windows, ReelForge also adds itself to Windows Terminal: opened from the desktop shortcut or the Start menu, its
 tab is called ReelForge and shows the anvil, and **ReelForge** is in Terminal's **+** menu. Terminal picks this up the
 next time it starts. A tab you type `reelforge` into is called ReelForge too, but keeps that tab's own icon.

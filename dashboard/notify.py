@@ -125,6 +125,16 @@ def newest_id() -> int:
         return c.execute("SELECT COALESCE(MAX(id), 0) FROM notifications").fetchone()[0]
 
 
+def signature(conn=None) -> tuple:
+    """Changes whenever a notification is added, read, deleted or tidied away, in any ReelForge window: one that sees
+    it change shows the drawer again (app.ReelForge.keep_in_step)."""
+    if conn is None:
+        with db.connect() as c:
+            return signature(c)
+    return tuple(conn.execute("SELECT COUNT(*), COALESCE(MAX(id), 0), COALESCE(SUM(read), 0), "
+                              "COALESCE(SUM(deleted), 0) FROM notifications").fetchone())
+
+
 def since(after_id: int) -> list[dict]:
     """Notifications added after `after_id`, oldest first (for the pop-ups when a refresh adds some)."""
     with db.connect() as c:

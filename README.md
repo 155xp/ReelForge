@@ -215,6 +215,17 @@ stats for about a minute, then stops. Turn it off or back on with `reelforge sta
 </details>
 
 <details>
+<summary><b>Can I have ReelForge open in more than one window?</b></summary>
+
+<br>
+
+Yes, as many as you like, say one on the Overview and one on Publish. They take turns reading your stats, and as
+soon as one of them has read them, every window shows the new numbers and notifications, so they always agree and
+your accounts are read only once. The hourly background job's reads show up in them too.
+
+</details>
+
+<details>
 <summary><b>My AI doesn't know about my channel.</b></summary>
 
 <br>
