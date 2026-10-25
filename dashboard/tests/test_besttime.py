@@ -1,6 +1,6 @@
-"""Best time to post (dashboard.besttime), every video's views 1, 6 and 24 hours in (analytics.views_after,
-db.early_series) and compaction keeping each video's first day of readings, plus the CSV export and the Publish tab's
-card in the real window on demo data."""
+"""Best time to post (dashboard.besttime), every video's views 1, 6, 12 and 24 hours in (analytics.views_after,
+views_due, db.early_series) and compaction keeping each video's first day of readings, plus the CSV export, the Videos
+tab's Views 12h and the Publish tab's card in the real window on demo data."""
 
 from __future__ import annotations
 
@@ -64,6 +64,64 @@ class ViewsAfterTest(unittest.TestCase):
     def test_not_that_old_yet(self):
         self.assertIsNone(analytics.views_after(curve((1, 10), (8, 90)), PUB, 24))
         self.assertIsNone(analytics.views_after(analytics.NO_CURVE, PUB, 1))
+
+    def test_twelve_hours_in_reads_across_up_to_3_hours(self):
+        self.assertEqual(analytics.views_after(curve((10.5, 1000), (13, 1500)), PUB, 12), 1300)
+        self.assertIsNone(analytics.views_after(curve((10, 1000), (13.5, 1500)), PUB, 12))
+
+
+class ViewsDueTest(unittest.TestCase):
+    """Whether a video's views 12 hours in are still to come, or ReelForge missed them."""
+
+    def due(self, c: analytics.Curve, at_hours: float) -> bool:
+        return analytics.views_due(c, PUB, 12, PUB + timedelta(hours=at_hours))
+
+    def test_until_the_video_is_that_old(self):
+        self.assertTrue(self.due(curve((1, 10), (5, 90)), 6))
+        self.assertTrue(self.due(analytics.NO_CURVE, 11.9))
+
+    def test_after_it_until_the_next_reading_is_too_late(self):
+        c = curve((10, 100), (11.5, 140))
+        self.assertTrue(self.due(c, 12.5))
+        self.assertTrue(self.due(c, 14.5))  # a reading now would be 3 hours after the last
+        self.assertFalse(self.due(c, 14.6))
+        self.assertFalse(self.due(analytics.NO_CURVE, 12.5))  # not read in its first 12 hours at all
+
+    def test_not_once_its_been_read_since(self):
+        self.assertFalse(self.due(curve((11.5, 140), (12.5, 160)), 13))  # views_after has the number
+        self.assertFalse(self.due(curve((4, 60), (20, 400)), 21))  # read across a gap: missed for good
+
+    def test_each_post_gets_its_views_and_whats_still_to_come(self):
+        t = analytics.now().replace(microsecond=0)
+        posts = [{"platform": "tiktok", "post_id": "old", "published": t - timedelta(hours=30)},
+                 {"platform": "tiktok", "post_id": "new", "published": t - timedelta(hours=5)}]
+        early = {("tiktok", "old"): curve((0.5, 10), (6, 300), (11, 500), (13, 700))}
+        early = {k: ([posts[0]["published"] + (s - PUB) for s in ts], vs) for k, (ts, vs) in early.items()}
+        analytics.add_early_views(posts, early)
+        self.assertEqual(posts[0]["after"], {1: None, 6: 300, 12: 600, 24: None})
+        # The new one wasn't read in its first hour and a half: its views 1 hour in are missed, the rest are to come.
+        self.assertEqual((posts[0]["due"], posts[1]["due"]), (set(), {6, 12, 24}))
+
+
+class TwelveHourCellTest(unittest.TestCase):
+    """The Videos tab's Views 12h cell."""
+
+    def cell(self, views: float | None, due: bool, age_h: float) -> str:
+        from dashboard.app import _after
+
+        return _after({"after": {12: views}, "due": {12} if due else set(), "age_h": age_h}, 12).plain
+
+    def test_the_number_once_known(self):
+        self.assertEqual(self.cell(1234.4, False, 30), "1.23K")
+
+    def test_when_it_comes_in(self):
+        self.assertEqual(self.cell(None, True, 7), "in 5h")
+        self.assertEqual(self.cell(None, True, 11.5), "in 30m")
+        self.assertEqual(self.cell(None, True, 11.9999), "in 1m")
+        self.assertEqual(self.cell(None, True, 12.4), "soon")
+
+    def test_a_dash_when_the_readings_missed_it(self):
+        self.assertEqual(self.cell(None, False, 40), "—")
 
 
 class FirstDayKeptTest(unittest.TestCase):
@@ -129,10 +187,10 @@ class BestTimeTest(unittest.TestCase):
 
 
 class AppTest(unittest.TestCase):
-    """The CSV export and the Publish tab's card, in the real window on demo data."""
+    """The CSV export, the Videos tab's Views 12h and the Publish tab's card, in the real window on demo data."""
 
-    def test_csv_has_when_each_post_went_up_and_its_early_views(self):
-        from dashboard import config, demo, desktop
+    def demo_app(self, tab: str):
+        from dashboard import demo
         from dashboard.app import ReelForge
         from dashboard.config import PLATFORM_KEYS
 
@@ -144,7 +202,43 @@ class AppTest(unittest.TestCase):
                "completed_dir": str(root / "none"), **{key: {} for key in PLATFORM_KEYS}}
         db.init(root / "demo.db")
         demo.seed()
-        app = ReelForge(cfg, demo.platforms(), demo=True, tab="publish")
+        return ReelForge(cfg, demo.platforms(), demo=True, tab=tab), root
+
+    def test_videos_tab_has_each_videos_views_12_hours_in(self):
+        from textual.widgets import DataTable
+
+        from dashboard.app import _after
+
+        app, _ = self.demo_app("videos")
+
+        async def main() -> tuple[list[tuple[str, str]], str, int]:
+            async with app.run_test(size=(200, 56)) as pilot:
+                await pilot.pause(0.3)
+                table = app.query_one("#videos-table", DataTable)
+                columns = list(table.columns.values())
+                at = [c.key.value for c in columns].index("views_12h")
+                await pilot.click("#videos-table", offset=(sum(c.get_render_width(table) for c in columns[:at]) + 2, 0))
+                await pilot.pause(0.2)
+                column = columns[at]
+                cells = [(row.key.value, table.get_cell(row.key, column.key).plain) for row in table.ordered_rows]
+                return cells, column.label.plain, column.width
+
+        cells, label, width = asyncio.run(main())
+        self.assertEqual(app.sort, ("views_12h", True))  # clicking its header sorted by it, most first
+        self.assertEqual(label, "Views 12h ▼")
+        self.assertGreaterEqual(width, len(label))  # the arrow shows
+        posts = [app._post_for(key) for key, _ in cells]
+        self.assertEqual(len(cells), len(app.posts))
+        self.assertEqual([text for _, text in cells], [_after(p, 12).plain for p in posts])
+        known = [p["after"][12] for p in posts if p["after"][12] is not None]
+        self.assertGreater(len(known), 4)  # the demo reads every hour, so every video 12 hours old has its number
+        self.assertEqual(known, sorted(known, reverse=True))
+        self.assertTrue(all(p["after"][12] is None for p in posts[len(known):]))  # the rest go last
+
+    def test_csv_has_when_each_post_went_up_and_its_early_views(self):
+        from dashboard import config, desktop
+
+        app, root = self.demo_app("publish")
 
         async def main() -> dict[str, str]:
             async with app.run_test(size=(200, 56)) as pilot:

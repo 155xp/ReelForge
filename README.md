@@ -104,9 +104,10 @@ notification's right deletes it, and Clear all deletes them all.
 
 ### Videos
 
-Every video on every platform in one table, scored against your typical video. Click a header to sort, and pick a
-video to see how its views grew after you posted it. Export CSV saves every video with when it went up (date,
-weekday, hour and UTC time) and its views 1, 6 and 24 hours in.
+Every video on every platform in one table, scored against your typical video, with its views 12 hours after it went
+up, so new and old videos compare fairly. Click a header to sort, and pick a video to see how its views grew after you
+posted it. Export CSV saves every video with when it went up (date, weekday, hour and UTC time) and its views 1, 6,
+12 and 24 hours in.
 
 ![The Videos tab](docs/screenshots/app-videos.png)
 

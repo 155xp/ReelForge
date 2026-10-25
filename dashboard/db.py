@@ -320,7 +320,7 @@ def _curves(rows) -> dict[tuple[str, str], list[tuple[str, int]]]:
 
 # Old snapshots get thinned out, keeping the last one in each time bucket: full detail for 2 days,
 # then one per 3 hours, one per day after 2 weeks, one per week after 2 months. A post's first
-# FIRST_HOURS hours are kept in full: its views 1, 6 and 24 hours in are measured from them
+# FIRST_HOURS hours are kept in full: its views 1, 6, 12 and 24 hours in are measured from them
 # (analytics.views_after takes readings up to 3 hours either side).
 FIRST_HOURS = 27
 _EARLY_END = f"strftime('%Y-%m-%dT%H:%M:%S+00:00', p.published_at, '+{FIRST_HOURS} hours')"  # as stored: UTC ISO

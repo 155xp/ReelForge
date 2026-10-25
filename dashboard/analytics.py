@@ -20,7 +20,8 @@ NO_CURVE: Curve = ([], [])
 AGES = (1, 2, 3, 4, 6, 8, 12, 18, 24, 36, 48, 72, 96, 120, 168, 240, 336, 504, 720)
 RECENT = 60  # "typical" means typical of your last 60 videos on that platform
 HISTORY_DAYS = 120  # curves are only loaded for videos this recent
-AFTER_HOURS = (1, 6, 24)  # every video's views this many hours in: the CSV export and the best time to post
+# Every video's views this many hours in: the CSV export, the Videos tab's Views 12h and the best time to post (24).
+AFTER_HOURS = (1, 6, 12, 24)
 
 
 def now() -> datetime:
@@ -142,17 +143,39 @@ def views_after(curve: Curve, pub: datetime, hours: float) -> float | None:
     if times[i] == target:
         return float(views[i])
     t0, v0 = (times[i - 1], views[i - 1]) if i and times[i - 1] > pub else (pub, 0)
-    if (times[i] - t0).total_seconds() > min(1.5 * hours, 3) * 3600:
+    if (times[i] - t0).total_seconds() > _gap(hours) * 3600:
         return None
     return v0 + (views[i] - v0) * ((target - t0) / (times[i] - t0))
 
 
+def _gap(hours: float) -> float:
+    """The longest stretch between two readings, in hours, that views_after reads across for `hours` in."""
+    return min(1.5 * hours, 3)
+
+
+def views_due(curve: Curve, pub: datetime, hours: float, at: datetime) -> bool:
+    """Whether views_after(curve, pub, hours) is still to come at moment `at`: the post isn't `hours` old yet, or it is
+    but hasn't been read since, and the next reading can still land close enough to the last one before then."""
+    target = pub + timedelta(hours=hours)
+    if at < target:
+        return True
+    times = curve[0]
+    i = bisect_left(times, target)
+    if i < len(times):
+        return False  # read since then: views_after has its answer
+    t0 = times[i - 1] if i and times[i - 1] > pub else pub
+    return (at - t0).total_seconds() <= _gap(hours) * 3600
+
+
 def add_early_views(posts: list[dict], early: Series) -> None:
-    """Each post's views 1, 6 and 24 hours after it went up, where ReelForge's readings tell (views_after):
-    post["after"] = {hours: views or None}. `early` is every post's first readings (db.early_series)."""
+    """Each post's views 1, 6, 12 and 24 hours after it went up, where ReelForge's readings tell (views_after):
+    post["after"] = {hours: views or None}, and post["due"] = the hours whose views are still to come (views_due).
+    `early` is every post's first readings (db.early_series)."""
+    t = now()
     for p in posts:
         curve = early.get((p["platform"], p["post_id"]), NO_CURVE)
         p["after"] = {h: views_after(curve, p["published"], h) for h in AFTER_HOURS}
+        p["due"] = {h for h, v in p["after"].items() if v is None and views_due(curve, p["published"], h, t)}
 
 
 def typical_curve(posts: list[dict], parsed: Series, platform: str | None, max_age_h: float, steps: int = 36,

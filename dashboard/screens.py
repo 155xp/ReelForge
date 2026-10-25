@@ -184,12 +184,13 @@ HELP = [
                      "Point at a bar to see that hour's numbers by platform; click a platform in the key to hide it. "
                      "Under the cards: today's badges, like \"Today: top 10% of your days for new TikTok "
                      "followers\"."),
-    ("Videos (2)", "Every video on every platform. Show picks a platform, a header sorts, and clicking a highlighted "
-                   "row (or Open post) opens it. Above the chart: the highlighted video's badges, like \"Top 5% of "
-                   "your TikTok videos for views\". The chart compares its views with your typical video at the same "
-                   "age. Fix episode re-files a post grouped with the wrong video; Export CSV saves every video as a "
-                   "spreadsheet, with when it went up (date, weekday, hour and UTC time) and its views 1, 6 and 24 "
-                   "hours in."),
+    ("Videos (2)", "Every video on every platform. Views 12h is each one's views 12 hours after it went up, so new and "
+                   "old videos compare fairly (\"in 5h\" until it's that old, — when the computer was off then). Show "
+                   "picks a platform, a header sorts, and clicking a highlighted row (or Open post) opens it. Above "
+                   "the chart: the highlighted video's badges, like \"Top 5% of your TikTok videos for views\". The "
+                   "chart compares its views with your typical video at the same age. Fix episode re-files a post "
+                   "grouped with the wrong video; Export CSV saves every video as a spreadsheet, with when it went up "
+                   "(date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in."),
     ("Compare (3)", "The platform scoreboard, or pick an episode to see the same video on every platform, each "
                     "against that platform's typical video."),
     ("Publish (4)", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, "

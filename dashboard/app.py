@@ -59,10 +59,11 @@ THEME = Theme(
 
 METRICS = ("views", "followers", "likes")
 TOP_COLUMNS = [("title", "Title", 20), ("age_h", "Age", 5), ("views", "Views", 8), ("score", "Score", 7)]
-VIDEO_COLUMNS = [  # (key, label, width)
-    ("platform", "", 4), ("title", "Title", 40), ("age_h", "Age", 5), ("views", "Views", 8), ("likes", "Likes", 7),
-    ("comments", "Cmts", 6), ("shares", "Shares", 6), ("eng", "Eng", 6), ("share_rate", "Share", 6),
-    ("vph", "Views/h", 7), ("score", "Score", 6), ("pscore", "On plat.", 8),
+VIDEO_COLUMNS = [  # (key, label, width); Views 12h is wide enough for its ▼ when the table is sorted by it
+    ("platform", "", 4), ("title", "Title", 40), ("age_h", "Age", 5), ("views", "Views", 8),
+    ("views_12h", "Views 12h", 11), ("likes", "Likes", 7), ("comments", "Cmts", 6), ("shares", "Shares", 6),
+    ("eng", "Eng", 6), ("share_rate", "Share", 6), ("vph", "Views/h", 7), ("score", "Score", 6),
+    ("pscore", "On plat.", 8),
 ]
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
@@ -714,7 +715,7 @@ class ReelForge(App):
         rows = [p for p in self.posts if not self.filter or p["platform"] == self.filter]
 
         def sort_value(p):
-            v = p.get(key)
+            v = p["after"][12] if key == "views_12h" else p.get(key)
             if key in ("title", "platform"):
                 return (v or "").lower()
             return v if v is not None else float("-inf")
@@ -723,7 +724,7 @@ class ReelForge(App):
         for p in rows:
             table.add_row(
                 tag(self.platforms[p["platform"]]), p["title"] or "(untitled)", fmt_age(p["age_h"]),
-                num(p["views"], "bold"), num(p["likes"]), num(p["comments"]), num(p["shares"]),
+                num(p["views"], "bold"), _after(p, 12), num(p["likes"]), num(p["comments"]), num(p["shares"]),
                 Text(fmt_pct(p["eng"]), justify="right"), Text(fmt_pct(p["share_rate"]), justify="right"),
                 num(p["vph"]), score_text(p["score"]), score_text(p.get("pscore")),
                 key=f"{p['platform']}|{p['post_id']}",
@@ -748,7 +749,7 @@ class ReelForge(App):
 
     def action_export_csv(self) -> None:
         """Every video's numbers as a spreadsheet file (data/exports/), shown in Explorer: when it went up (this
-        computer's date, weekday and hour, and the platform's own time in UTC) and its views 1, 6 and 24 hours in
+        computer's date, weekday and hour, and the platform's own time in UTC) and its views 1, 6, 12 and 24 hours in
         (empty where ReelForge wasn't reading then, or the video isn't that old yet)."""
         import csv
 
@@ -1924,6 +1925,16 @@ def _cell(text: str | None) -> str:
     """Spreadsheet-safe text: a leading = + - or @ would make Excel run it as a formula."""
     text = text or ""
     return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+
+
+def _after(p: dict, hours: int) -> Text:
+    """A video's views `hours` after it went up, for a table: "in 5h" until it's that old, "soon" until the next reading
+    measures it, and — when ReelForge wasn't reading round then (the computer was off)."""
+    if p["after"][hours] is not None:
+        return num(p["after"][hours])
+    left = hours - p["age_h"]
+    text = (f"in {fmt_age(max(left, 1 / 60))}" if left > 0 else "soon") if hours in p["due"] else "—"
+    return Text(text, style=MUTED, justify="right")
 
 
 def _from_first(values: list[float | None]) -> list[float]:
