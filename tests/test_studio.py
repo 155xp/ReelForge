@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from studio import formats, generate, jsonfmt, logo, questions, settings
+from studio import formats, generate, jsonfmt, logo, logo_art, questions, settings
 
 
 DEFAULTS_ONLY = Path(__file__).with_name("no-such-studio.toml")    # the defaults, whatever my-studio/ holds
@@ -110,6 +110,34 @@ class Logo(unittest.TestCase):
                 self.assertLessEqual(logo.width(big), 110)       # fits a 120-column terminal inside the box
                 self.assertEqual(logo.rows(anvil), 3)
                 self.assertEqual(set("".join(big.grid)) - {"."}, {"W", "R"})   # white "reel", red "forge"
+
+    def test_big_logo_in_ten_clean_pieces(self):
+        """The anvil and the nine letters each stay in one piece, apart from the others (corners count as touching),
+        so nothing sticks out on its own and no two letters run together."""
+        def pieces(grid):
+            seen, count = set(), 0
+            for y, line in enumerate(grid):
+                for x, ch in enumerate(line):
+                    if ch == "." or (y, x) in seen:
+                        continue
+                    count += 1
+                    stack = [(y, x)]
+                    seen.add((y, x))
+                    while stack:
+                        cy, cx = stack.pop()
+                        for ny in (cy - 1, cy, cy + 1):
+                            for nx in (cx - 1, cx, cx + 1):
+                                if (0 <= ny < len(grid) and 0 <= nx < len(line) and grid[ny][nx] != "."
+                                        and (ny, nx) not in seen):
+                                    seen.add((ny, nx))
+                                    stack.append((ny, nx))
+            return count
+
+        for grid in (logo_art.BIG_SEXTANT, logo_art.BIG_HALF):
+            self.assertEqual(pieces(grid), 10)
+            self.assertNotEqual(set(grid[0]), {"."})                 # the art fills its box: the l and f reach the top
+            self.assertNotEqual(set(grid[-1]), {"."})                # and the g's tail the bottom
+            self.assertNotEqual({line[-1] for line in grid}, {"."})  # no empty columns on the right
 
     def test_hand_drawn_anvil(self):
         for art in (logo.Art(logo.ANVIL_SEXTANT, 2, 3), logo.Art(logo.ANVIL_HALF, 1, 2)):

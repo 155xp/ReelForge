@@ -1,9 +1,9 @@
 """ReelForge's logo for the terminal: a white anvil, then "reel" in white and "forge" in red.
 
-Standard library only, so setup can draw it before any packages are installed. The art is a grid of sub-pixels:
-the full logo (studio/logo_art.py) is made by scripts/make_logo.py from the logo itself, and the anvil on its own
-is drawn by hand below, so it stays sharp that small. In Windows Terminal each cell shows 2 x 3 sub-pixels with the
-sextant characters, which it draws exactly; anywhere else each cell shows 1 x 2 with half blocks.
+Standard library only, so setup can draw it before any packages are installed. The art is a grid of sub-pixels,
+drawn by hand so every edge is clean: the full logo in studio/logo_art.py, and the anvil on its own below, small
+enough for the app's header. In Windows Terminal each cell shows 2 x 3 sub-pixels with the sextant characters, which
+it draws exactly; anywhere else each cell shows 1 x 2 with half blocks.
 
   big()     the full logo, 8 rows tall: the first-run screens
   anvil()   the anvil alone, 3 rows tall: small spots like the app's header
@@ -42,7 +42,7 @@ ANVIL_HALF = [      # the same anvil in half blocks, for terminals without sexta
     "WWWWWWWWW..",
     "..WWWWWW...",
     "....WWWW...",
-    "...WWWWW...",
+    "...WWWWWW..",
     "...WW..WW..",
 ]
 

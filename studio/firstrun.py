@@ -30,8 +30,10 @@ CSS = """
 #items { height: auto; padding: 1 0 0 0; }
 .item { height: 1; }
 .item .mark { width: 6; }
-.item Checkbox { width: 6; height: 1; border: none; padding: 0; background: transparent; }
-.item Checkbox:focus { background: $primary 30%; }
+.item Tick { width: 3; height: 1; border: none; padding: 0; margin-right: 3; background: transparent; }
+.item Tick > .toggle--button { background: transparent; color: $text-muted; }
+.item Tick.-on > .toggle--button { color: $success; text-style: bold; }
+.item Tick:focus { background: $primary 30%; }
 .item .name { width: 26; text-style: bold; }
 .item .what { width: 1fr; color: $text-muted; }
 #note { height: auto; color: $text-muted; padding: 1 0 0 0; }
@@ -49,9 +51,14 @@ CSS = """
 
 
 class Tick(Checkbox):
-    """A checkbox with a tick in it (Textual's default is an X, which reads as "no")."""
+    """A tick that can be turned off: the same green tick as the ready rows while on, a grey circle while off.
+    Textual's own checkbox draws a box round it with half blocks, which sat oddly next to the plain ticks."""
 
-    BUTTON_INNER = tui.CHECK
+    BUTTON_LEFT = BUTTON_RIGHT = " "
+
+    @property
+    def BUTTON_INNER(self) -> str:  # noqa: N802 (the name Textual reads)
+        return tui.CHECK if self.value else "○"
 
 
 def _mark(ok: bool | None) -> Text:
