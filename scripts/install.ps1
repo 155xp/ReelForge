@@ -35,10 +35,15 @@
     $parent = Split-Path -Parent $dir
     $tag = [guid]::NewGuid().ToString("N").Substring(0, 8)
     $work = Join-Path ([IO.Path]::GetTempPath()) "reelforge-install-$tag"
-    $unpack = Join-Path $parent ".reelforge-unpack-$tag"      # beside the target, so the last step is a rename
+    $unpack = $null
     $pattern = '^([0-9a-fA-F]{64}) +\*?(ReelForge-[0-9A-Za-z.-]+-Windows\.zip)$'
     try {
         New-Item -ItemType Directory -Force -Path $work, $parent | Out-Null
+        # Full folder names from here on: a short 8.3 name such as C:\Users\JOHNSM~1 can stop PowerShell deleting
+        # what it unpacked, and stops Windows PowerShell unzipping at all
+        $work = (Get-Item -LiteralPath $work -Force).FullName
+        $dir = Join-Path (Get-Item -LiteralPath $parent -Force).FullName (Split-Path -Leaf $dir)
+        $unpack = Join-Path (Split-Path -Parent $dir) ".reelforge-unpack-$tag"    # beside the target: the last step is a rename
         Say "Finding the newest ReelForge..."
         $sums = Join-Path $work "SHA256SUMS.txt"
         Invoke-WebRequest "$release/SHA256SUMS.txt" -OutFile $sums -UseBasicParsing
@@ -62,7 +67,10 @@
         Say "ReelForge wasn't installed: $($_.Exception.Message)" "Red"
         return
     } finally {
-        Remove-Item -LiteralPath $work, $unpack -Recurse -Force -ErrorAction SilentlyContinue
+        # Tidying up never stops the install: a folder that won't go is just left in Temp or beside ReelForge
+        foreach ($leftover in $work, $unpack) {
+            try { if ($leftover -and (Test-Path -LiteralPath $leftover)) { Remove-Item -LiteralPath $leftover -Recurse -Force } } catch { }
+        }
     }
 
     Say "ReelForge is in $dir" "Green"
