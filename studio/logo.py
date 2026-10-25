@@ -2,8 +2,9 @@
 
 Standard library only, so setup can draw it before any packages are installed. The art is a grid of sub-pixels,
 drawn by hand so every edge is clean: the full logo in studio/logo_art.py, and the anvil on its own below, small
-enough for the app's header. In Windows Terminal each cell shows 2 x 3 sub-pixels with the sextant characters, which
-it draws exactly; anywhere else each cell shows 1 x 2 with half blocks.
+enough for the app's header. In Windows Terminal each cell shows 2 x 2 sub-pixels with the quadrant characters, which
+it draws itself on whole pixels; anywhere else each cell shows 1 x 2 with half blocks. (Not sextants, 2 x 3: Windows
+Terminal 1.24 takes those from the font, which leaves faint seams and fringes round every edge.)
 
   big()     the full logo, 8 rows tall: the first-run screens
   anvil()   the anvil alone, 3 rows tall: small spots like the app's header
@@ -23,26 +24,23 @@ WHITE = "#ffffff"
 RED = "#e8213a"
 PALETTE = {"W": WHITE, "R": RED}
 
-# The anvil of assets/logo/reelforge-anvil.png, drawn by hand: the horn on the left, the face stepping up from it,
-# the heel on the right, the waist, and the feet with the arch between them. 7 sub-pixels tall in the 3 rows' 9, so
-# it sits centred on the header's line of text with room above and below.
-ANVIL_SEXTANT = [
+# The anvil of assets/logo/reelforge-anvil.png, drawn by hand: the face, the horn on the left, the heel curving in on
+# the right, the waist and the feet with the arch between them, one sub-row each. The top one of the 3 rows' 6 sub-rows
+# is left empty, so the anvil doesn't fill the header from edge to edge.
+ANVIL_QUAD = [
     "..................",
     "......WWWWWWWWWWWW",
     "WWWWWWWWWWWWWWWW..",
-    "..WWWWWWWWWWW.....",
-    ".......WWWWW......",
-    "......WWWWWWW.....",
-    ".....WWWWWWWWW....",
-    "....WWWW...WWWW...",
-    "..................",
+    "...WWWWWWWWW......",
+    "......WWWWWW......",
+    "....WWWW..WWWW....",
 ]
-ANVIL_HALF = [      # the same anvil in half blocks, for terminals without sextants
+ANVIL_HALF = [      # the same anvil in half blocks, for other terminals
+    "...........",
     "...WWWWWWWW",
     "WWWWWWWWW..",
     "..WWWWWW...",
     "....WWWW...",
-    "...WWWWWW..",
     "...WW..WW..",
 ]
 
@@ -54,10 +52,10 @@ class Art:
     sub_h: int        # and down
 
 
-def sextants() -> bool:
-    """Windows Terminal draws sextant characters itself, so they line up perfectly; other terminals may not have
-    them in their font. REELFORGE_SEXTANTS=1 or 0 overrides."""
-    forced = os.environ.get("REELFORGE_SEXTANTS", "").strip()
+def quadrants() -> bool:
+    """Windows Terminal draws quadrant characters itself, on whole pixels, so they line up perfectly; other
+    terminals take them from the font, which may not have them. REELFORGE_QUADRANTS=1 or 0 overrides."""
+    forced = os.environ.get("REELFORGE_QUADRANTS", "").strip()
     if forced in ("0", "1"):
         return forced == "1"
     return sys.platform == "win32" and windows_terminal()
@@ -91,11 +89,11 @@ def _console_window_class() -> str:
 
 
 def big() -> Art:
-    return Art(logo_art.BIG_SEXTANT, 2, 3) if sextants() else Art(logo_art.BIG_HALF, 1, 2)
+    return Art(logo_art.BIG_QUAD, 2, 2) if quadrants() else Art(logo_art.BIG_HALF, 1, 2)
 
 
 def anvil() -> Art:
-    return Art(ANVIL_SEXTANT, 2, 3) if sextants() else Art(ANVIL_HALF, 1, 2)
+    return Art(ANVIL_QUAD, 2, 2) if quadrants() else Art(ANVIL_HALF, 1, 2)
 
 
 def width(art: Art) -> int:
@@ -108,17 +106,12 @@ def rows(art: Art) -> int:
     return (len(art.grid) + art.sub_h - 1) // art.sub_h
 
 
-def _sextant(bits: int) -> str:
-    """The character with these of its 6 parts filled (bit 0 top-left, 1 top-right, 2 middle-left ... 5 bottom-right)."""
-    if bits == 0:
-        return " "
-    if bits == 63:
-        return "█"
-    if bits == 21:
-        return "▌"
-    if bits == 42:
-        return "▐"
-    return chr(0x1FB00 + bits - 1 - (bits > 21) - (bits > 42))
+QUADRANTS = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"   # by the parts filled: bit 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right
+
+
+def _quadrant(bits: int) -> str:
+    """The character with these of its 4 parts filled."""
+    return QUADRANTS[bits]
 
 
 def cells(art: Art) -> list[list[tuple[str, str | None, str | None]]]:
@@ -146,7 +139,7 @@ def cells(art: Art) -> list[list[tuple[str, str | None, str | None]]]:
                 continue
             ink = max(set(inks), key=inks.count)
             bits = sum(1 << i for i, s in enumerate(subs) if s == ink)
-            line.append((_sextant(bits), PALETTE[ink], None))
+            line.append((_quadrant(bits), PALETTE[ink], None))
         out.append(line)
     return out
 

@@ -29,9 +29,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "screenshots"
 GUIDE = ROOT / "dashboard" / "docs"     # the dashboard guide's own pictures (dashboard/README.md)
-os.environ.update(STUDIO_DRY_SYSTEM="1", REELFORGE_SCREENSHOTS="1", REELFORGE_SEXTANTS="1", COLORTERM="truecolor")
+os.environ.update(STUDIO_DRY_SYSTEM="1", REELFORGE_SCREENSHOTS="1", REELFORGE_QUADRANTS="1", COLORTERM="truecolor")
 os.environ.pop("NO_COLOR", None)
 sys.path.insert(0, str(ROOT))
+from studio.logo import QUADRANTS  # noqa: E402  (the logo's 2 x 2 blocks)
 
 APP_SIZE, GUIDE_SIZE, FIRST_RUN_SIZE, ONBOARD_SIZE, READY_SIZE = (180, 50), (200, 56), (120, 34), (140, 46), (130, 32)
 APP_SHOTS = {  # name: (tab, notifications drawer open, select the first video, terminal size, folder)
@@ -152,7 +153,7 @@ async def first_run_shot(name: str, work: Path) -> Path:
 
 # ---------------------------------------------------------------- block characters as rectangles
 
-# A cell is 8 sub-columns by 24 sub-rows: halves, sextants' thirds and the charts' eighths all land on that grid.
+# A cell is 8 sub-columns by 24 sub-rows: halves, quadrants and the charts' eighths all land on that grid.
 COLS, ROWS = 8, 24
 OVERLAP = 1.0     # px: neighbouring rectangles overlap, so no hairline shows between them
 BLOCKS = {        # character -> [(first sub-column, end, first sub-row, end)]
@@ -164,16 +165,12 @@ BLOCKS = {        # character -> [(first sub-column, end, first sub-row, end)]
     **{chr(0x2580 + k): [(0, 8, 24 - 3 * k, 24)] for k in range(1, 8)},   # \u2581\u2582\u2583\u2584\u2585\u2586\u2587: the bars' and areas' tops
     **{chr(0x2590 - k): [(0, k, 0, 24)] for k in range(1, 8)},            # \u2589\u258a\u258b\u258c\u258d\u258e\u258f: the Compare bars' ends
 }
+BLOCKS |= {ch: [(p % 2 * 4, p % 2 * 4 + 4, p // 2 * 12, p // 2 * 12 + 12) for p in range(4) if bits >> p & 1]
+           for bits, ch in enumerate(QUADRANTS) if bits and ch not in BLOCKS}   # the logo's quadrants
 
 
 def parts(ch: str) -> list[tuple[int, int, int, int]] | None:
-    if ch in BLOCKS:
-        return BLOCKS[ch]
-    if not 0x1FB00 <= ord(ch) <= 0x1FB3B:
-        return None
-    bits = ord(ch) - 0x1FB00 + 1   # the sextants are the patterns 1..62 without 21 and 42 (the half blocks)
-    bits += (bits >= 21) + (bits >= 41)
-    return [(p % 2 * 4, p % 2 * 4 + 4, p // 2 * 8, p // 2 * 8 + 8) for p in range(6) if bits >> p & 1]
+    return BLOCKS.get(ch)
 
 
 def draw_blocks(svg: str) -> str:

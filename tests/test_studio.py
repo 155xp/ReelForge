@@ -102,8 +102,8 @@ class JsonFormat(unittest.TestCase):
 
 class Logo(unittest.TestCase):
     def test_sizes_and_colours(self):
-        for mode in ("1", "0"):                                  # sextants (Windows Terminal) and half blocks
-            with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": mode}):
+        for mode in ("1", "0"):                                  # quadrants (Windows Terminal) and half blocks
+            with mock.patch.dict(os.environ, {"REELFORGE_QUADRANTS": mode}):
                 big, anvil = logo.big(), logo.anvil()
                 self.assertEqual(logo.rows(big), 8)
                 self.assertEqual({len(r) for r in big.grid}, {logo.width(big) * big.sub_w})
@@ -133,14 +133,17 @@ class Logo(unittest.TestCase):
                                     stack.append((ny, nx))
             return count
 
-        for grid in (logo_art.BIG_SEXTANT, logo_art.BIG_HALF):
+        for grid in (logo_art.BIG_QUAD, logo_art.BIG_HALF):
             self.assertEqual(pieces(grid), 10)
             self.assertNotEqual(set(grid[0]), {"."})                 # the art fills its box: the l and f reach the top
             self.assertNotEqual(set(grid[-1]), {"."})                # and the g's tail the bottom
             self.assertNotEqual({line[-1] for line in grid}, {"."})  # no empty columns on the right
+        q = logo_art.BIG_QUAD                                        # a quadrant cell has one colour, so none mixes
+        self.assertFalse([(x, y) for y in range(0, len(q), 2) for x in range(0, len(q[0]), 2)
+                          if len({q[y + dy][x + dx] for dy in (0, 1) for dx in (0, 1)} - {"."}) > 1])
 
     def test_hand_drawn_anvil(self):
-        for art in (logo.Art(logo.ANVIL_SEXTANT, 2, 3), logo.Art(logo.ANVIL_HALF, 1, 2)):
+        for art in (logo.Art(logo.ANVIL_QUAD, 2, 2), logo.Art(logo.ANVIL_HALF, 1, 2)):
             self.assertEqual(len(art.grid), 3 * art.sub_h)                       # the header's 3 rows
             self.assertEqual({len(r) for r in art.grid}, {logo.width(art) * art.sub_w})
             self.assertEqual(set("".join(art.grid)), {"W", "."})                 # a white anvil
@@ -156,21 +159,21 @@ class Logo(unittest.TestCase):
         self.assertTrue(found({}, "PseudoConsoleWindow"))                         # handed to it: desktop shortcut
         self.assertFalse(found({}, "ConsoleWindowClass"))                         # the old Windows console
         self.assertFalse(found({"TERM_PROGRAM": "vscode"}, "PseudoConsoleWindow"))   # another modern terminal
-        with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": "0", "WT_SESSION": "1"}):
-            self.assertFalse(logo.sextants())                                     # the override still wins
+        with mock.patch.dict(os.environ, {"REELFORGE_QUADRANTS": "0", "WT_SESSION": "1"}):
+            self.assertFalse(logo.quadrants())                                    # the override still wins
 
     def test_terminal_cells(self):
-        with mock.patch.dict(os.environ, {"REELFORGE_SEXTANTS": "1"}):
+        with mock.patch.dict(os.environ, {"REELFORGE_QUADRANTS": "1"}):
             lines = logo.ansi(logo.big())
         self.assertEqual(len(lines), 8)
         self.assertTrue(all(line.endswith("\x1b[0m") for line in lines))
         top, bottom = logo.cells(logo.Art(["W.", ".R"], 1, 2))[0]
         self.assertEqual(top, ("▀", logo.WHITE, None))
         self.assertEqual(bottom, ("▄", logo.RED, None))
-        # sextants: the top-left part only, then everything but the top-right part
-        (a, b), = logo.cells(logo.Art(["W.W.", "..WW", "..WW"], 2, 3))
-        self.assertEqual(a, (chr(0x1FB00), logo.WHITE, None))
-        self.assertEqual(b, (chr(0x1FB00 + 61 - 1 - 2), logo.WHITE, None))
+        # quadrants: top-left and bottom-right, then everything but the top-right
+        (a, b), = logo.cells(logo.Art(["W.W.", ".WWW"], 2, 2))
+        self.assertEqual(a, ("▚", logo.WHITE, None))
+        self.assertEqual(b, ("▙", logo.WHITE, None))
 
 
 class SystemChanges(unittest.TestCase):
