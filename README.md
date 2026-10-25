@@ -1,227 +1,197 @@
-<div align="center">
+<p align="center">
+  <img src="docs/banner.png" alt="ReelForge" width="720">
+</p>
 
-<img src="docs/banner.png" alt="ReelForge" width="720">
+<p align="center">
+  ReelForge lets Claude Code or Codex make faceless short videos for TikTok, YouTube Shorts, Instagram Reels and X,
+  then shows you how each one does once you've posted it.
+</p>
 
-### Your AI makes the videos. You post them.
+<p align="center">
+  <a href="#quick-start"><img alt="Get ReelForge" src="https://img.shields.io/github/v/release/dan2756/ReelForge?style=for-the-badge&label=Get%20ReelForge&labelColor=1b1f24&color=e8213a"></a>
+</p>
 
-A studio in a folder for faceless short-form channels on TikTok, YouTube Shorts, Instagram Reels and X.
+![ReelForge's Overview tab: followers, views and likes on every platform, hour by hour](docs/screenshots/app-overview.png)
 
-[![Latest release](https://img.shields.io/github/v/release/dan2756/ReelForge?label=download&color=f0362b)](https://github.com/dan2756/ReelForge/releases/latest)
-![Windows 10 / 11](https://img.shields.io/badge/Windows-10%20%2F%2011-0078d4)
-![macOS and Linux: experimental](https://img.shields.io/badge/macOS%20%C2%B7%20Linux-experimental-6e7681)
-[![MIT licence](https://img.shields.io/badge/licence-MIT-2ea043)](LICENSE)
+## What it makes
 
-**[Download](https://github.com/dan2756/ReelForge/releases/latest)** ·
-**[Quick start](#quick-start)** ·
-**[See it](#see-it)** ·
-**[How it works](#how-it-works)** ·
-**[FAQ](#faq)**
+An AI made these three videos with ReelForge, start to finish: it wrote the script, checked every number against a
+real source, built and rendered the 3D scenes, and added the text and the sound. They're ReelForge's three demos.
 
-</div>
+<p align="center">
+  <img src="docs/demos/rubber-duck.webp" width="250" alt="What if a rubber duck doubled in size every 2 seconds?">&nbsp;
+  <img src="docs/demos/meteor.webp" width="250" alt="What if a meteor exploded 15 miles away?">&nbsp;
+  <img src="docs/demos/everyone-jumps.webp" width="250" alt="What if everyone on Earth jumped at the same time?">
+</p>
 
-<br>
-
-<img src="docs/screenshots/app-overview.png" alt="ReelForge: your stats on every platform, and every finished video waiting to be posted">
-
-<br>
-
-ReelForge turns **Claude Code** (or **Codex**) into a production studio. You answer a short interview about your
-channel. Then you ask for a video, and your AI writes the script, checks every fact, builds and renders a 3D scene in
-Blender, adds the text, the on-screen counter and the sound, runs a quality check, and drops the finished video into
-**ReelForge**, a window in your terminal where you see your stats and post by hand.
-
-> [!NOTE]
-> **Nothing is ever posted for you.** ReelForge makes the video and copies the caption; you press Post.
+You start from a format that's already pulling views, like "What if X doubled every 2 seconds?" or "What if everyone
+on Earth did X at once?", or you describe your own.
 
 ## Quick start
 
-1. **Download** `ReelForge-…-Windows-Setup.exe` from the
-   **[latest release](https://github.com/dan2756/ReelForge/releases/latest)**.
-2. **Open it.** Windows may say "Windows protected your PC" because the installer isn't code-signed: click
-   **More info**, then **Run anyway**. When it finishes, leave **Set up ReelForge now** ticked.
-3. **Say yes once.** Setup opens in a box with the ReelForge logo, lists what it still needs (Blender, ffmpeg, the
-   sound effects, the `reelforge` command) and sets it all up in the ReelForge folder when you press **Set up**.
-4. **Go through onboarding.** It follows straight on: a short interview about your channel, your format, your
-   platforms and your style.
+You need a Windows 10 or 11 PC with a recent NVIDIA or AMD graphics card, about 15 GB of free space, and Claude Code
+or Codex. (macOS and Linux work too, but they're experimental: see the [FAQ](#faq).)
 
-That's it. When onboarding finishes it tells you the one thing to say to your AI:
+1. **Open PowerShell.** Press the Windows key, type `PowerShell` and press Enter.
+2. **Paste this line and press Enter.**
 
-```
-make my first video
-```
+   ```
+   irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 | iex
+   ```
 
-From then on, type **`reelforge`** in any terminal (or double-click the ReelForge icon) to open it.
+   It downloads the newest ReelForge straight from GitHub into `C:\Users\<you>\ReelForge`, checks it and starts
+   setup, so neither your browser nor Windows shows a download warning.
+3. **Say yes, then answer a few questions.** ReelForge lists what it still needs and, when you click **Set up**,
+   downloads Blender, ffmpeg and the sound effects into its own folder. Then it asks about your channel: what it's
+   about, the format, where you post, and how your videos should look and sound.
 
-<details>
-<summary><b>macOS, Linux, or no installer</b></summary>
+<p align="center">
+  <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
+  <img src="docs/screenshots/onboarding-format.png" width="49%" alt="Onboarding: pick the format your channel starts with">
+</p>
 
-<br>
+Rather use an installer? Open the [latest release](https://github.com/dan2756/ReelForge/releases/latest), click the
+file that ends in `Windows-Setup.exe` under **Assets**, and open it. If Windows says "Windows protected your PC",
+click **More info**, then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts when
+the installer finishes.
 
-| Your computer | Download | Then |
-|---|---|---|
-| Windows, no installer | `ReelForge-…-Windows.zip` | Unzip it to a short path (e.g. `C:\Users\you\ReelForge`) and double-click `setup.bat`. |
-| macOS (experimental) | `ReelForge-…-macOS.zip` | Unzip it, right-click `Set up ReelForge.command`, choose **Open**. Needs Python 3.11+ and ffmpeg (`brew install python@3.13 ffmpeg`). |
-| Linux (experimental) | `ReelForge-…-Linux.tar.gz` | Extract it and run `./setup.sh`. Needs Python 3.11+ and ffmpeg. |
+## Make your first video
 
-Onboarding starts when setup finishes. To run it again later: `reelforge onboard` (or `onboard.bat` /
-`./onboard.sh`).
+Onboarding turns your answers into instructions for your AI, `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex,
+and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` unless you picked another). Its last screen tells
+you what to do next.
 
-Prefer to do it all in chat? Open the folder in Claude Code before onboarding and say "set me up": your AI runs
-setup with your OK and interviews you in the chat instead.
+![Onboarding's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
 
-</details>
+1. **Open the ReelForge folder in your AI.** In the Claude desktop app, go to **Code**, click **Open folder…** and
+   pick the ReelForge folder (or run `claude` in a terminal inside it). For Codex, run `codex` in a terminal inside
+   it.
+2. **Ask for your first video** in the words that screen gives you:
 
-### What you need
+   ```
+   make my first video
+   ```
 
-| | |
-|---|---|
-| 🖥️ **A computer** | Windows 10 or 11. macOS and Linux are experimental. |
-| 🎮 **A graphics card** | Any recent NVIDIA or AMD GPU. A 67-second video renders in 10–25 minutes on a fast one. |
-| 💾 **Disk space** | About 3 GB for the tools, plus 10 GB free while rendering. |
-| 🤖 **An AI that can run commands** | **Claude Code** (a paid Claude plan or an API account) or **Codex**. |
+3. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
+   renders it, adds the text and the sound, then watches the finished video and fixes anything that's off. Rendering
+   takes from about 15 minutes to an hour on a fast graphics card.
+4. **Post it.** Open ReelForge (type `reelforge` in any terminal, or double-click the ReelForge icon on your
+   desktop) and go to **Publish**.
 
-You don't need to know Blender, Python or video editing. Setup installs everything into the ReelForge folder.
+After that, say **make today's videos** whenever you want more.
 
-## See it
+## Inside ReelForge
 
-### First run
+ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
+`reelforge publish`.
 
-Setup and onboarding happen in one box round your terminal: what ReelForge needs, one yes, the downloads with their
-progress, a health check, then the interview. Your answers become your AI's instructions and your channel's
-settings.
+### Overview
 
-<table>
-  <tr>
-    <td colspan="2"><img src="docs/screenshots/first-run.png" alt="First run: what ReelForge needs, set up with one yes"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><sub><b>Get the tools</b>: everything goes into the ReelForge folder</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/onboarding-format.png" alt="Onboarding: pick a proven format"></td>
-    <td width="50%"><img src="docs/screenshots/onboarding-look.png" alt="Onboarding: look and sound"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub><b>Your format</b>: start from one that's already pulling views, then make it yours</sub></td>
-    <td align="center"><sub><b>Look and sound</b>: style, counter, loudness, length</sub></td>
-  </tr>
-</table>
+Followers, views and likes on every platform, hour by hour, with a mark where each video went up, plus your top
+videos and how the latest one is doing. The bell at the top right collects milestones, new videos ready to post and
+updates, and gets a red dot when there's something new. Click a notification to see what it's about: a video that's
+taking off opens on the Videos tab, highlighted, and a finished video is picked out on Publish.
 
-### ReelForge
+<p align="center">
+  <img src="docs/screenshots/app-notifications.png" width="49%" alt="The Overview tab with the notifications open">
+  <img src="docs/screenshots/app-notification-click.png" width="49%" alt="After clicking a notification: the video it's about, highlighted on the Videos tab">
+</p>
 
-Your stats on every platform, and the Publish tab where every finished video waits for you. Six tabs; open one
-directly with `reelforge 1` to `reelforge 6`, or by name (`reelforge publish`). `reelforge --demo` shows it with
-made-up stats, like these screenshots.
+### Videos
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/app-publish.png" alt="Publish tab"></td>
-    <td width="50%"><img src="docs/screenshots/app-videos.png" alt="Videos tab"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub><b>4 Publish</b>: each button opens the upload page, copies that platform's caption and shows the file</sub></td>
-    <td align="center"><sub><b>2 Videos</b>: every video on every platform, scored against your typical one</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/app-notifications.png" alt="The notifications drawer"></td>
-    <td width="50%"><img src="docs/screenshots/app-updates.png" alt="Updates tab"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub><b>Notifications</b>: milestones, new videos ready to post, updates; a red dot when there's something new</sub></td>
-    <td align="center"><sub><b>6 Updates</b>: a new version installs and restarts in one click</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/app-compare.png" alt="Compare tab"></td>
-    <td width="50%"><img src="docs/screenshots/app-accounts.png" alt="Accounts tab"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub><b>3 Compare</b>: which platform is working, and one video side by side everywhere</sub></td>
-    <td align="center"><sub><b>5 Accounts</b>: where each platform's stats come from, and the one-time log-ins</sub></td>
-  </tr>
-</table>
+Every video on every platform in one table, scored against your typical video. Click a header to sort, and pick a
+video to see how its views grew after you posted it.
 
-## What it does
+![The Videos tab](docs/screenshots/app-videos.png)
 
-- 🧭 **Starts from what works.** Onboarding offers formats already pulling views, and your AI re-checks what's
-  trending before it picks subjects.
-- ✍️ **Writes and fact-checks.** Every number on screen is checked against a real source, saved next to the video.
-- 🎬 **Builds and renders in 3D.** Blender builds the scene and renders it; Python adds the title, the story lines,
-  the counter and the sound; ffmpeg encodes a 1080×1920 video.
-- ✅ **Won't ship a bad video.** An automatic quality gate checks length, black or frozen frames, the loop, loudness,
-  harsh sound, overlapping text and caption rules. Then your AI watches it like a viewer and signs it off.
-- 📊 **Tracks your stats without API keys.** ReelForge reads the same pages you'd look at: followers, views and
-  likes per hour, your top videos, and how each new one is doing. An hourly background job keeps reading them while
-  ReelForge is closed.
-- 🙋 **Leaves posting to you.** The Publish tab copies each platform's caption and opens its upload page.
+### Compare
 
-## How it works
+Which platform is working for you: views per video, like rate and followers gained side by side, and how a typical
+video grows over its first three days on each one.
 
-```mermaid
-flowchart LR
-    A["Onboarding<br/>your answers"] --> B["CLAUDE.md / AGENTS.md<br/>my-studio/"]
-    B --> C["You: make my first video"]
-    C --> D["Script + facts"]
-    D --> E["Blender scene<br/>and render"]
-    E --> F["Text, counter,<br/>sound"]
-    F --> G{"Quality gate<br/>+ AI review"}
-    G -- fails --> D
-    G -- passes --> H["ReelForge<br/>Publish tab"]
-    H --> I["You post"]
-```
+![The Compare tab](docs/screenshots/app-compare.png)
 
-<details>
-<summary><b>The pieces</b></summary>
+### Publish
 
-<br>
+Every finished video waits here with its post already written. Each platform's button opens that site's upload page
+and copies exactly the text it needs, so you drag the video in and press Post. ReelForge spots the post by itself.
 
-- **The pipeline** (`pipeline/`) turns one `episode.json` into a finished video. Commands for running a step by hand
-  are in `docs/PIPELINE.md`.
-- **The quality gate** (`pipeline/qa.py`) checks the final file. A video that fails can't ship.
-- **Your AI's review** follows the quality bar in `docs/QUALITY.md` and checks every number in `facts.md`.
-- **The ReelForge window** (`dashboard/`, guide in `dashboard/README.md`) is where your stats and finished videos
-  live. Instagram and X stats need a one-time log-in in ReelForge's own Edge window; TikTok and YouTube just need
-  your handle.
-- **Setup and onboarding** (`studio/`) write your AI's instructions from your answers and keep the tools in place.
+![The Publish tab](docs/screenshots/app-publish.png)
 
-</details>
+### Accounts
 
-## Formats you can start with
+Where each platform's stats come from. TikTok and YouTube only need your handle. Instagram and X need you to log in
+once, in ReelForge's own browser window. There are no API keys to set up.
 
-| Format | The hook |
-|---|---|
-| **What if X doubled every 2 seconds?** | A number climbs past real milestones until the counter overflows and the video rewinds into a seamless loop. Ready-made 3D scenes included. |
-| **What if X disappeared for 5 seconds?** | One thing vanishes and the world reacts. |
-| **What if \<a disaster\> hit your city?** | First-person POV with a countdown and an end-card fact. Ready-made 3D scenes included. |
-| **What if everyone on Earth did X at once?** | One action, eight billion people. Ready-made 3D scenes included. |
-| **What if reality had a bug?** | One game-engine setting broken in the real world. |
-| **Your own format** | Described in your words. |
+![The Accounts tab](docs/screenshots/app-accounts.png)
 
-## Everyday use
+## Updates
 
-| | Any terminal | Or double-click |
-|---|---|---|
-| Make videos | say "make today's videos" to your AI | |
-| Open ReelForge | `reelforge` | the ReelForge icon, or `ReelForge.bat` |
-| Open a tab | `reelforge 4` or `reelforge publish` (1 overview · 2 videos · 3 compare · 4 publish · 5 accounts · 6 updates) | |
-| Change your answers | `reelforge onboard` | `onboard.bat` / `./onboard.sh` |
-| Set up or repair | `reelforge setup` | `setup.bat` / `./setup.sh` |
-| Check everything | `reelforge doctor` | |
-| Background stats on or off | `reelforge stats on` / `reelforge stats off` | |
-| Everything else | `reelforge help` | |
+When a new version is out, the bell gets a red dot and the **Updates** tab (`reelforge 6`) shows what's new. Click
+**Update and restart** to install it. Your channel, videos, stats and settings stay as they are, and your AI's
+instructions are refreshed for the new version.
 
-**Make your AI work harder.** Onboarding sets Claude to **Opus** at **max** effort for this folder. For video runs,
-start your message with **ultracode** (e.g. "ultracode: make today's videos") so the work is split across a team of
-agents. With Codex, pick your strongest model (`/model`) and the highest reasoning effort.
+<p align="center">
+  <img src="docs/screenshots/app-updates.png" width="75%" alt="The Updates tab: a new version installs and restarts ReelForge in one click">
+</p>
 
 ## FAQ
+
+<details>
+<summary><b>Windows says "Windows protected your PC". Is it safe?</b></summary>
+
+<br>
+
+Yes. Windows says that about new apps that aren't code-signed yet; it doesn't mean it found anything wrong. Click
+**More info**, then **Run anyway**. Your browser may also warn that the file isn't commonly downloaded: open the
+**⋯** menu next to the download, choose **Keep**, then **Keep anyway** (Edge asks you to click **Show more** first).
+
+The one-line install in the [Quick start](#quick-start) doesn't go through your browser, so it skips both warnings.
+
+</details>
+
+<details>
+<summary><b>Is ReelForge free?</b></summary>
+
+<br>
+
+Yes. ReelForge is free and open source. Making videos uses your own Claude Code or Codex plan.
+
+</details>
 
 <details>
 <summary><b>Does it post for me?</b></summary>
 
 <br>
 
-No, never. Finished videos wait in the Publish tab. Each platform button copies the right caption, opens the upload
-page and shows the file; you drag it in and press Post.
+No. ReelForge never posts, uploads or sends anything. Finished videos wait in the Publish tab, and you post them
+yourself.
+
+</details>
+
+<details>
+<summary><b>Can I install it somewhere else?</b></summary>
+
+<br>
+
+Yes, on any drive with room for your videos. Before you paste the install line, run this in the same PowerShell
+window, with your own folder:
+
+```powershell
+$env:REELFORGE_DIR = "D:\ReelForge"
+```
+
+The installer asks you where to put it as you click through it.
+
+</details>
+
+<details>
+<summary><b>Where are my videos?</b></summary>
+
+<br>
+
+In the Publish tab, and as files in the ReelForge folder: every video has its own folder in `episodes`, and a copy of
+each finished one goes to `completed videos`.
 
 </details>
 
@@ -230,51 +200,88 @@ page and shows the file; you drag it in and press Post.
 
 <br>
 
-Yes, if you said yes to it in onboarding. A small background job (Task Scheduler on Windows) wakes once an hour
-while your computer is on, reads your stats in a hidden browser for about a minute, then exits; nothing runs in
-between. Turn it off or on any time with `reelforge stats off` / `reelforge stats on`. Nothing is made up for hours
-when the computer was off: they stay empty, and what you gained meanwhile still counts in your totals.
+Yes, if you said yes during onboarding. Once an hour, while your computer is on, a small background job reads your
+stats for about a minute, then stops. Turn it off or back on with `reelforge stats off` or `reelforge stats on`.
 
 </details>
 
 <details>
-<summary><b>How do I update?</b></summary>
+<summary><b>My AI doesn't know about my channel.</b></summary>
 
 <br>
 
-Open the **Updates** tab (`reelforge 6`). When there's a new version it shows what changed; **Update and restart**
-installs it and reopens ReelForge. Your channel, videos and stats stay where they are, and your AI's instructions are
-rewritten with the new version's.
+Make sure you opened the ReelForge folder itself, not the folder it's in: your AI reads `CLAUDE.md` (or `AGENTS.md`)
+from there. If it still seems lost, run onboarding again with `reelforge onboard`.
 
 </details>
 
 <details>
-<summary><b>Something's missing or broken.</b></summary>
+<summary><b>How do I change my answers?</b></summary>
 
 <br>
 
-Run `reelforge setup` (or `setup.bat`) again, then `reelforge doctor`. Every failed check says how to fix it.
-`reelforge doctor --render-test` also builds a scene in Blender and renders a frame. If Blender or ffmpeg is
-installed somewhere else, set `STUDIO_BLENDER` (or `STUDIO_FFMPEG`) to its path.
+Run `reelforge onboard`, or open **Change my channel answers** from the Start menu. It starts from your last answers,
+and when you finish it rewrites your AI's instructions and ReelForge's settings.
 
 </details>
 
 <details>
-<summary><b>My AI doesn't seem to know my channel.</b></summary>
+<summary><b>How do I get the best videos?</b></summary>
 
 <br>
 
-Make sure you opened the ReelForge folder itself (not a folder above it) and that `CLAUDE.md`'s first heading is
-your channel's name. If not, run onboarding again.
+Use your strongest model at its highest effort. Onboarding sets Claude Code to Opus at max effort for the ReelForge
+folder. If your Claude has ultracode, start a message with it, like `ultracode: make today's videos`, and the work is
+split across a team of agents. With Codex, pick your strongest model with `/model` and the highest reasoning effort.
 
 </details>
 
 <details>
-<summary><b>The videos are too quiet or too loud.</b></summary>
+<summary><b>Can I try things in a second copy without touching my real one?</b></summary>
 
 <br>
 
-Run onboarding again and pick another loudness. Don't change it per video.
+Yes. Unzip the Windows zip from the release into another folder and put a file called `TEST-COPY.txt` in it. That
+copy's window says **TEST**, its stats, logins and settings are its own, and it never touches the `reelforge`
+command, the hourly stats job or the desktop shortcut, which stay with your real ReelForge. Open it with its own
+`ReelForge.bat`.
+
+</details>
+
+<details>
+<summary><b>Something isn't working.</b></summary>
+
+<br>
+
+Run `reelforge doctor`. It checks everything ReelForge needs and says how to fix anything that fails. `reelforge
+setup` repairs the setup.
+
+</details>
+
+<details>
+<summary><b>Can I use it on a Mac or Linux?</b></summary>
+
+<br>
+
+Yes, but it's experimental: ReelForge is built and tested on Windows. Download the macOS zip or the Linux tar.gz from
+the [latest release](https://github.com/dan2756/ReelForge/releases/latest). On a Mac, right-click
+`Set up ReelForge.command` and choose **Open**. On Linux, run `./setup.sh`. Both need Python 3.11 or newer and ffmpeg
+(on a Mac: `brew install python@3.13 ffmpeg`).
+
+</details>
+
+<details>
+<summary><b>Which commands are there?</b></summary>
+
+<br>
+
+- `reelforge` opens ReelForge.
+- `reelforge 1` to `reelforge 6` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates.
+- `reelforge onboard` changes your channel answers.
+- `reelforge setup` sets up or repairs the tools.
+- `reelforge doctor` checks everything.
+- `reelforge stats on` and `reelforge stats off` turn the hourly stats on and off.
+- `reelforge help` lists the rest.
 
 </details>
 
@@ -283,36 +290,17 @@ Run onboarding again and pick another loudness. Don't change it per video.
 
 <br>
 
-Windows: **Settings → Apps → ReelForge → Uninstall**. It removes ReelForge, the tools setup downloaded, the hourly
-stats job and the `reelforge` command, and keeps your channel (`my-studio/`, `episodes/`, `completed videos/`) and
-your stats. With the zip, or on macOS/Linux: run `reelforge stats off` and `reelforge command off`, then delete the
-folder.
+If you used the install line (or a zip, or a Mac or Linux), run `reelforge stats off` and `reelforge command off`,
+delete the ReelForge icon from your desktop, then delete the ReelForge folder.
+
+If you used the installer, go to **Apps** in Windows **Settings**, find ReelForge and choose **Uninstall**. That
+removes ReelForge, the tools it downloaded, the hourly stats job and the `reelforge` command, and keeps your channel,
+videos and stats in its folder.
 
 </details>
 
-<details>
-<summary><b>What's in the folder?</b></summary>
+## License
 
-<br>
-
-| | |
-|---|---|
-| `my-studio/` | your answers, settings and channel bible (yours; never part of the download) |
-| `episodes/` | one folder per video: `episode.json`, `facts.md`, the build files and `final/` |
-| `completed videos/` | a copy of every finished video with its cover and captions, plus the production log |
-| `dashboard/` | the ReelForge window: stats, notifications, publishing, updates (its data is in `dashboard/data/`) |
-| `pipeline/` | the video pipeline: Blender scenes, text and sound, the quality gate |
-| `studio/` | setup, onboarding, the health check and the `reelforge` command |
-| `bin/` | the `reelforge` command itself |
-| `examples/` | example episodes to start from |
-| `docs/` | the pipeline, the quality bar, the sound rules, how to research a niche |
-| `assets/` | the icon, fonts, and sound effects with their licences |
-| `tools/` | Blender and ffmpeg, if setup downloaded them |
-
-</details>
-
-## Licences
-
-The kit's code is MIT-licensed ([`LICENSE`](LICENSE)). Sound effects: Kenney (CC0, included) and Mixkit (free
-licence, downloaded by setup on your computer because it doesn't allow redistribution). Blender (GPL) and ffmpeg are
-downloaded from their official sites. Details in [`THIRD_PARTY.md`](THIRD_PARTY.md).
+ReelForge is free and open source under the [MIT license](LICENSE). Setup downloads Blender and ffmpeg from their
+official sites and the Mixkit sound effects from Mixkit; the Kenney sound effects come with it. Details are in
+[THIRD_PARTY.md](THIRD_PARTY.md).

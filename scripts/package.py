@@ -28,7 +28,7 @@ import shot_sources
 
 ROOT = Path(__file__).resolve().parent.parent
 EXECUTABLE = (".sh", ".command", "bin/reelforge")
-SKIP = (".github/",)                    # CI files aren't useful in a download
+SKIP = (".github/", "docs/demos/")      # CI files and the README's demo previews aren't useful in a download
 
 START = {
     "windows": """ReelForge {v} for Windows

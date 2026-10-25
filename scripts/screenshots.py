@@ -18,6 +18,7 @@ A release won't build once any of that changes, so every release has screenshots
 from __future__ import annotations
 
 import asyncio
+import copy
 import html
 import os
 import re
@@ -32,7 +33,7 @@ os.environ.update(STUDIO_DRY_SYSTEM="1", REELFORGE_SCREENSHOTS="1", REELFORGE_SE
 os.environ.pop("NO_COLOR", None)
 sys.path.insert(0, str(ROOT))
 
-APP_SIZE, GUIDE_SIZE, FIRST_RUN_SIZE, ONBOARD_SIZE = (180, 50), (200, 56), (120, 34), (140, 46)
+APP_SIZE, GUIDE_SIZE, FIRST_RUN_SIZE, ONBOARD_SIZE, READY_SIZE = (180, 50), (200, 56), (120, 34), (140, 46), (130, 32)
 APP_SHOTS = {  # name: (tab, notifications drawer open, select the first video, terminal size, folder)
     "app-overview": ("overview", False, False, APP_SIZE, OUT),
     "app-notifications": ("overview", True, False, APP_SIZE, OUT),
@@ -50,7 +51,7 @@ CLICK_A_VIDEO_NOTE = {"app-notification-click", "notification-click"}  # taken a
 FIRST_RUN_SHOTS = {  # name: (first-run screen, onboarding step)
     "first-run": ("tools", None),
     "onboarding-format": ("onboard", 2),
-    "onboarding-look": ("onboard", 4),
+    "first-run-ready": ("done", None),
 }
 
 
@@ -104,12 +105,22 @@ async def app_shot(name: str, work: Path) -> Path:
 
 
 async def first_run_shot(name: str, work: Path) -> Path:
-    from studio import firstrun, setup_flow, sounds
+    from studio import command, firstrun, setup_flow, sounds, stats_schedule
     from studio import paths as P
+    from studio import settings as S
 
     start, step = FIRST_RUN_SHOTS[name]
-    saved = P.ROOT, setup_flow.plan
+    saved = P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status
     P.ROOT = Path(r"C:\Users\you\ReelForge")          # a neutral folder in the picture
+    if start == "done":                               # a new channel's last screen, with nothing turned on here
+        sample = copy.deepcopy(S.DEFAULTS)
+        sample["channel"]["name"] = "Night Physics"
+        sample["ai"].update(assistant="both", ultracode=False)
+        sample["platforms"]["handles"] = {p: "yourchannel" for p in S.PLATFORMS}
+        S.load = lambda path=None: sample
+        stats_schedule.enable = lambda minutes=60: (f"Your stats will update every {minutes} minutes while this "
+                                                    "computer is on, even with ReelForge closed.")
+        command.status = lambda: "on"
     Item = setup_flow.Item
     setup_flow.plan = lambda: [                       # what a computer with nothing installed sees
         Item("blender", "Blender 4.5.5", "builds and renders your 3D scenes", False, "about 400 MB from blender.org",
@@ -123,7 +134,7 @@ async def first_run_shot(name: str, work: Path) -> Path:
         Item("shortcut", "Desktop shortcut", "a ReelForge icon on your desktop", True, "ready"),
     ]
     app = firstrun.FirstRun(start)
-    async with app.run_test(size=FIRST_RUN_SIZE if start == "tools" else ONBOARD_SIZE) as pilot:
+    async with app.run_test(size={"tools": FIRST_RUN_SIZE, "done": READY_SIZE}.get(start, ONBOARD_SIZE)) as pilot:
         await pilot.pause(0.6)
         if start == "tools":
             for _ in range(50):
@@ -135,7 +146,7 @@ async def first_run_shot(name: str, work: Path) -> Path:
             await app.screen.show_step(step)
             await pilot.pause(0.4)
         app.save_screenshot(f"{name}.svg", str(work))
-    P.ROOT, setup_flow.plan = saved
+    P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status = saved
     return work / f"{name}.svg"
 
 
@@ -221,7 +232,7 @@ async def to_png(svgs: list[Path]) -> None:
         for svg in svgs:
             png = (APP_SHOTS[svg.stem][4] if svg.stem in APP_SHOTS else OUT) / f"{svg.stem}.png"
             await page.goto(svg.resolve().as_uri())
-            await (await page.query_selector("svg")).screenshot(path=str(png))
+            await (await page.query_selector("svg")).screenshot(path=str(png), omit_background=True)
             print("wrote", png.relative_to(ROOT))
         await browser.close()
 
