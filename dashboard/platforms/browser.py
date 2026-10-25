@@ -1,6 +1,7 @@
 """Stats read through ReelForge's own browser.
 
-ReelForge keeps its own Edge profile in data/browser (separate from your normal Edge). You log in to
+ReelForge drives a browser already on your computer (Edge on Windows, Chrome on macOS and Linux: studio/browsers.py
+has the order) with a profile of its own in data/browser, separate from your normal browsing. You log in to
 Instagram and X there once, from the Accounts tab; after that ReelForge opens your profile in the
 background about once an hour and reads the numbers the page loads, the same ones you'd
 see. TikTok works without logging in. Nothing is posted, liked or followed.
@@ -14,17 +15,30 @@ import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
+
+from studio import browsers
 
 from .. import config
 from .base import Account, PlatformError, Post, first_line
 
 PROFILE = config.DATA_DIR / "browser"
-EDGE_DIR = Path(r"C:\Program Files (x86)\Microsoft\Edge\Application")
+CHOSEN = PROFILE / "reelforge-browser.txt"   # the browser this profile belongs to (studio.browsers.key)
 LOGIN_URLS = {"instagram": "https://www.instagram.com/accounts/login/", "x": "https://x.com/i/flow/login"}
 SESSION_COOKIES = {"instagram": ("instagram.com", "sessionid"), "x": ("x.com", "auth_token")}
 
 _lock = threading.Lock()  # a browser profile can only be open once at a time
+
+
+def chosen() -> browsers.Browser | None:
+    """The browser ReelForge reads stats with: the one its profile was made with while that's still installed."""
+    try:
+        remembered = CHOSEN.read_text(encoding="utf-8").strip()
+    except OSError:
+        remembered = ""
+    return browsers.find(remembered)
+
+
+NAME = getattr(chosen(), "name", "Chromium")  # for messages: "Edge", "Chrome" or "Chromium" (setup gets one)
 
 
 def available() -> bool:
@@ -44,28 +58,25 @@ def forget(platform: str) -> None:
     config.set_token(f"browser:{platform}", None)
 
 
-def _user_agent() -> str:
-    # Headless Edge calls itself "HeadlessEdg", which sites block; present as the installed Edge.
-    versions = [p.name for p in EDGE_DIR.glob("[0-9]*.*") if p.is_dir()] if EDGE_DIR.exists() else []
-    major = max((int(v.split(".")[0]) for v in versions), default=150)
-    return (f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-            f"Chrome/{major}.0.0.0 Safari/537.36 Edg/{major}.0.0.0")
-
-
 @contextmanager
 def _browser(headless: bool = True):
     if not available():
         raise PlatformError("Browser stats need Playwright: run setup again to install it.")
+    b = chosen()
+    if b is None:
+        raise PlatformError("Browser stats need Chrome, Edge or Chromium: run setup again (reelforge setup) and it "
+                            "downloads Chromium.")
     from playwright.sync_api import sync_playwright
 
     with _lock, sync_playwright() as pw:
-        # Edge exits with code 21 when the profile is still held, e.g. by the previous read's Edge
+        # The browser exits with code 21 when the profile is still held, e.g. by the previous read's browser
         # finishing up or by the hourly background refresh; give it a few seconds before giving up.
         for attempt in range(8):
             try:
                 ctx = pw.chromium.launch_persistent_context(
-                    str(PROFILE), channel="msedge", headless=headless,
-                    user_agent=_user_agent() if headless else None,
+                    str(PROFILE), executable_path=str(b.exe) if b.exe else None,
+                    channel=None if b.exe else "chromium", headless=headless,
+                    user_agent=browsers.user_agent(b) if headless else None,
                     args=["--disable-blink-features=AutomationControlled"],
                     viewport={"width": 1280, "height": 900} if headless else None,
                     no_viewport=not headless,
@@ -79,7 +90,11 @@ def _browser(headless: bool = True):
                 if busy:
                     raise PlatformError("ReelForge's browser was busy with another read; it tries again next "
                                         "refresh.") from e
-                raise PlatformError(f"Couldn't start Edge ({str(e).splitlines()[0]}). Is Microsoft Edge installed?") from e
+                raise PlatformError(f"Couldn't start {b.describe()}: {str(e).splitlines()[0]}") from e
+        try:
+            CHOSEN.write_text(browsers.key(b), encoding="utf-8")
+        except OSError:
+            pass
         try:
             yield ctx
         finally:
@@ -92,7 +107,7 @@ def _has_session(ctx, platform: str) -> bool:
 
 
 def login(platform: str, timeout: float = 600) -> None:
-    """Open a visible Edge window on the platform's login page and wait until you've logged in."""
+    """Open a visible window of ReelForge's browser on the platform's login page and wait until you've logged in."""
     with _browser(headless=False) as ctx:
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto(LOGIN_URLS[platform])

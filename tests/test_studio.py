@@ -402,6 +402,7 @@ class SetupPlan(unittest.TestCase):
     def test_missing_tools_are_listed(self):
         from studio import setup_flow
         with mock.patch.object(setup_flow.tools, "find_blender", return_value=None), \
+                mock.patch.object(setup_flow.tools, "blender_downloadable", return_value=True), \
                 mock.patch.object(setup_flow.tools, "find_ffmpeg", return_value=None), \
                 mock.patch.object(setup_flow.command, "status", return_value="off"):
             items = {i.key: i for i in setup_flow.plan()}

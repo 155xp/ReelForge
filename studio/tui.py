@@ -16,6 +16,19 @@ from textual.widgets import Static
 
 from . import logo
 
+
+def set_title(text: str) -> None:
+    """Name the terminal's tab or window: Windows' console call, or the title code every macOS and Linux terminal
+    reads (written only to a terminal, never into a log)."""
+    if sys.platform == "win32":
+        import ctypes
+
+        ctypes.windll.kernel32.SetConsoleTitleW(text)
+    elif sys.stdout.isatty():
+        sys.stdout.write(f"\x1b]0;{text}\x07")
+        sys.stdout.flush()
+
+
 THEME = Theme(
     name="reelforge",
     primary="#e8213a",

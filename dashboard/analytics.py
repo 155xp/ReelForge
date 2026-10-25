@@ -6,7 +6,6 @@ import math
 import re
 from bisect import bisect_left
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from statistics import median
 
 from . import db
@@ -284,7 +283,7 @@ class _Matcher:
                 self.by_key.setdefault(key, []).append(e["id"])
             titles[e["id"]] = _words(e["title"])
             # The video's file name counts too: ...\ep07_snowball_doubling.mp4 -> snowball doubling.
-            self.words[e["id"]] = titles[e["id"]] | (_words(Path(e["video"]).stem) if e["video"] else frozenset())
+            self.words[e["id"]] = titles[e["id"]] | (_words(db.video_file(e["video"]).stem) if e["video"] else frozenset())
             for w in self.words[e["id"]]:
                 df[w] = df.get(w, 0) + 1
         n = len(episodes)
@@ -375,7 +374,7 @@ def _place(posts: list[dict], episodes: list[dict], links: dict) -> tuple[dict, 
     files: dict[str, list[int]] = {}
     for e in sorted(episodes, key=lambda e: m.order[e["id"]]):
         if e["video"]:
-            files.setdefault(Path(e["video"]).name.lower(), []).append(e["id"])
+            files.setdefault(db.video_file(e["video"]).name.lower(), []).append(e["id"])
     placed = dict(links)
     taken = {(eid, ref[0]) for ref, (eid, how) in links.items() if how in FIXED_LINKS and eid is not None}
     claims, named = [], set()
@@ -440,7 +439,7 @@ def auto_link() -> int:
     opened: dict[str, list[tuple]] = {}
     for u in db.uploads(None):
         if u["status"] in ("ok", "manual") and u["video"]:
-            opened.setdefault(u["platform"], []).append((db.parse(u["ts"]), u["id"], Path(u["video"]).name.lower()))
+            opened.setdefault(u["platform"], []).append((db.parse(u["ts"]), u["id"], db.video_file(u["video"]).name.lower()))
     for rows in opened.values():
         rows.sort()
     posts = []

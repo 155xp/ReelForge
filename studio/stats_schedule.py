@@ -5,9 +5,10 @@
   python -m studio stats          is it on?
 
 Windows: a Task Scheduler task ("ReelForge stats") runs dashboard/refresh.pyw with the kit's own Python, without a window,
-while you're signed in. macOS: a launchd agent. Linux: a crontab line. Your computer has to be on; hours it was off
-or asleep stay empty on the charts, and what was gained meanwhile still counts in the totals. Uninstalling ReelForge
-removes the job.
+while you're signed in. macOS: a launchd agent (~/Library/LaunchAgents/com.reelforge.stats.plist), while you're
+signed in. Linux: a systemd user timer (reelforge-stats.timer) while you're signed in, or a crontab line where there's
+no systemd. Your computer has to be on; hours it was off or asleep stay empty on the charts, and what was gained
+meanwhile still counts in the totals. Uninstalling ReelForge (or reelforge stats off) removes the job.
 
 A computer has one such job, and it belongs to the ReelForge folder whose refresh.pyw it runs. Another copy (a test
 install, say) never takes it over or turns it off while that folder is still there; once the folder is gone (moved
@@ -18,7 +19,9 @@ touches the job at all.
 from __future__ import annotations
 
 import os
-import re
+import plistlib
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +30,7 @@ from . import paths as P
 
 TASK = "ReelForge stats"
 MAC_LABEL = "com.reelforge.stats"
+UNIT = "reelforge-stats"
 CRON_MARK = "# reelforge-stats"
 ELSEWHERE = "Another ReelForge folder"  # how enable() starts when the job belongs to another copy
 TEST_COPY = "Background stats are off in a test copy"  # how enable() starts in a test copy, which leaves the job alone
@@ -64,9 +68,44 @@ def _plist() -> Path:
     return Path.home() / "Library" / "LaunchAgents" / f"{MAC_LABEL}.plist"
 
 
+def _units() -> Path:
+    return Path(os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")) / "systemd" / "user"
+
+
+def _systemd() -> bool:
+    """Whether this Linux session has a systemd user manager to run timers (most desktops do; containers and
+    distributions without systemd don't)."""
+    if not shutil.which("systemctl") or not Path("/run/systemd/system").is_dir():
+        return False
+    try:
+        return subprocess.run(["systemctl", "--user", "show-environment"], capture_output=True,
+                              timeout=10).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _systemctl(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["systemctl", "--user", *args], capture_output=True, text=True, timeout=30)
+
+
+def _crontab() -> str:
+    """The crontab's lines ("" for none). Raises OSError when there's no crontab command."""
+    return subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
+
+
+def _set_crontab(lines: list[str]) -> None:
+    subprocess.run(["crontab", "-"], input="\n".join(lines) + "\n" if lines else "", text=True, check=True)
+
+
+def _script_in(words: list[str]) -> Path:
+    """The refresh script among a command line's words (an empty Path() if it isn't there)."""
+    return next((Path(w) for w in words if w.endswith("refresh.pyw")), Path())
+
+
 def _job() -> Path | None:
     """The refresh script the hourly job runs, in whichever ReelForge folder turned it on (an empty Path() if that
-    can't be read), or None when there's no job. Raises OSError where there's no scheduler to ask (no crontab)."""
+    can't be read), or None when there's no job. Raises OSError where there's no scheduler to ask (no systemd and no
+    crontab)."""
     if P.WINDOWS:
         r = _ps("[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; "   # paths may not be ASCII
                 f"$t = Get-ScheduledTask -TaskName {_q(TASK)} -ErrorAction SilentlyContinue; "
@@ -76,19 +115,28 @@ def _job() -> Path | None:
     if P.MAC:
         if not _plist().exists():
             return None
-        import plistlib
-
         try:
             args = plistlib.loads(_plist().read_bytes()).get("ProgramArguments") or []
         except Exception:  # an unreadable plist is still a job
             return Path()
         return Path(args[-1]) if args else Path()
-    out = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
+    service = _units() / f"{UNIT}.service"
+    if service.exists():
+        line = next((ln for ln in service.read_text(encoding="utf-8").splitlines() if ln.startswith("ExecStart=")), "")
+        try:
+            return _script_in(shlex.split(line.split("=", 1)[-1].replace("%%", "%").replace("$$", "$")))
+        except ValueError:
+            return Path()
+    if not _systemd() and not shutil.which("crontab"):
+        raise OSError("no systemd user manager and no crontab")
+    out = _crontab() if shutil.which("crontab") else ""
     line = next((ln for ln in out.splitlines() if CRON_MARK in ln), None)
     if line is None:
         return None
-    m = re.search(r'"([^"]*refresh\.pyw)"', line)
-    return Path(m.group(1)) if m else Path()
+    try:
+        return _script_in(shlex.split(line.replace("\\%", "%"), comments=True))
+    except ValueError:
+        return Path()
 
 
 def _same(a: Path, b: Path) -> bool:
@@ -115,6 +163,36 @@ def status() -> str:
     if job is None:
         return "off"
     return "on" if _same(job, _refresh_script()) else "other"
+
+
+def mac_plist(py: Path, script: Path, minutes: int = 60) -> bytes:
+    return plistlib.dumps({
+        "Label": MAC_LABEL,
+        "ProgramArguments": [str(py), str(script)],
+        "WorkingDirectory": str(P.DASHBOARD),
+        "StartInterval": minutes * 60,
+        "ProcessType": "Background",
+    })
+
+
+def systemd_units(py: Path, script: Path, minutes: int = 60) -> dict[str, str]:
+    """The service that reads the stats once and the timer that starts it: two minutes after you sign in, then every
+    `minutes`. In unit files % starts a specifier and $ a variable, so they're written %% and $$."""
+    def q(path: Path) -> str:
+        return '"' + str(path).replace("\\", "\\\\").replace('"', '\\"').replace("%", "%%").replace("$", "$$") + '"'
+
+    service = (f"[Unit]\nDescription=ReelForge: read your TikTok, YouTube, Instagram and X stats\n\n"
+               f"[Service]\nType=oneshot\nWorkingDirectory={str(P.DASHBOARD).replace('%', '%%')}\n"
+               f"ExecStart={q(py)} {q(script)}\nTimeoutStartSec=20min\n")
+    timer = (f"[Unit]\nDescription=ReelForge: read your stats every {minutes} minutes\n\n"
+             f"[Timer]\nOnStartupSec=2min\nOnUnitActiveSec={minutes}min\n\n[Install]\nWantedBy=timers.target\n")
+    return {f"{UNIT}.service": service, f"{UNIT}.timer": timer}
+
+
+def cron_line(py: Path, script: Path) -> str:
+    """The crontab line: paths quoted for the shell, and % (which cron turns into a new line) escaped."""
+    q = lambda p: shlex.quote(str(p)).replace("%", "\\%")  # noqa: E731
+    return f"0 * * * * cd {q(P.DASHBOARD)} && {q(py)} {q(script)} {CRON_MARK}"
 
 
 def enable(minutes: int = 60) -> str:
@@ -151,26 +229,42 @@ Register-ScheduledTask -TaskName {_q(TASK)} -Action $a -Trigger $t -Settings $s 
     if P.MAC:
         plist = _plist()
         plist.parent.mkdir(parents=True, exist_ok=True)
-        plist.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>{MAC_LABEL}</string>
-  <key>ProgramArguments</key><array><string>{py}</string><string>{script}</string></array>
-  <key>WorkingDirectory</key><string>{P.DASHBOARD}</string>
-  <key>StartInterval</key><integer>{minutes * 60}</integer>
-</dict></plist>
-""", encoding="utf-8")
-        subprocess.run(["launchctl", "unload", str(plist)], capture_output=True)
-        subprocess.run(["launchctl", "load", "-w", str(plist)], capture_output=True)
-        return f"Your stats will update every {minutes} minutes while this Mac is awake."
-    line = f'0 * * * * cd "{P.DASHBOARD}" && "{py}" "{script}" {CRON_MARK}'
+        domain = f"gui/{os.getuid()}"
+        subprocess.run(["launchctl", "bootout", f"{domain}/{MAC_LABEL}"], capture_output=True)
+        plist.write_bytes(mac_plist(py, script, minutes))
+        if subprocess.run(["launchctl", "bootstrap", domain, str(plist)], capture_output=True).returncode != 0:
+            subprocess.run(["launchctl", "load", "-w", str(plist)], capture_output=True)   # older macOS
+        return f"Your stats will update every {minutes} minutes while this Mac is awake, even with ReelForge closed."
+    if _systemd():
+        units = _units()
+        units.mkdir(parents=True, exist_ok=True)
+        for name, text in systemd_units(py, script, minutes).items():
+            (units / name).write_text(text, encoding="utf-8")
+        _systemctl("daemon-reload")
+        r = _systemctl("enable", "--now", f"{UNIT}.timer")
+        if r.returncode != 0:
+            return "Couldn't start the background job: " + ((r.stderr or r.stdout).strip().splitlines() or ["?"])[-1]
+        _drop_cron_line()      # the crontab line earlier versions used
+        return f"Your stats will update every {minutes} minutes while you're signed in, even with ReelForge closed."
+    line = cron_line(py, script)
     try:
-        old = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
-        keep = [ln for ln in old.splitlines() if CRON_MARK not in ln]
-        subprocess.run(["crontab", "-"], input="\n".join(keep + [line]) + "\n", text=True, check=True)
+        keep = [ln for ln in _crontab().splitlines() if CRON_MARK not in ln]
+        _set_crontab(keep + [line])
     except (OSError, subprocess.CalledProcessError) as e:
         return f"Couldn't add the crontab line ({e}). Add it yourself: {line}"
-    return "Your stats will update every hour while this computer is on."
+    return "Your stats will update every hour while this computer is on, even with ReelForge closed."
+
+
+def _drop_cron_line() -> None:
+    if not shutil.which("crontab"):
+        return
+    try:
+        old = _crontab()
+        keep = [ln for ln in old.splitlines() if CRON_MARK not in ln]
+        if len(keep) != len(old.splitlines()):
+            _set_crontab(keep)
+    except (OSError, subprocess.CalledProcessError):
+        pass
 
 
 def disable() -> str:
@@ -191,15 +285,20 @@ def disable() -> str:
     if P.MAC:
         plist = _plist()
         if plist.exists():
-            subprocess.run(["launchctl", "unload", "-w", str(plist)], capture_output=True)
+            if subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{MAC_LABEL}"],
+                              capture_output=True).returncode != 0:
+                subprocess.run(["launchctl", "unload", "-w", str(plist)], capture_output=True)
             plist.unlink()
         return "Background stats are off."
-    try:
-        old = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout
-        keep = [ln for ln in old.splitlines() if CRON_MARK not in ln]
-        subprocess.run(["crontab", "-"], input="\n".join(keep) + "\n", text=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        pass
+    units = _units()
+    if (units / f"{UNIT}.timer").exists() or (units / f"{UNIT}.service").exists():
+        if shutil.which("systemctl"):
+            _systemctl("disable", "--now", f"{UNIT}.timer")
+        for name in (f"{UNIT}.timer", f"{UNIT}.service"):
+            (units / name).unlink(missing_ok=True)
+        if shutil.which("systemctl"):
+            _systemctl("daemon-reload")
+    _drop_cron_line()
     return "Background stats are off."
 
 

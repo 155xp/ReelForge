@@ -27,6 +27,23 @@ WINDOWS = sys.platform == "win32"
 MAC = sys.platform == "darwin"
 
 
+RUNNABLE = ("bin/reelforge", "setup.sh", "reelforge.sh", "onboard.sh")   # and the macOS download's .command files
+
+
+def keep_runnable() -> None:
+    """macOS and Linux: keep the launchers runnable. Updates made by ReelForge 1.0.4 and older unpacked the macOS zip
+    without its file permissions, so a launcher the update had changed stopped being runnable; ReelForge puts that
+    right each time it starts (the launcher starts it again straight after an update)."""
+    if WINDOWS:
+        return
+    for f in [*(ROOT / r for r in RUNNABLE), *ROOT.glob("*.command")]:
+        try:
+            if f.is_file() and not os.access(f, os.X_OK):
+                f.chmod(0o755)
+        except OSError:
+            pass
+
+
 def venv_python() -> str:
     """The command that runs the kit's Python, written the way this OS spells it (for docs and messages)."""
     return r".venv\Scripts\python" if WINDOWS else ".venv/bin/python"

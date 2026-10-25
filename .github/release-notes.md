@@ -1,14 +1,23 @@
-## What's new in 1.0.4
+## What's new in 1.0.5
 
-- **Best time to post.** Under the videos on Publish, ReelForge shows the part of the day your videos have done best
-  in on each platform, by their views in their first day, and when it next comes round, once there are enough videos
-  to tell. Export CSV also says when each video went up (date, weekday, hour and UTC time) and its views 1, 6 and 24
-  hours in.
-- **ReelForge's own tab in Windows Terminal.** The tab is called ReelForge, whatever your channel is called, and shows
-  the anvil, and ReelForge is in Terminal's **+** menu.
-- **A clean logo on the setup screens.** The anvil and "reelforge" are drawn by hand, pixel by pixel, with blocks
-  Windows Terminal draws itself, so nothing sticks out of them any more, and the ticks in setup's list lose the boxes
-  round them.
+- **Macs and Linux PCs get the full ReelForge.** They're no longer experimental: everything ReelForge does on
+  Windows, it now does on a Mac (Apple Silicon or Intel) and on Linux, and every change is tested on all three before
+  it ships.
+  - **One-line install:** paste `curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | bash`
+    into Terminal. It downloads straight from GitHub, so macOS doesn't stop it.
+  - **Nothing to install first.** Setup now downloads ffmpeg on a Mac and on Linux too, and a private Python inside
+    the ReelForge folder when yours is older than 3.11, so you don't need Homebrew or a package manager.
+  - **ReelForge's icon:** in your Applications folder on a Mac (Launchpad, Spotlight and the Dock), in your app menu
+    on Linux.
+  - **Stats with the browser you have:** Chrome or Edge, or a Chromium setup downloads if you have neither (it used
+    to need Microsoft Edge).
+  - **Publish works all the way:** the copy buttons fill the clipboard, the video shows in Finder or your file
+    manager, and Remove moves it to the Trash.
+  - **The hourly stats job** is a launchd agent on a Mac and a systemd timer on Linux (or a cron job without systemd).
+  - **Fixed:** an update on a Mac could leave ReelForge's launchers unable to run, and setup's colours were wrong in
+    macOS's Terminal before macOS 26.
+- **Delete notifications.** Each notification has a big × on its right that deletes it, and **Clear all** deletes
+  every one.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 
@@ -22,23 +31,25 @@ then shows you how each one does once you've posted it. Nothing is ever posted f
 | Your computer | Download | Then |
 |---|---|---|
 | **Windows 10 / 11** | `install.ps1` | Open PowerShell, paste `irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 \| iex` and press Enter. It downloads ReelForge straight from GitHub into your user folder, checks it and starts setup, so neither the browser nor Windows warns about it. |
+| **Mac or Linux** | `install.sh` | Open Terminal, paste `curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh \| bash` and press Enter. It downloads ReelForge straight from GitHub into `~/ReelForge`, checks it and starts setup, so neither the browser nor macOS warns about it. |
 | Windows, installer | `ReelForge-…-Windows-Setup.exe` | Run it (if Windows says "Windows protected your PC", click **More info**, then **Run anyway**: the installer isn't code-signed). It installs into your user folder, adds the `reelforge` command and a desktop icon, and starts setup. |
 | Windows, no installer | `ReelForge-…-Windows.zip` | Unzip it to a short path (e.g. `C:\Users\you\ReelForge`) and double-click `setup.bat`. |
-| macOS (experimental) | `ReelForge-…-macOS.zip` | Unzip it, right-click `Set up ReelForge.command`, choose **Open**. Needs Python 3.11+ and ffmpeg (`brew install python@3.13 ffmpeg`). |
-| Linux (experimental) | `ReelForge-…-Linux.tar.gz` | Extract it and run `./setup.sh`. Needs Python 3.11+ and ffmpeg. |
+| Mac, no install line | `ReelForge-…-macOS.zip` | Unzip it and double-click `Set up ReelForge.command`. If macOS says it can't check the file, open **System Settings › Privacy & Security** and click **Open Anyway** (on macOS 14 and older, right-click the file and choose **Open**). |
+| Linux, no install line | `ReelForge-…-Linux.tar.gz` | Extract it and run `./setup.sh`. |
 | Developers | Source code (zip / tar.gz) | Same files; run `setup.bat` or `./setup.sh`. |
 
-Setup shows what ReelForge still needs (Blender 4.5 LTS, ffmpeg on Windows, the sound effects, the `reelforge`
-command), sets it all up inside the ReelForge folder once you say yes, then starts the onboarding interview.
-You'll need Claude Code (a paid Claude plan or an API account) or Codex, a recent NVIDIA or AMD graphics card, and
-about 15 GB of free disk space. `SHA256SUMS.txt` lists every download's checksum.
+Setup shows what ReelForge still needs (Blender 4.5 LTS, ffmpeg, the sound effects, the `reelforge` command,
+ReelForge's icon, and on a Mac or Linux PC a private Python or a Chromium if it hasn't got one), sets it all up inside
+the ReelForge folder once you say yes, then starts the onboarding interview. You'll need Claude Code (a paid Claude
+plan or an API account) or Codex, a Mac with Apple Silicon or a PC with a recent NVIDIA or AMD graphics card (an Intel
+Mac works too, more slowly), and about 15 GB of free disk space. `SHA256SUMS.txt` lists every download's checksum.
 
 ## Then
 
 1. Open the ReelForge folder in Claude Code (the Claude desktop app's **Code** tab, then **Open folder…**), or run
    `codex` in it.
 2. Say **"make my first video"** (with Claude's ultracode: "ultracode: make my first video").
-3. Type `reelforge 4` in a terminal (or double-click the ReelForge icon and go to **Publish**, tab 4) to post it.
+3. Type `reelforge 4` in a terminal (or open ReelForge's icon and go to **Publish**, tab 4) to post it.
 
 Already have ReelForge? Its **Updates** tab (`reelforge 6`) installs this version in one click.
 

@@ -31,11 +31,11 @@ STAMP = VENV / "installed.txt"          # a copy of requirements.txt as last ins
 LOG = VENV / "setup-log.txt"
 
 ESC = "\x1b["
-RED = "\x1b[38;2;232;33;58m"
-WHITE = "\x1b[38;2;255;255;255m"
-GREEN = "\x1b[38;2;74;222;128m"
-MUTED = "\x1b[38;2;138;148;163m"
-YELLOW = "\x1b[38;2;255;200;58m"
+RED = logo.sgr("#e8213a")        # 24-bit colours, or the nearest of 256 in a terminal that shows no more
+WHITE = logo.sgr("#ffffff")
+GREEN = logo.sgr("#4ade80")
+MUTED = logo.sgr("#8a94a3")
+YELLOW = logo.sgr("#ffc83a")
 BOLD, RESET = "\x1b[1m", "\x1b[0m"
 SPIN = "-\\|/"
 

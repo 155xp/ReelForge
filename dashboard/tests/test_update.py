@@ -92,6 +92,28 @@ class InstallTest(unittest.TestCase):
             self.assertEqual((self.root / rel).read_text(encoding="utf-8"), text, rel)
         self.assertEqual(launcher.stat().st_mtime_ns, before)  # unchanged files aren't rewritten
 
+    @unittest.skipIf(os.name == "nt", "file permissions are a macOS and Linux thing")
+    def test_mac_zip_update_keeps_scripts_runnable(self):
+        """ZipFile unpacks without permissions; the update gives the zip's executable files theirs back."""
+        (self.root / "studio").mkdir()
+        (self.root / "studio" / "__init__.py").write_text('KIT_VERSION = "1.0.0"\n', encoding="utf-8")
+        (self.root / "setup.sh").write_text("old\n", encoding="utf-8")
+        (self.root / "setup.sh").chmod(0o755)
+        archive = self.dir / "ReelForge-1.1.0-macOS.zip"
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("ReelForge-1.1.0/studio/__init__.py", 'KIT_VERSION = "1.1.0"\n')
+            z.writestr("ReelForge-1.1.0/README.md", "plain\n")
+            for rel in ("setup.sh", "bin/reelforge"):
+                info = zipfile.ZipInfo(f"ReelForge-1.1.0/{rel}")
+                info.external_attr = 0o100755 << 16
+                z.writestr(info, "#!/bin/sh\necho new\n")
+        work = self.dir / "work"
+        work.mkdir()
+        update._copy_release(archive, self.root, work, lambda *a: None)
+        for rel in ("setup.sh", "bin/reelforge"):
+            self.assertTrue(os.access(self.root / rel, os.X_OK), rel)
+        self.assertFalse(os.access(self.root / "README.md", os.X_OK))
+
     def test_something_else_is_refused(self):
         archive = self.dir / "other.zip"
         with zipfile.ZipFile(archive, "w") as z:

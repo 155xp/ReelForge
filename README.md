@@ -33,37 +33,51 @@ on Earth did X at once?", or you describe your own.
 
 ## Quick start
 
-You need a Windows 10 or 11 PC with a recent NVIDIA or AMD graphics card, about 15 GB of free space, and Claude Code
-or Codex. (macOS and Linux work too, but they're experimental: see the [FAQ](#faq).)
+You need about 15 GB of free space, Claude Code or Codex, and one of these:
 
-1. **Open PowerShell.** Press the Windows key, type `PowerShell` and press Enter.
-2. **Paste this line and press Enter.**
+- a **Windows 10 or 11** PC with a recent NVIDIA or AMD graphics card
+- a **Mac** with Apple Silicon (M1 or newer); an Intel Mac works too, but renders much more slowly
+- a **Linux** PC (x64) with a recent NVIDIA or AMD graphics card and its drivers
+
+1. **Open a terminal.** On Windows, press the Windows key, type `PowerShell` and press Enter. On a Mac, press
+   ⌘ Space, type `Terminal` and press Enter. On Linux, open your terminal.
+2. **Paste the line for your computer and press Enter.**
+
+   Windows:
 
    ```
    irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 | iex
    ```
 
-   It downloads the newest ReelForge straight from GitHub into `C:\Users\<you>\ReelForge`, checks it and starts
-   setup, so neither your browser nor Windows shows a download warning.
+   Mac or Linux:
+
+   ```
+   curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | bash
+   ```
+
+   It downloads the newest ReelForge straight from GitHub into a ReelForge folder in your user folder, checks it and
+   starts setup, so your browser, Windows and macOS have no download warning to show.
 3. **Say yes, then answer a few questions.** ReelForge lists what it still needs and, when you click **Set up**,
-   downloads Blender, ffmpeg and the sound effects into its own folder. Then it asks about your channel: what it's
-   about, the format, where you post, and how your videos should look and sound.
+   downloads Blender, ffmpeg and the sound effects into its own folder (and Python too, if your Mac or Linux PC
+   doesn't have a recent one). Then it asks about your channel: what it's about, the format, where you post, and how
+   your videos should look and sound.
 
 <p align="center">
   <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
   <img src="docs/screenshots/onboarding-format.png" width="49%" alt="Onboarding: pick the format your channel starts with">
 </p>
 
-Rather use an installer? Open the [latest release](https://github.com/dan2756/ReelForge/releases/latest), click the
-file that ends in `Windows-Setup.exe` under **Assets**, and open it. If Windows says "Windows protected your PC",
-click **More info**, then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts when
-the installer finishes.
+Rather use an installer on Windows? Open the [latest release](https://github.com/dan2756/ReelForge/releases/latest),
+click the file that ends in `Windows-Setup.exe` under **Assets**, and open it. If Windows says "Windows protected your
+PC", click **More info**, then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts
+when the installer finishes. The same page has a zip for the Mac and a tar.gz for Linux, if you'd rather download
+those yourself.
 
 ## Make your first video
 
 Onboarding turns your answers into instructions for your AI, `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex,
-and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` unless you picked another). Its last screen tells
-you what to do next.
+and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` on Windows and `~/ReelForge` on a Mac or Linux,
+unless you picked another). Its last screen tells you what to do next.
 
 ![Onboarding's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
 
@@ -79,8 +93,8 @@ you what to do next.
 3. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
    renders it, adds the text and the sound, then watches the finished video and fixes anything that's off. Rendering
    takes from about 15 minutes to an hour on a fast graphics card.
-4. **Post it.** Open ReelForge (type `reelforge` in any terminal, or double-click the ReelForge icon on your
-   desktop) and go to **Publish**.
+4. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
+   Windows, in Applications on a Mac, in your app menu on Linux) and go to **Publish**.
 
 After that, say **make today's videos** whenever you want more.
 
@@ -183,14 +197,20 @@ yourself.
 
 <br>
 
-Yes, on any drive with room for your videos. Before you paste the install line, run this in the same PowerShell
-window, with your own folder:
+Yes, on any drive with room for your videos. On Windows, run this in the same PowerShell window before you paste
+the install line, with your own folder:
 
 ```powershell
 $env:REELFORGE_DIR = "D:\ReelForge"
 ```
 
-The installer asks you where to put it as you click through it.
+On a Mac or Linux, put the folder in the install line, before `bash`:
+
+```
+curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | REELFORGE_DIR=/Volumes/Big/ReelForge bash
+```
+
+The Windows installer asks you where to put it as you click through it.
 
 </details>
 
@@ -240,8 +260,8 @@ from there. If it still seems lost, run onboarding again with `reelforge onboard
 
 <br>
 
-Run `reelforge onboard`, or open **Change my channel answers** from the Start menu. It starts from your last answers,
-and when you finish it rewrites your AI's instructions and ReelForge's settings.
+Run `reelforge onboard` (on Windows, **Change my channel answers** in the Start menu does the same). It starts from
+your last answers, and when you finish it rewrites your AI's instructions and ReelForge's settings.
 
 </details>
 
@@ -261,10 +281,10 @@ split across a team of agents. With Codex, pick your strongest model with `/mode
 
 <br>
 
-Yes. Unzip the Windows zip from the release into another folder and put a file called `TEST-COPY.txt` in it. That
-copy's window says **TEST**, its stats, logins and settings are its own, and it never touches the `reelforge`
-command, the hourly stats job or the desktop shortcut, which stay with your real ReelForge. Open it with its own
-`ReelForge.bat`.
+Yes. Unpack your computer's download from the release into another folder and put a file called `TEST-COPY.txt` in
+it. That copy's window says **TEST**, its stats, logins and settings are its own, and it never touches the
+`reelforge` command, the hourly stats job or ReelForge's icon, which stay with your real ReelForge. Open it with its
+own `ReelForge.bat` (Windows) or `./reelforge.sh` (Mac and Linux).
 
 </details>
 
@@ -279,14 +299,32 @@ setup` repairs the setup.
 </details>
 
 <details>
-<summary><b>Can I use it on a Mac or Linux?</b></summary>
+<summary><b>Does it work the same on a Mac or Linux?</b></summary>
 
 <br>
 
-Yes, but it's experimental: ReelForge is built and tested on Windows. Download the macOS zip or the Linux tar.gz from
-the [latest release](https://github.com/dan2756/ReelForge/releases/latest). On a Mac, right-click
-`Set up ReelForge.command` and choose **Open**. On Linux, run `./setup.sh`. Both need Python 3.11 or newer and ffmpeg
-(on a Mac: `brew install python@3.13 ffmpeg`).
+Yes. Setup gets everything ReelForge needs into its own folder on all three, so you don't need Homebrew or a package
+manager: Blender from blender.org, ffmpeg from the builds ffmpeg.org points to, and a private Python if yours is older
+than 3.11. ReelForge reads your stats with Chrome or Edge if you have one, or with a Chromium setup downloads if you
+don't. On a Mac, ReelForge goes in your Applications folder (so it's in Launchpad, Spotlight and the Dock) and opens in
+Terminal; on Linux it goes in your app menu. The hourly stats job is a launchd agent on a Mac and a systemd timer (or
+a cron job) on Linux. Every change is tested on Windows, on Macs with Apple Silicon and Intel, and on Linux.
+
+blender.org has no Blender for ARM Linux, so on an ARM Linux PC install Blender 4.5 yourself (then setup finds it)
+or point `STUDIO_BLENDER` at it.
+
+</details>
+
+<details>
+<summary><b>My Mac says it can't check the file for malware.</b></summary>
+
+<br>
+
+That only happens with the zip from the release page, because macOS checks files your browser downloads. Open
+**System Settings**, go to **Privacy & Security**, scroll down and click **Open Anyway** next to the file's name (on
+macOS 14 and older, right-click the file and choose **Open** instead). Setup then clears that check for the ReelForge
+folder, so it doesn't ask again. The one-line install in the [Quick start](#quick-start) doesn't go through your
+browser, so it never asks.
 
 </details>
 
@@ -310,8 +348,9 @@ the [latest release](https://github.com/dan2756/ReelForge/releases/latest). On a
 
 <br>
 
-If you used the install line (or a zip, or a Mac or Linux), run `reelforge stats off` and `reelforge command off`,
-delete the ReelForge icon from your desktop, then delete the ReelForge folder. On Windows, also delete
+If you used an install line or a download, run `reelforge stats off` and `reelforge command off`, delete ReelForge's
+icon (on Windows from your desktop, on a Mac from Applications, on Linux
+`~/.local/share/applications/reelforge.desktop`), then delete the ReelForge folder. On Windows, also delete
 `%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\ReelForge`, ReelForge's profile in Windows Terminal.
 
 If you used the installer, go to **Apps** in Windows **Settings**, find ReelForge and choose **Uninstall**. That

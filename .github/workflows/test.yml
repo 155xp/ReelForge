@@ -1,0 +1,143 @@
+# Runs ReelForge's tests on Windows, macOS (Apple Silicon and Intel) and Linux (x64 and ARM) on every push, then
+# installs it on macOS and Linux the way a person would: the one-line install from the downloads served like a
+# release, a private Python, setup with every download, the health check, a test render, the reelforge command, the
+# icon, the hourly job, and an update to a newer version.
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python packages
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Chromium for the stats (ARM Linux has no Chrome or Edge)
+        if: matrix.os == 'ubuntu-24.04-arm'
+        run: python -m playwright install --with-deps chromium
+      - name: Shell scripts
+        if: runner.os != 'Windows'
+        run: |
+          for f in setup.sh scripts/install.sh bin/reelforge reelforge.sh onboard.sh; do bash -n "$f"; done
+          if command -v shellcheck >/dev/null; then shellcheck -S warning setup.sh scripts/install.sh reelforge.sh onboard.sh; fi
+      - name: Setup and onboarding tests
+        env:
+          REELFORGE_BROWSER_TEST: "1"
+        run: python -m unittest discover tests -v
+      - name: Dashboard tests
+        run: python -m unittest discover -s dashboard/tests -t .
+
+  install:
+    name: Install on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      RELEASE: http://127.0.0.1:8765
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Libraries Blender needs to render without a screen
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq xvfb libegl1 libgl1 libglx-mesa0 libgl1-mesa-dri libxi6 libxxf86vm1 libxfixes3 \
+            libxrender1 libxkbcommon0 libsm6 fonts-dejavu-core
+      - name: Build the downloads and serve them like a release
+        run: |
+          python scripts/package.py --out dist --allow-old-screenshots
+          cp scripts/install.sh dist/
+          ls -la dist
+          (cd dist && nohup python -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &)
+          for i in $(seq 1 30); do curl -fs --max-time 2 -o /dev/null "$RELEASE/SHA256SUMS.txt" && break; sleep 1; done
+          curl -fs --max-time 5 "$RELEASE/SHA256SUMS.txt"
+      - name: The one-line install, then setup with every download (a private Python, too)
+        env:
+          STUDIO_OWN_PYTHON: "1"
+          REELFORGE_RELEASE: ${{ env.RELEASE }}
+        run: curl -fsSL "$RELEASE/install.sh" | bash -s -- --yes --no-onboard
+      - name: What setup made
+        run: |
+          cd ~/ReelForge
+          ls tools
+          test -x tools/python/bin/python3
+          .venv/bin/python -c "import sys; print(sys.version); assert 'ReelForge/tools/python' in sys.base_prefix, sys.base_prefix"
+          export PATH="$HOME/.local/bin:$PATH"
+          reelforge help | sed -n 1,3p
+          reelforge doctor
+          if [ "$RUNNER_OS" = macOS ]; then
+            plutil -lint ~/Applications/ReelForge.app/Contents/Info.plist
+            cat ~/Applications/ReelForge.app/Contents/Resources/ReelForge.command
+            test -s ~/Applications/ReelForge.app/Contents/Resources/reelforge.icns
+          else
+            cat ~/.local/share/applications/reelforge.desktop
+            if command -v desktop-file-validate >/dev/null; then desktop-file-validate ~/.local/share/applications/reelforge.desktop; fi
+          fi
+      - name: The hourly stats job
+        run: |
+          cd ~/ReelForge
+          bin/reelforge stats on
+          bin/reelforge stats | tee "$RUNNER_TEMP/stats.txt"
+          grep -q "Background stats: on" "$RUNNER_TEMP/stats.txt"
+          if [ "$RUNNER_OS" = macOS ]; then plutil -lint ~/Library/LaunchAgents/com.reelforge.stats.plist; else crontab -l 2>/dev/null || systemctl --user cat reelforge-stats.service; fi
+          bin/reelforge stats off
+          bin/reelforge stats > "$RUNNER_TEMP/stats.txt"
+          grep -q "Background stats: off" "$RUNNER_TEMP/stats.txt"
+      # Blender renders with the graphics card (Metal on a Mac). GitHub's Intel Macs are virtual machines with no
+      # Metal, so there it can only build the scene; a real Intel Mac has a Metal card. Linux draws without a screen
+      # through Xvfb and Mesa, slowly.
+      - name: A test render (Blender builds the example scene and renders a frame)
+        continue-on-error: ${{ matrix.os == 'macos-15-intel' }}
+        run: |
+          cd ~/ReelForge
+          if [ "$RUNNER_OS" = macOS ]; then system_profiler SPDisplaysDataType | sed -n '1,20p'; fi
+          run=""
+          [ "$RUNNER_OS" = Linux ] && run="xvfb-run -a"
+          if ! $run bin/reelforge doctor --render-test; then
+            .venv/bin/python -c "import json, pathlib, shutil; shutil.copytree('examples/demo_doubling_duck', 'episodes/ci_render'); p = pathlib.Path('episodes/ci_render/episode.json'); s = json.loads(p.read_text()); s['id'] = 'ci_render'; p.write_text(json.dumps(s))"
+            $run .venv/bin/python pipeline/make_episode.py episodes/ci_render --steps build,stills --stills 21 || true
+            find episodes/ci_render/build -maxdepth 1 -name '*.log' -exec tail -n 60 {} \;
+            exit 1
+          fi
+      - name: Update to a newer version
+        run: |
+          sed -i.bak 's/KIT_VERSION = "[^"]*"/KIT_VERSION = "9.9.9"/' studio/__init__.py
+          printf '\n# changed by the test workflow\n' >> setup.sh
+          printf '\n# changed by the test workflow\n' >> bin/reelforge
+          git -c user.name=ci -c user.email=ci@example.invalid commit -qam "9.9.9 for the update test"
+          python scripts/package.py --out dist2 --allow-old-screenshots
+          (cd dist2 && nohup python -m http.server 8766 --bind 127.0.0.1 > "$RUNNER_TEMP/http2.log" 2>&1 &)
+          for i in $(seq 1 30); do curl -fs --max-time 2 -o /dev/null http://127.0.0.1:8766/SHA256SUMS.txt && break; sleep 1; done
+          cd ~/ReelForge
+          .venv/bin/python - <<'EOF'
+          from studio import update
+          name = update.asset_name("9.9.9", update.install_kind())
+          base = "http://127.0.0.1:8766/"
+          rel = update.Release("9.9.9", "v9.9.9", assets={name: (base + name, 0), "SHA256SUMS.txt": (base + "SHA256SUMS.txt", 0)})
+          print(update.apply(rel))
+          EOF
+          test -x setup.sh && test -x bin/reelforge
+          tail -n 1 bin/reelforge
+          ~/.local/bin/reelforge help | sed -n 1p
+          grep -q '9.9.9' studio/__init__.py
+      - name: Logs
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP"/http*.log 2>/dev/null | tail -n 40 || true
+          cat ~/ReelForge/.venv/setup-log.txt 2>/dev/null | tail -n 60 || true

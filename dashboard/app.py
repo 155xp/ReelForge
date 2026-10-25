@@ -857,9 +857,9 @@ class ReelForge(App):
         self.update_video_detail()
 
     def action_export_csv(self) -> None:
-        """Every video's numbers as a spreadsheet file (data/exports/), shown in Explorer: when it went up (this
-        computer's date, weekday and hour, and the platform's own time in UTC) and its views 1, 6, 12 and 24 hours in
-        (empty where ReelForge wasn't reading then, or the video isn't that old yet)."""
+        """Every video's numbers as a spreadsheet file (data/exports/), shown in Explorer or Finder: when it went up
+        (this computer's date, weekday and hour, and the platform's own time in UTC) and its views 1, 6, 12 and 24
+        hours in (empty where ReelForge wasn't reading then, or the video isn't that old yet)."""
         import csv
 
         folder = config.DATA_DIR / "exports"
@@ -889,7 +889,7 @@ class ReelForge(App):
             self.notify(f"Couldn't write {path.name}: {e}", severity="error")
             return
         desktop.reveal(path)
-        self.notify(f"{len(self.posts)} videos saved to {path.name} (Explorer is showing it).", timeout=8)
+        self.notify(f"{len(self.posts)} videos saved to {path.name} ({desktop.FILES} is showing it).", timeout=8)
 
     def action_set_filter(self, key: str) -> None:
         self.filter = key or None
@@ -1245,12 +1245,12 @@ class ReelForge(App):
         elif choice == "recycle":
             sidecar = path.with_suffix(".json")
             if not desktop.recycle(path):
-                self.notify(f"Couldn't move {path.name} to the Recycle Bin (is it open somewhere?).", severity="error")
+                self.notify(f"Couldn't move {path.name} to the {desktop.BIN} (is it open somewhere?).", severity="error")
                 return
             if sidecar.exists() and not videos.from_pipeline(path):
                 desktop.recycle(sidecar)
             other = next((f for f in videos.find(self.cfg) if f.name.lower() == path.name.lower()), None)
-            self.notify(f"{path.name} moved to the Recycle Bin." + (
+            self.notify(f"{path.name} moved to the {desktop.BIN}." + (
                 f" Another copy is still in {other.parent}; it's on the list now (Hide takes it off)."
                 if other else ""))
         else:
@@ -1366,7 +1366,7 @@ class ReelForge(App):
 
     @on(Button.Pressed, ".open-btn")
     def open_upload(self, event: Button.Pressed) -> None:
-        """Copy the right text, show the file in Explorer, open the platform's upload page."""
+        """Copy the right text, show the file in Explorer or Finder, open the platform's upload page."""
         if not self._picked():
             return
         p = self.platforms[event.button.id.split("-", 1)[1]]
@@ -1383,7 +1383,7 @@ class ReelForge(App):
             "youtube": " For the description, use Copy YouTube hashtags.",
             "instagram": " Click + Create, then Post/Reel.",
         }.get(p.key, "")
-        self.notify(f"{p.name}: {what} copied. Drag {item.video.name} in from the Explorer window, then paste.{tip}",
+        self.notify(f"{p.name}: {what} copied. Drag {item.video.name} in from {desktop.FILES_WINDOW}, then paste.{tip}",
                     title="Upload page opened", timeout=12)
         self.record_manual([p], item)
 
@@ -1548,7 +1548,8 @@ class ReelForge(App):
 
     @work(thread=True, group="login", exit_on_error=False)
     def run_browser_login(self, p: Platform) -> None:
-        self.call_from_thread(self.notify, f"An Edge window is opening (if ReelForge is reading stats right now, as "
+        window = f"{'An' if browser.NAME == 'Edge' else 'A'} {browser.NAME} window"
+        self.call_from_thread(self.notify, f"{window} is opening (if ReelForge is reading stats right now, as "
                               f"soon as that's done). Log in to {p.name} there; ReelForge carries on by itself once "
                               f"you're in.",
                               title=f"Log in to {p.name}", timeout=15)

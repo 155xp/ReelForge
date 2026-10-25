@@ -8,7 +8,8 @@ Terminal 1.24 takes those from the font, which leaves faint seams and fringes ro
 
   big()     the full logo, 8 rows tall: the first-run screens
   anvil()   the anvil alone, 3 rows tall: small spots like the app's header
-  ansi(art)       the art as lines of text with 24-bit colour codes
+  ansi(art)       the art as lines of text with colour codes (24-bit, or the nearest of 256 colours where that's
+                  all the terminal shows)
   rich_text(art)  the art as a rich Text (Textual)
 """
 
@@ -144,13 +145,41 @@ def cells(art: Art) -> list[list[tuple[str, str | None, str | None]]]:
     return out
 
 
-def _rgb(hex_color: str) -> str:
+def truecolor() -> bool:
+    """Whether the terminal shows 24-bit colour: Windows' terminals do, and others say so in COLORTERM (the test
+    Textual's screens use too). macOS's own Terminal shows only 256 colours before macOS 26 and turns 24-bit codes
+    into the wrong ones. REELFORGE_TRUECOLOR=1 or 0 overrides."""
+    forced = os.environ.get("REELFORGE_TRUECOLOR", "").strip()
+    if forced in ("0", "1"):
+        return forced == "1"
+    return sys.platform == "win32" or os.environ.get("COLORTERM", "").strip().lower() in ("truecolor", "24bit")
+
+
+def _rgb(hex_color: str) -> tuple[int, int, int]:
     h = hex_color.lstrip("#")
-    return ";".join(str(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+
+def xterm256(hex_color: str) -> int:
+    """The nearest of the 256-colour palette's 6 x 6 x 6 cube and 24 greys."""
+    r, g, b = _rgb(hex_color)
+    levels = (0, 95, 135, 175, 215, 255)
+    near = [min(range(6), key=lambda i: abs(levels[i] - c)) for c in (r, g, b)]
+    options = [(16 + 36 * near[0] + 6 * near[1] + near[2], tuple(levels[i] for i in near))]
+    options += [(232 + i, (8 + 10 * i,) * 3) for i in range(24)]
+    return min(options, key=lambda o: sum((a - c) ** 2 for a, c in zip(o[1], (r, g, b))))[0]
+
+
+def sgr(hex_color: str, background: bool = False) -> str:
+    """The code that sets the text (or background) colour."""
+    layer = 48 if background else 38
+    if truecolor():
+        return f"\x1b[{layer};2;{';'.join(map(str, _rgb(hex_color)))}m"
+    return f"\x1b[{layer};5;{xterm256(hex_color)}m"
 
 
 def ansi(art: Art, indent: int = 0) -> list[str]:
-    """The art as lines of text with 24-bit colour codes (each line ends with a reset)."""
+    """The art as lines of text with colour codes (each line ends with a reset)."""
     lines = []
     for line in cells(art):
         parts, last = [" " * indent], None
@@ -159,9 +188,9 @@ def ansi(art: Art, indent: int = 0) -> list[str]:
             if style != last:
                 code = "\x1b[0m"
                 if fg:
-                    code += f"\x1b[38;2;{_rgb(fg)}m"
+                    code += sgr(fg)
                 if bg:
-                    code += f"\x1b[48;2;{_rgb(bg)}m"
+                    code += sgr(bg, background=True)
                 parts.append(code)
                 last = style
             parts.append(ch)

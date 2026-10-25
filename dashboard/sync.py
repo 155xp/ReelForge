@@ -186,7 +186,7 @@ def gap_minutes(p: Platform, cfg: dict, manual: bool, fresh: bool = False) -> fl
     days old (10 minutes when you press r).
     """
     gap = 2 if manual else cfg.get("refresh_minutes", 30)
-    if p.uses_browser:  # each read opens Edge for a few seconds, so go easy
+    if p.uses_browser:  # each read opens a browser for a few seconds, so go easy
         gap = max(gap or 0, 10 if manual else (30 if fresh else 60))
     return gap or 0
 

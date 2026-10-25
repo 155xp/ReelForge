@@ -253,6 +253,17 @@ def kept(rel: str) -> bool:
     return any(rel == k.rstrip("/") or rel.startswith(k) for k in KEEP)
 
 
+def runnable(z: zipfile.ZipFile, out: Path) -> None:
+    """ZipFile unpacks every file without its permissions, so the macOS download's scripts (bin/reelforge, setup.sh,
+    the .command files) would stop being runnable after an update. Give back the ones the zip marks executable."""
+    if os.name == "nt":
+        return
+    for info in z.infolist():
+        target = out / info.filename
+        if not info.is_dir() and (info.external_attr >> 16) & 0o111 and target.is_file():
+            os.chmod(target, 0o755)
+
+
 def _copy_release(archive: Path, root: Path, work: Path, progress: Progress) -> None:
     progress("Unpacking", 0, 0)
     out = work / "unpacked"
@@ -260,6 +271,7 @@ def _copy_release(archive: Path, root: Path, work: Path, progress: Progress) -> 
         if archive.name.endswith(".zip"):
             with zipfile.ZipFile(archive) as z:
                 z.extractall(out)  # ZipFile drops absolute paths and ".." parts
+                runnable(z, out)
         else:
             with tarfile.open(archive) as t:
                 t.extractall(out, filter="data")
@@ -279,6 +291,8 @@ def _copy_release(archive: Path, root: Path, work: Path, progress: Progress) -> 
         dest = root / rel
         try:
             if dest.exists() and dest.stat().st_size == f.stat().st_size and dest.read_bytes() == f.read_bytes():
+                if os.name != "nt" and os.access(f, os.X_OK) and not os.access(dest, os.X_OK):
+                    os.chmod(dest, 0o755)   # an earlier update left it unrunnable
                 continue  # unchanged (this also leaves a running launcher alone)
             dest.parent.mkdir(parents=True, exist_ok=True)
             tmp = dest.with_name(dest.name + ".rf-new")

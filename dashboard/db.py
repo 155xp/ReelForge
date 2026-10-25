@@ -11,7 +11,7 @@ import re
 import sqlite3
 from contextlib import closing, contextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS episodes (
@@ -410,12 +410,18 @@ def episodes() -> list[sqlite3.Row]:
         ).fetchall()
 
 
+def video_file(path: str) -> PureWindowsPath:
+    """A saved video path, split on / and on \\ alike: a database brought over from a Windows PC to a Mac or Linux
+    keeps its backslashes, which those systems don't split on (and the file names still match up)."""
+    return PureWindowsPath(path)
+
+
 def episode_for_video(name: str) -> sqlite3.Row | None:
     """The newest episode made from a video with this file name, whichever folder the file was in then."""
-    name = Path(name).name.lower()
+    name = video_file(name).name.lower()
     with connect() as db:
         rows = db.execute("SELECT * FROM episodes WHERE video IS NOT NULL ORDER BY id DESC").fetchall()
-    return next((e for e in rows if Path(e["video"]).name.lower() == name), None)
+    return next((e for e in rows if video_file(e["video"]).name.lower() == name), None)
 
 
 def create_episode(title: str, video: str | None = None, created_at: str | None = None) -> int:

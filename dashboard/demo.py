@@ -273,7 +273,7 @@ class DemoPlatform(Platform):
 
     @property
     def uses_browser(self) -> bool:
-        return False  # the demo never opens Edge, so it keeps the normal refresh timing
+        return False  # the demo never opens a browser, so it keeps the normal refresh timing
 
     @property
     def handle(self) -> str:

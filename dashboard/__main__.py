@@ -84,10 +84,10 @@ def main(argv: list[str] | None = None) -> int:
     from .app import ReelForge
 
     app = ReelForge(cfg, platforms, demo=args.demo, tab=tab_for(word) or "overview", drawer=word in DRAWER_WORDS)
-    if sys.platform == "win32":
-        import ctypes
+    from studio import tui
 
-        ctypes.windll.kernel32.SetConsoleTitleW(app.title)  # the terminal tab's name
+    tui.set_title(app.title)  # the terminal tab's name
+    if sys.platform == "win32":
         threading.Thread(target=_terminal_profile, daemon=True).start()
     app.run()
 

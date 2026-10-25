@@ -1,4 +1,4 @@
-"""TikTok: stats from the public profile, no login; reading it in ReelForge's background Edge adds per-video numbers."""
+"""TikTok: stats from the public profile, no login; reading it in ReelForge's background browser adds per-video numbers."""
 
 from __future__ import annotations
 

@@ -8,7 +8,9 @@
 | **JetBrains Mono** font (`assets/fonts/`, used on macOS and Linux) | [SIL Open Font License 1.1](assets/fonts/JetBrainsMono-OFL.txt) | Yes |
 | Georgia and Consolas fonts (Windows) | Microsoft's licence, part of Windows | No: used from your Windows fonts folder |
 | **Blender** 4.5 LTS | [GPL](https://www.blender.org/about/license/); what you make with it is yours | No: setup downloads it from download.blender.org (checksum verified) |
-| **ffmpeg** (Windows build by gyan.dev) | [GPL](https://ffmpeg.org/legal.html) | No: setup downloads it from gyan.dev (checksum verified), or use your own |
-| Python packages: numpy, Pillow, Jinja2, Textual, httpx, Playwright | Their own open-source licences (BSD, MIT-CMU, MIT, Apache 2.0) | No: installed by pip from PyPI |
+| **ffmpeg** (builds by gyan.dev for Windows, Martin Riedl for macOS, BtbN for Linux) | [GPL](https://ffmpeg.org/legal.html) | No: setup downloads it from gyan.dev, ffmpeg.martin-riedl.de or BtbN's GitHub releases (checksum verified), or use your own |
+| **Python** (macOS and Linux, only without Python 3.11+) | [PSF licence](https://docs.python.org/3/license.html) | No: setup downloads it from the python-build-standalone releases on GitHub (checksum verified) into `tools/python` |
+| **Chromium** (macOS and Linux, only without Chrome or Edge) | [BSD and others](https://www.chromium.org/chromium-projects/) | No: Playwright downloads it into its own cache folder |
+| Python packages: numpy, Pillow, Jinja2, Textual, httpx, Playwright, certifi, truststore | Their own open-source licences (BSD, MIT-CMU, MIT, Apache 2.0, MPL 2.0) | No: installed by pip from PyPI |
 
 The videos you make are yours. The kit never uploads anything; you post by hand from ReelForge.

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 
 from rich.text import Text
 from textual import on, work
@@ -439,9 +438,6 @@ class FirstRun(App):
 
 def run(start: str = "tools"):
     """Show the first-run screens. Returns ("dashboard", tab) to open ReelForge next, or None."""
-    if sys.platform == "win32":
-        import ctypes
-
-        ctypes.windll.kernel32.SetConsoleTitleW(f"{KIT_NAME} TEST setup" if P.test_copy() else f"{KIT_NAME} setup")
+    tui.set_title(f"{KIT_NAME} TEST setup" if P.test_copy() else f"{KIT_NAME} setup")
     return FirstRun(start).run()
 

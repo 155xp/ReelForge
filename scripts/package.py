@@ -43,25 +43,28 @@ START = {
 
 Keep this folder somewhere with a short path, e.g. C:\\Users\\<you>\\ReelForge. Full guide: README.md
 """,
-    "macos": """ReelForge {v} for macOS (experimental: ReelForge is built and tested on Windows)
+    "macos": """ReelForge {v} for macOS (Apple Silicon or Intel, macOS 12 or newer)
 
-1. Double-click "Set up ReelForge.command". The first time, macOS may refuse because the file isn't from the
-   App Store: right-click it, choose Open, then Open again. Setup installs Python packages, Blender and the sound
-   effects into this folder and starts a short interview about your channel. It needs Python 3.11+ and ffmpeg
-   (brew install python@3.13 ffmpeg).
-2. Open this folder in Claude Code (the Claude desktop app's Code tab) or run codex in it, and say:
-   "make my first video".
-3. Double-click "Open ReelForge.command" (or type reelforge in a terminal) and go to Publish (tab 4) to post it.
+1. Double-click "Set up ReelForge.command". If macOS says it can't check the file for malware, open System
+   Settings > Privacy & Security, scroll down and click Open Anyway (on macOS 14 and older, right-click the file
+   and choose Open instead). Or open Terminal in this folder and run ./setup.sh. Setup lists what ReelForge still
+   needs (Python if you haven't got it, Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in
+   your Applications folder), puts it all in this folder once you say yes, then starts a short interview about
+   your channel.
+2. Open this folder in Claude Code (the Claude desktop app's Code tab, then Open folder...) or run codex here,
+   and say: "make my first video".
+3. Open ReelForge (from Applications, Launchpad or Spotlight, or type reelforge in Terminal) and go to Publish
+   (tab 4) to post it.
 
-Full guide: README.md
+Next time skip the warning: the one-line install (README.md) downloads straight from GitHub. Full guide: README.md
 """,
-    "linux": """ReelForge {v} for Linux (experimental: ReelForge is built and tested on Windows)
+    "linux": """ReelForge {v} for Linux (x64, or ARM with your own Blender)
 
-1. In a terminal in this folder: ./setup.sh   It installs Python packages, Blender and the sound effects into this
-   folder and starts a short interview about your channel. It needs Python 3.11+ (with venv) and ffmpeg from your
-   package manager.
+1. In a terminal in this folder: ./setup.sh   It lists what ReelForge still needs (Python if you haven't got a
+   recent one, Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in your app menu), puts it
+   all in this folder once you say yes, then starts a short interview about your channel.
 2. Run claude or codex in this folder and say: "make my first video".
-3. Type reelforge (or ./reelforge.sh) and go to Publish (tab 4) to post it.
+3. Open ReelForge (from your app menu, or type reelforge) and go to Publish (tab 4) to post it.
 
 Full guide: README.md
 """,
@@ -87,9 +90,11 @@ def tracked() -> list[str]:
 
 def mac_launcher(target: str) -> str:
     return f"""#!/bin/bash
-# Double-click to run {target} in Terminal. The first time, macOS may ask: right-click, Open.
+# Double-click to run {target} in Terminal. If macOS stops it the first time: System Settings > Privacy & Security,
+# Open Anyway (setup then clears the download's quarantine, so it opens straight away after that).
 cd "$(dirname "$0")" || exit 1
-chmod +x ./*.sh
+printf '\\033[8;42;132t'          # make the window big enough for ReelForge
+chmod +x ./*.sh bin/reelforge
 ./{target}
 echo
 read -n 1 -s -r -p "Press any key to close this window."

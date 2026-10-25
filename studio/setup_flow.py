@@ -1,6 +1,7 @@
 """Setup's second half, once setup.bat / setup.sh has Python and the packages in: find what's still missing
-(Blender, ffmpeg, the sound effects, the reelforge command, a desktop shortcut), ask once, set it all up, check
-everything, then onboarding. Everything downloaded goes into this folder.
+(Blender, ffmpeg, the sound effects, the reelforge command, ReelForge's icon and, on a Mac or Linux PC without Chrome
+or Edge, a browser for the stats), ask once, set it all up, check everything, then onboarding. Everything downloaded
+goes into this folder (Playwright keeps its Chromium in its own cache folder).
 
 In a terminal this is the boxed first-run screen (studio/firstrun.py). With --yes, or when nobody is at the
 keyboard (an AI running setup for someone), the same steps print as plain lines.
@@ -8,11 +9,10 @@ keyboard (an AI running setup for someone), the same steps print as plain lines.
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from dataclasses import dataclass
 
-from . import BLENDER_VERSION, KIT_NAME, command, doctor, sounds, tools
+from . import BLENDER_VERSION, KIT_NAME, browsers, command, doctor, shortcut, sounds, tools
 from . import paths as P
 from . import settings as S
 
@@ -21,7 +21,7 @@ SERIES = ".".join(BLENDER_VERSION.split(".")[:2])
 
 @dataclass
 class Item:
-    key: str              # blender, ffmpeg, sounds, command, shortcut
+    key: str              # blender, ffmpeg, sounds, browser, fonts, command, shortcut
     name: str             # "Blender 4.5.5"
     why: str              # what it's for, in a few words
     ready: bool
@@ -29,14 +29,6 @@ class Item:
     size_mb: int = 0      # download size when it isn't ready
     can_install: bool = True
     default: bool = True  # ticked to begin with
-
-
-def _shortcut_path():
-    import os
-    from pathlib import Path
-
-    desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
-    return desktop / f"{KIT_NAME}.lnk"
 
 
 def _where(path: str) -> str:
@@ -61,6 +53,10 @@ def plan() -> list[Item]:
     ver = tools.blender_version(blender) if blender else ""
     if blender and (ver.startswith(SERIES + ".") or ver == SERIES):
         items.append(Item("blender", f"Blender {ver}", "builds and renders your 3D scenes", True, _where(blender)))
+    elif not tools.blender_downloadable():
+        items.append(Item("blender", f"Blender {SERIES}", "builds and renders your 3D scenes", False,
+                          "blender.org has no ARM Linux build: install Blender 4.5 with your package manager",
+                          can_install=False, default=False))
     else:
         note = "about 400 MB from blender.org"
         if blender:
@@ -71,13 +67,10 @@ def plan() -> list[Item]:
     ffmpeg = tools.find_ffmpeg()
     if ffmpeg:
         items.append(Item("ffmpeg", "ffmpeg", "turns the frames and sound into your video", True, _where(ffmpeg)))
-    elif P.WINDOWS:
-        items.append(Item("ffmpeg", "ffmpeg", "turns the frames and sound into your video", False,
-                          "about 115 MB from gyan.dev", 115))
     else:
-        hint = "brew install ffmpeg" if P.MAC else "sudo apt install ffmpeg"
+        source, mb = tools.ffmpeg_source()
         items.append(Item("ffmpeg", "ffmpeg", "turns the frames and sound into your video", False,
-                          f"install it yourself with:  {hint}", can_install=False, default=False))
+                          f"about {mb} MB from {source}", mb))
 
     gone = [n for n, m in sounds.missing() if m["source"] == "mixkit"]
     total = sounds.mixkit_count()
@@ -89,15 +82,21 @@ def plan() -> list[Item]:
         items.append(Item("sounds", "Sound effects", "booms, whooshes and hits for your videos", False,
                           f"{len(gone)} from Mixkit, about {mb} MB", mb))
 
+    if not browsers.installed():        # Windows always has Edge; a Mac or Linux PC may have no Chrome or Edge
+        items.append(Item("browser", "Chromium", "reads your TikTok, Instagram and X stats", False,
+                          "about 170 MB from Playwright (there's no Chrome or Edge here)", 170))
+
+    if not P.WINDOWS and not P.MAC and not tools.find_fonts()[0].is_file():
+        items.append(Item("fonts", "DejaVu fonts", "the serif font for your videos' text", False,
+                          f"install them with:  {tools.font_package()}", can_install=False, default=False))
+
     on = command.status() == "on"
     items.append(Item("command", "The reelforge command", "type reelforge in any terminal to open it", on,
                       "ready" if on else "no admin rights needed"))
 
-    if P.WINDOWS:
-        link = _shortcut_path()
-        items.append(Item("shortcut", "Desktop shortcut", "a ReelForge icon on your desktop", link.exists(),
-                          "ready" if link.exists() else "double-click to open ReelForge",
-                          default=not installed_by_installer()))
+    name, why, does = shortcut.label()
+    made = shortcut.ready()
+    items.append(Item("shortcut", name, why, made, "ready" if made else does, default=not installed_by_installer()))
     return items
 
 
@@ -106,22 +105,8 @@ def todo(items: list[Item]) -> list[Item]:
 
 
 def make_shortcut() -> str:
-    """A desktop shortcut that opens ReelForge (Windows)."""
-    link = _shortcut_path()
-    target = P.ROOT / "ReelForge.bat"
-    icon = P.ROOT / "assets" / "icon" / "reelforge.ico"
-
-    def q(s) -> str:
-        return "'" + str(s).replace("'", "''") + "'"
-
-    ps = (f"$s = (New-Object -ComObject WScript.Shell).CreateShortcut({q(link)}); $s.TargetPath = {q(target)}; "
-          f"$s.WorkingDirectory = {q(P.ROOT)}; $s.Description = 'ReelForge'; "
-          + (f"$s.IconLocation = {q(icon)}; " if icon.exists() else "") + "$s.Save()")
-    r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True,
-                       text=True, encoding="utf-8", errors="replace")
-    if r.returncode != 0:
-        raise RuntimeError((r.stderr.strip().splitlines() or ["PowerShell couldn't make the shortcut"])[-1])
-    return str(link)
+    """ReelForge's icon: a desktop shortcut (Windows), ReelForge in Applications (macOS), an app-menu entry (Linux)."""
+    return shortcut.make()
 
 
 def apply(item: Item, progress=None) -> str:
@@ -136,14 +121,16 @@ def apply(item: Item, progress=None) -> str:
             raise RuntimeError(f"{len(failed)} sounds didn't download ({', '.join(failed[:3])}). Run setup again "
                                "later to fetch them.")
         return "sounds ready"
+    if item.key == "browser":
+        return browsers.install_chromium(progress)
     if item.key == "command":
         return command.enable()
     if item.key == "shortcut":
         if P.test_copy():
-            return "Left alone in a test copy: it never adds a desktop shortcut."
+            return f"Left alone in a test copy: it never adds {KIT_NAME}'s icon."
         if P.dry_system():
-            return "(dry run) would add the desktop shortcut"
-        return f"shortcut added ({make_shortcut()})"
+            return f"(dry run) would add {KIT_NAME}'s icon ({item.name})"
+        return f"{item.name}: added ({make_shortcut()})"
     raise ValueError(item.key)
 
 

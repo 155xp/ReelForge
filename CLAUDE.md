@@ -14,8 +14,10 @@ their answers (their channel, format, platforms, style, caption rules and qualit
 1. **Install.** If there is no `.venv` folder here, ask them to double-click `setup.bat` (Windows) or run
    `./setup.sh` (macOS/Linux). It lists what ReelForge still needs, sets it all up inside this folder once they
    say yes, then checks everything. You can run it for them only if they agree to all of it: `setup.bat -Yes` /
-   `./setup.sh --yes` downloads Blender 4.5 (about 400 MB), ffmpeg (about 115 MB, Windows) and the sound effects
-   (about 55 MB) into this folder, adds the `reelforge` command to their PATH and, on Windows, a desktop shortcut.
+   `./setup.sh --yes` downloads Blender 4.5 (about 400 MB), ffmpeg (60-150 MB) and the sound effects (about
+   55 MB) into this folder (on macOS/Linux also a private Python if theirs is older than 3.11, and Chromium if they
+   have no Chrome or Edge), adds the `reelforge` command to their PATH and ReelForge's icon (a desktop shortcut on
+   Windows, ReelForge in Applications on macOS, an app-menu entry on Linux).
 2. **Onboard.** Either they run `onboard.bat` / `./onboard.sh` (a short interview in a full-screen box), or you
    interview them here in the chat:
    - Get the questions: `.venv\Scripts\python -m studio onboard --questions` (macOS/Linux: `.venv/bin/python`).

@@ -97,8 +97,15 @@ def checks(render_test: bool = False, quiet: bool = False) -> Report:
 
     fonts = tools.find_fonts()
     absent = [str(f) for f in fonts if not Path(f).is_file()]
-    r.add(FAIL if absent else OK, "Fonts", ("missing: " + ", ".join(absent)) if absent else
+    hint = "" if P.WINDOWS or P.MAC else f" ({tools.font_package()})"
+    r.add(FAIL if absent else OK, "Fonts", ("missing: " + ", ".join(absent) + hint) if absent else
           ", ".join(sorted({Path(f).stem for f in fonts})))
+
+    from . import browsers
+
+    b = browsers.find()
+    r.add(OK if b else WARN, "Stats browser", b.describe() if b else
+          f"no Chrome, Edge or Chromium for the TikTok, Instagram and X stats: {fix} (it downloads Chromium)")
 
     try:
         gone = sounds.missing()

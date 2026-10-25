@@ -1,8 +1,9 @@
 """Finding (and, if you agree, downloading) the tools the pipeline needs: Blender 4.5 LTS, ffmpeg and fonts.
 
-Downloads come only from the official sources (download.blender.org, gyan.dev for Windows ffmpeg) and are
-checked against the checksums those sites publish. Everything lands in the kit's tools/ folder, so nothing is
-installed system-wide and deleting the folder removes it.
+Blender comes from download.blender.org. ffmpeg comes from the builds ffmpeg.org points to for each system: gyan.dev
+on Windows, BtbN's builds on GitHub on Linux, and Martin Riedl's signed builds on macOS (ffmpeg.org's own macOS
+link, evermeet.cx, has no Apple Silicon build). Every download is checked against the checksum its site publishes.
+Everything lands in the kit's tools/ folder, so nothing is installed system-wide and deleting the folder removes it.
 """
 
 from __future__ import annotations
@@ -26,6 +27,12 @@ from .paths import FONTS, MAC, ROOT, TOOLS, WINDOWS
 BLENDER_SERIES = ".".join(BLENDER_VERSION.split(".")[:2])          # "4.5"
 BLENDER_BASE = f"https://download.blender.org/release/Blender{BLENDER_SERIES}/"
 FFMPEG_WIN_ZIP = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+FFMPEG_LINUX = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/"
+FFMPEG_MAC = "https://ffmpeg.martin-riedl.de/redirect/latest/macos/{arch}/release/{tool}.zip"   # redirects to the build
+
+
+def arm() -> bool:
+    return platform.machine().lower() in ("arm64", "aarch64")
 
 
 def _exists(p) -> bool:
@@ -136,18 +143,44 @@ def ffprobe_for(ffmpeg: str) -> str:
 
 # ---------------------------------------------------------------- fonts
 
+def linux_font_dirs() -> list[Path]:
+    """The folders holding DejaVu or Liberation fonts: each Linux family keeps them somewhere else (Debian and Ubuntu
+    in truetype/dejavu, Fedora in dejavu-serif-fonts, Arch in TTF), and people add their own in ~/.local/share/fonts."""
+    dirs = [Path("/usr/share/fonts/truetype/dejavu"), Path("/usr/share/fonts/dejavu"),
+            Path("/usr/share/fonts/TTF"), Path("/usr/share/fonts/truetype/liberation")]
+    if WINDOWS or MAC:
+        return dirs
+    for root in (Path("/usr/share/fonts"), Path("/usr/local/share/fonts"), Path.home() / ".local" / "share" / "fonts",
+                 Path.home() / ".fonts"):
+        for pattern in ("**/DejaVuSerif*.ttf", "**/DejaVuSansMono*.ttf", "**/LiberationSerif*.ttf"):
+            try:
+                dirs += [p.parent for p in root.glob(pattern)]
+            except OSError:
+                pass
+    return list(dict.fromkeys(dirs))
+
+
+def font_package() -> str:
+    """The command that installs the serif font Linux renders the videos' text with."""
+    for tool, cmd in (("apt-get", "sudo apt install fonts-dejavu-core"), ("dnf", "sudo dnf install dejavu-serif-fonts"),
+                      ("pacman", "sudo pacman -S ttf-dejavu"), ("zypper", "sudo zypper install dejavu-fonts")):
+        if shutil.which(tool):
+            return cmd
+    return "install the DejaVu fonts with your package manager"
+
+
 def find_fonts() -> tuple[Path, Path, Path, Path, Path]:
     """(serif, serif italic, serif bold, mono, mono bold). Georgia + Consolas on Windows (the look the pipeline was
-    tuned with); Georgia + the bundled JetBrains Mono on macOS; DejaVu/Liberation on Linux. STUDIO_FONTS_DIR may hold
-    serif.ttf, serif-italic.ttf, serif-bold.ttf, mono.ttf and mono-bold.ttf to override all five."""
+    tuned with); Georgia + the bundled JetBrains Mono on macOS; DejaVu (or Liberation) serif + JetBrains Mono on
+    Linux. STUDIO_FONTS_DIR may hold serif.ttf, serif-italic.ttf, serif-bold.ttf, mono.ttf and mono-bold.ttf to
+    override all five."""
     override = os.environ.get("STUDIO_FONTS_DIR")
     if override:
         d = Path(override)
         return tuple(d / n for n in ("serif.ttf", "serif-italic.ttf", "serif-bold.ttf", "mono.ttf", "mono-bold.ttf"))
     win = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
     mac = Path("/System/Library/Fonts/Supplemental")
-    lin = [Path("/usr/share/fonts/truetype/dejavu"), Path("/usr/share/fonts/dejavu"),
-           Path("/usr/share/fonts/TTF"), Path("/usr/share/fonts/truetype/liberation")]
+    lin = linux_font_dirs()
     bundled_mono, bundled_mono_bold = FONTS / "JetBrainsMono-Regular.ttf", FONTS / "JetBrainsMono-Bold.ttf"
     roles = [
         [win / "georgia.ttf", mac / "Georgia.ttf", *(d / "DejaVuSerif.ttf" for d in lin),
@@ -222,17 +255,24 @@ def _fetch_text(url: str) -> str:
 
 
 def blender_asset() -> str:
-    machine = platform.machine().lower()
-    arm = machine in ("arm64", "aarch64")
     if WINDOWS:
-        return f"blender-{BLENDER_VERSION}-windows-{'arm64' if arm else 'x64'}.zip"
+        return f"blender-{BLENDER_VERSION}-windows-{'arm64' if arm() else 'x64'}.zip"
     if MAC:
-        return f"blender-{BLENDER_VERSION}-macos-{'arm64' if arm else 'x64'}.dmg"
+        return f"blender-{BLENDER_VERSION}-macos-{'arm64' if arm() else 'x64'}.dmg"
     return f"blender-{BLENDER_VERSION}-linux-x64.tar.xz"
+
+
+def blender_downloadable() -> bool:
+    """blender.org builds Blender for Windows and macOS (Intel and Apple Silicon) and for x64 Linux, but not for ARM
+    Linux: there it comes from the distribution or a source build."""
+    return WINDOWS or MAC or not arm()
 
 
 def install_blender(progress: Progress | None = None) -> str:
     """Download the official portable Blender into tools/ and return the path to its executable."""
+    if not blender_downloadable():
+        raise RuntimeError("blender.org has no Blender for ARM Linux: install Blender 4.5 with your package manager "
+                           "or set STUDIO_BLENDER")
     asset = blender_asset()
     sums = _fetch_text(BLENDER_BASE + f"blender-{BLENDER_VERSION}.sha256")
     want = next((ln.split()[0] for ln in sums.splitlines() if ln.strip().endswith(asset)), None)
@@ -274,31 +314,88 @@ def install_blender(progress: Progress | None = None) -> str:
     return path
 
 
+def ffmpeg_source() -> tuple[str, int]:
+    """Where setup downloads ffmpeg from on this system, and about how many MB that is."""
+    if WINDOWS:
+        return "gyan.dev", 115
+    if MAC:
+        return "ffmpeg.martin-riedl.de", 60
+    return "BtbN's builds on GitHub", 150
+
+
 def install_ffmpeg(progress: Progress | None = None) -> str:
-    """Windows: the gyan.dev 'release essentials' build into tools/ffmpeg. Elsewhere: explain the one command."""
-    if not WINDOWS:
-        hint = "brew install ffmpeg" if MAC else "sudo apt install ffmpeg   (or your distro's package manager)"
-        raise RuntimeError(f"install ffmpeg with:  {hint}   then run setup again")
-    want = _fetch_text(FFMPEG_WIN_ZIP + ".sha256").split()[0]
-    archive = download(FFMPEG_WIN_ZIP, TOOLS / "downloads" / "ffmpeg-release-essentials.zip", "ffmpeg", want,
-                       progress)
-    _say(progress, "Unpacking ffmpeg")
-    with zipfile.ZipFile(archive) as z:
-        top = z.namelist()[0].split("/")[0]
-        z.extractall(TOOLS)
+    """ffmpeg and ffprobe into tools/ffmpeg/bin: gyan.dev's 'release essentials' build on Windows, Martin Riedl's
+    release build on macOS, BtbN's newest release build on Linux."""
     dst = TOOLS / "ffmpeg"
+    if MAC:
+        _ffmpeg_mac(dst, progress)
+    elif WINDOWS:
+        _ffmpeg_unpack(dst, FFMPEG_WIN_ZIP, "ffmpeg-release-essentials.zip",
+                       _fetch_text(FFMPEG_WIN_ZIP + ".sha256").split()[0], progress)
+    else:
+        name, want = linux_ffmpeg_build(_fetch_text(FFMPEG_LINUX + "checksums.sha256"))
+        _ffmpeg_unpack(dst, FFMPEG_LINUX + name, name, want, progress)
+    path = find_ffmpeg()
+    if not path:
+        raise RuntimeError("ffmpeg was unpacked but wasn't found in tools/ffmpeg")
+    return path
+
+
+def linux_ffmpeg_build(sums: str) -> tuple[str, str]:
+    """(file name, sha256) of the newest release build in BtbN's checksums.sha256 for this computer: the static GPL
+    build, e.g. ffmpeg-n9.0-latest-linux64-gpl-9.0.tar.xz (not the nightly "master" ones or the shared libraries)."""
+    target = "linuxarm64" if arm() else "linux64"
+    builds = []
+    for line in sums.splitlines():
+        parts = line.split()
+        m = re.fullmatch(rf"ffmpeg-n(\d+)\.(\d+)-latest-{target}-gpl-\1\.\2\.tar\.xz", parts[-1]) if parts else None
+        if m:
+            builds.append(((int(m[1]), int(m[2])), parts[-1], parts[0]))
+    if not builds:
+        raise RuntimeError(f"no {target} ffmpeg release build is listed at {FFMPEG_LINUX}")
+    _, name, want = max(builds)
+    return name, want
+
+
+def _ffmpeg_unpack(dst: Path, url: str, name: str, want: str, progress: Progress | None) -> None:
+    """Download an archive with one top folder holding bin/ffmpeg and bin/ffprobe, and make that folder dst."""
+    archive = download(url, TOOLS / "downloads" / name, "ffmpeg", want, progress)
+    _say(progress, "Unpacking ffmpeg")
+    if name.endswith(".zip"):
+        with zipfile.ZipFile(archive) as z:
+            top = z.namelist()[0].split("/")[0]
+            z.extractall(TOOLS)
+    else:
+        with tarfile.open(archive) as t:
+            top = t.getnames()[0].split("/")[0]
+            t.extractall(TOOLS, filter="data")
     if dst.exists():
         shutil.rmtree(dst)
     (TOOLS / top).rename(dst)
     archive.unlink(missing_ok=True)
-    path = find_ffmpeg()
-    if not path:
-        raise RuntimeError("ffmpeg was unpacked but ffmpeg.exe wasn't found in tools/ffmpeg")
-    return path
+
+
+def _ffmpeg_mac(dst: Path, progress: Progress | None) -> None:
+    """Martin Riedl's builds come as one zip per program, each holding just the program. The link to the newest
+    release redirects to the build itself, whose checksum sits next to it."""
+    arch = "arm64" if arm() else "amd64"
+    if dst.exists():
+        shutil.rmtree(dst)
+    (dst / "bin").mkdir(parents=True)
+    for tool in ("ffmpeg", "ffprobe"):
+        with net.open_url(FFMPEG_MAC.format(arch=arch, tool=tool)) as r:
+            url = r.geturl()
+        want = _fetch_text(url + ".sha256").split()[0]
+        archive = download(url, TOOLS / "downloads" / f"{tool}-macos-{arch}.zip", tool, want, progress)
+        with zipfile.ZipFile(archive) as z:
+            member = next(n for n in z.namelist() if n.rsplit("/", 1)[-1] == tool)
+            (dst / "bin" / tool).write_bytes(z.read(member))
+        (dst / "bin" / tool).chmod(0o755)
+        archive.unlink(missing_ok=True)
 
 
 def tool_size_note() -> str:
-    return "Blender is about 400 MB to download (1.2 GB unpacked); ffmpeg about 115 MB."
+    return f"Blender is about 400 MB to download (1.2 GB unpacked); ffmpeg about {ffmpeg_source()[1]} MB."
 
 
 if __name__ == "__main__":  # pragma: no cover

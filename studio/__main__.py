@@ -51,8 +51,10 @@ def next_steps() -> str:
                      "It reads AGENTS.md by itself.")
     first = "ultracode: make my first video" if s["ai"]["ultracode"] and who != "codex" else "make my first video"
     lines.append(f'  2. Say: "{first}"')
-    lines.append("  3. When it's done, open ReelForge (type reelforge, or double-click "
-                 + ("ReelForge.bat" if P.WINDOWS else "reelforge.sh") + ") and go to Publish (tab 4) to post it.")
+    icon = ("double-click ReelForge.bat" if P.WINDOWS else "open ReelForge from Applications" if P.MAC else
+            "open ReelForge from your app menu")
+    lines.append(f"  3. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish (tab 4) to post "
+                 "it.")
     return "\n".join(lines)
 
 
@@ -243,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
     except (AttributeError, ValueError):
         pass
     argv = list(sys.argv[1:] if argv is None else argv)
+    P.keep_runnable()
     if argv and argv[0] in ("-h", "--help", "help"):
         print(__doc__)
         return 0

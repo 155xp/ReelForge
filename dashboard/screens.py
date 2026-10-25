@@ -12,6 +12,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, OptionList, Select, Static
 from textual.widgets.option_list import Option
 
+from . import desktop
 from .platforms import Platform
 from .platforms.public import parse_count
 from .widgets import GOOD, MUTED
@@ -112,8 +113,8 @@ class VideoMenu(ModalScreen[str | None]):
         note = Text()
         note.append(self.video.name, style="bold")
         note.append(f"\n{self.video.parent}\n\n", style=MUTED)
-        note.append("Move to Recycle Bin", style="bold")
-        note.append(" deletes the video file (you can restore it from the Recycle Bin).", style=MUTED)
+        note.append(f"Move to {desktop.BIN}", style="bold")
+        note.append(f" deletes the video file (you can restore it from the {desktop.BIN}).", style=MUTED)
         if self.from_pipeline:
             note.append(" The episode's spec and build files stay, so the pipeline can render it again.", style=MUTED)
         note.append("\nHide from list", style="bold")
@@ -124,7 +125,7 @@ class VideoMenu(ModalScreen[str | None]):
             with Horizontal(classes="dialog-buttons"):
                 yield Button("Cancel", id="cancel")
                 yield Button("Hide from list", id="hide")
-                yield Button("Move to Recycle Bin", id="recycle", variant="error")
+                yield Button(f"Move to {desktop.BIN}", id="recycle", variant="error")
 
     def on_mount(self) -> None:
         self.query_one("#cancel", Button).focus()
@@ -194,11 +195,11 @@ HELP = [
     ("Compare (3)", "The platform scoreboard, or pick an episode to see the same video on every platform, each "
                     "against that platform's typical video."),
     ("Publish (4)", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, "
-                    "shows the file in Explorer, and checks for the new post 10 and 30 minutes later. Remove (or a "
-                    "right-click) hides a video or moves it to the Recycle Bin; Show hidden brings hidden ones back. "
-                    "Under the videos, Best time to post shows each platform's part of the day whose videos got the "
-                    "most views in their first day, and when it next comes round; it needs 2 videos a day old in "
-                    "each of 2 parts of the day, with one clearly ahead."),
+                    f"shows the file in {desktop.FILES}, and checks for the new post 10 and 30 minutes later. Remove "
+                    f"(or a right-click) hides a video or moves it to the {desktop.BIN}; Show hidden brings hidden ones "
+                    "back. Under the videos, Best time to post shows each platform's part of the day whose videos "
+                    "got the most views in their first day, and when it next comes round; it needs 2 videos a day old "
+                    "in each of 2 parts of the day, with one clearly ahead."),
     ("Accounts (5)", "Where each platform's stats come from, when they were last read, and the Instagram / X log-in. "
                      "Type in stats lets you enter the numbers by hand for a platform ReelForge can't read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "

@@ -106,13 +106,15 @@ version's instructions. If anything goes wrong, the version you have keeps worki
 
 | Platform | How | What you get |
 |---|---|---|
-| TikTok | your public profile, in a background Edge (no login) | followers, total likes, and each video's views, likes, comments, shares and saves |
+| TikTok | your public profile, in a background browser (no login) | followers, total likes, and each video's views, likes, comments, shares and saves |
 | YouTube | your public channel page and feed | subscribers (once YouTube shows the count), and views and likes of your latest videos |
 | Instagram | **log in once** (Accounts tab) | followers, and each Reel's views, likes, comments and shares |
 | X | **log in once** (Accounts tab) | followers, and each video post's views, likes, replies, reposts and bookmarks |
 
-**Log in** opens ReelForge's own Edge window, with its own profile in `dashboard/data/browser`, separate from your
-normal Edge. Log in there once and ReelForge closes it and carries on; after that it opens your profile in the
+**Log in** opens a window of ReelForge's own browser, with its own profile in `dashboard/data/browser`, separate
+from your normal browsing. ReelForge uses Edge on Windows and Chrome on macOS and Linux (or Edge, or a Chromium setup
+downloads when there's neither), and keeps using the one it started with. Log in there once and ReelForge closes it
+and carries on; after that it opens your profile in the
 background about once an hour and reads the numbers the page shows you. It never posts, likes or follows anything.
 These are the same pages a browser loads, so a site redesign can break a reader until ReelForge is updated. If a
 login ever stops working, **Type in stats** (on that platform's Accounts panel) opens a box to type numbers in by
@@ -132,10 +134,12 @@ What each platform gets follows your channel's caption rules from onboarding: th
 (your first hashtag, usually #fyp, always leads) and Instagram, the caption as the YouTube title with the hashtags as
 its description, and the caption alone on X unless you allowed hashtags there.
 
-Each platform button copies that platform's text, shows the file in Explorer (drag it into the upload page) and
+Each platform button copies that platform's text, shows the file in Explorer, Finder or your file manager (drag it
+into the upload page) and
 opens the upload page. **Open all** opens every page with the TikTok text copied; use the Copy buttons for the
 others. ReelForge looks for the new posts 10 and 30 minutes later and matches them to the video by their caption.
-**Remove** above the list (or a right-click on a video) hides it from the list or moves it to the Recycle Bin;
+**Remove** above the list (or a right-click on a video) hides it from the list or moves it to the Recycle Bin (the
+Trash on a Mac or Linux PC);
 **Show hidden** brings hidden videos back.
 
 **Best time to post**, under the list, shows each platform's best part of the day so far (12–4 AM, 4–8 AM,
@@ -161,7 +165,7 @@ Onboarding writes this file; run onboarding again to change your answers, or edi
 
 Everything stays on this computer in `dashboard/data/`: `stats.db` (snapshots, posts, the upload log and your
 notifications), a dated backup of it in `dashboard/data/backups/` once a day, and `dashboard/data/browser/`
-(ReelForge's Edge profile with your Instagram/X logins: keep it private, never share or upload it).
+(ReelForge's browser profile with your Instagram/X logins: keep it private, never share or upload it).
 
 ## Troubleshooting
 
@@ -170,7 +174,7 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 | ReelForge says it needs its Python environment | Run setup again (`setup.bat`, or `./setup.sh`). |
 | A platform's name is red in the top bar | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
 | Instagram "wants to check it's you" | Press **Log in again** and follow Instagram's steps in the window that opens. |
-| A finished video isn't in the Publish list | Run `.venv\Scripts\python -m studio publish-check episodes\<id>` in the ReelForge folder: it says what's missing. |
+| A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
 | A post is grouped with the wrong video | Videos tab: highlight it and press **Fix episode**. ReelForge keeps your choice. |
 | An update didn't finish | The message on the Updates tab says why; the version you have keeps working. Try again, or download the new version from the releases page. |
 | `config.toml has a typo` | Fix the line it names, or delete `dashboard/config.toml` and run onboarding again. |
@@ -179,9 +183,9 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 
 | | |
 |---|---|
-| `__main__.py`, `app.py`, … | the app (Textual for the screen, httpx and Playwright with the installed Edge for reading stats) |
+| `__main__.py`, `app.py`, … | the app (Textual for the screen, httpx and Playwright with an installed browser for reading stats) |
 | `notify.py`, `badges.py`, `besttime.py` | notifications, milestones, badges and the best time to post |
 | `refresh.pyw` | what the hourly background job runs |
 | `config.example.toml` | the settings template; your own settings are in `config.toml` (written by onboarding, not shared) |
-| `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` |
-| `data/` | your stats database, backups and ReelForge's Edge profile: private, never shared |
+| `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` (macOS/Linux: `.venv/bin/python`) |
+| `data/` | your stats database, backups and ReelForge's browser profile: private, never shared |

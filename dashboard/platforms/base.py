@@ -94,7 +94,7 @@ class Platform:
 
     @property
     def uses_browser(self) -> bool:
-        """Whether a refresh opens ReelForge's background Edge (slower, so it refreshes less often)."""
+        """Whether a refresh opens ReelForge's background browser (slower, so it refreshes less often)."""
         from . import browser
 
         return self.stats_source == "browser" or (self.stats_source == "public" and self.key == "tiktok"
