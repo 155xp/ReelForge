@@ -2,8 +2,8 @@
 # file's SHA-256 (with LF line endings). scripts/package.py won't build a release once any of them has changed.
 a33aeb9a71f14f3870787c3a99eca3f9b563d0a8e863327b81ed0bb7433622eb  dashboard/__init__.py
 d07b5b20138bf4b0c4cb6e4daf261c68b4ee0f1d3fecad39c0d5de0f6091692e  dashboard/analytics.py
-3fae88322a13a50b1dca2b9d418a7ea1b67e3e9d42566fa15d92de5bcfb0f1f5  dashboard/app.py
-7e2eefa46694248d4a15ed73abf770e602436bbe5d3eacd7707edda2d26e3117  dashboard/app.tcss
+1ed55341da3a361454da078aa3a380d6bfea7495ea47ad2685331a9ebaed2263  dashboard/app.py
+4456aae50fc88f5097dc116208d17f598a5fa12728f4080fdf0b6b4e9c7f1fda  dashboard/app.tcss
 43f47447fd51186dcafe2091dd8eacf525c86510b7609432095999cb8aae3012  dashboard/badges.py
 8ec929827ba8877d8fb4d72b13984055937b38afba0a65f900f1c1a3731e1e67  dashboard/besttime.py
 edb7af792e58ec84f8b6973a5c6df29bd4b26d0b55c350abb5535af38dacf451  dashboard/charts.py
