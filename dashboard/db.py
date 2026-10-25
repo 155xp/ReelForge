@@ -286,20 +286,39 @@ def post_series(since: str) -> dict[tuple[str, str], list[tuple[str, int]]]:
     without a view count is skipped, and a count that dips (YouTube's feed lags its pages) is held at its
     highest, so curves never step down.
     """
-    out: dict[tuple[str, str], list[tuple[str, int]]] = {}
     with connect() as db:
-        for platform, post_id, ts, views in db.execute(
-                """SELECT s.platform, s.post_id, s.ts, s.views FROM post_stats s
-                   JOIN posts p ON p.platform = s.platform AND p.post_id = s.post_id
-                   WHERE p.published_at >= ? AND s.views IS NOT NULL
-                   ORDER BY s.platform, s.post_id, s.ts""", (since,)):
-            pts = out.setdefault((platform, post_id), [])
-            pts.append((ts, max(views, pts[-1][1]) if pts else views))
+        return _curves(db.execute(
+            """SELECT s.platform, s.post_id, s.ts, s.views FROM post_stats s
+               JOIN posts p ON p.platform = s.platform AND p.post_id = s.post_id
+               WHERE p.published_at >= ? AND s.views IS NOT NULL
+               ORDER BY s.platform, s.post_id, s.ts""", (since,)))
+
+
+def early_series() -> dict[tuple[str, str], list[tuple[str, int]]]:
+    """Like post_series, but every post's readings from its first FIRST_HOURS hours only, however old the post."""
+    with connect() as db:
+        return _curves(db.execute(
+            f"""SELECT s.platform, s.post_id, s.ts, s.views FROM post_stats s
+                JOIN posts p ON p.platform = s.platform AND p.post_id = s.post_id
+                WHERE s.views IS NOT NULL AND s.ts < {_EARLY_END}
+                ORDER BY s.platform, s.post_id, s.ts"""))
+
+
+def _curves(rows) -> dict[tuple[str, str], list[tuple[str, int]]]:
+    """(platform, post_id, ts, views) rows, oldest first, as each post's readings with every dip held at its highest."""
+    out: dict[tuple[str, str], list[tuple[str, int]]] = {}
+    for platform, post_id, ts, views in rows:
+        pts = out.setdefault((platform, post_id), [])
+        pts.append((ts, max(views, pts[-1][1]) if pts else views))
     return out
 
 
 # Old snapshots get thinned out, keeping the last one in each time bucket: full detail for 2 days,
-# then one per 3 hours, one per day after 2 weeks, one per week after 2 months.
+# then one per 3 hours, one per day after 2 weeks, one per week after 2 months. A post's first
+# FIRST_HOURS hours are kept in full: its views 1, 6 and 24 hours in are measured from them
+# (analytics.views_after takes readings up to 3 hours either side).
+FIRST_HOURS = 27
+_EARLY_END = f"strftime('%Y-%m-%dT%H:%M:%S+00:00', p.published_at, '+{FIRST_HOURS} hours')"  # as stored: UTC ISO
 _BUCKETS = (
     (2, "substr(ts, 1, 10) || '.' || (CAST(substr(ts, 12, 2) AS INTEGER) / 3)"),
     (14, "substr(ts, 1, 10)"),
@@ -319,7 +338,9 @@ def compact(min_hours: float = 20) -> int:
             cut = (now - timedelta(days=days)).isoformat(timespec="seconds")
             removed += db.execute(
                 f"""DELETE FROM post_stats WHERE ts < ? AND rowid NOT IN (
-                      SELECT MAX(rowid) FROM post_stats WHERE ts < ? GROUP BY platform, post_id, {bucket})""",
+                      SELECT MAX(rowid) FROM post_stats WHERE ts < ? GROUP BY platform, post_id, {bucket})
+                    AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.platform = post_stats.platform
+                                    AND p.post_id = post_stats.post_id AND post_stats.ts < {_EARLY_END})""",
                 (cut, cut)).rowcount
             account_cut = (now - timedelta(days=days + 12)).isoformat(timespec="seconds")
             removed += db.execute(

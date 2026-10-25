@@ -100,7 +100,8 @@ taking off opens on the Videos tab, highlighted, and a finished video is picked 
 ### Videos
 
 Every video on every platform in one table, scored against your typical video. Click a header to sort, and pick a
-video to see how its views grew after you posted it.
+video to see how its views grew after you posted it. Export CSV saves every video with when it went up (date,
+weekday, hour and UTC time) and its views 1, 6 and 24 hours in.
 
 ![The Videos tab](docs/screenshots/app-videos.png)
 
@@ -115,6 +116,8 @@ video grows over its first three days on each one.
 
 Every finished video waits here with its post already written. Each platform's button opens that site's upload page
 and copies exactly the text it needs, so you drag the video in and press Post. ReelForge spots the post by itself.
+Under the list, Best time to post shows the part of the day your videos have done best in on each platform, by
+their views in their first day, and when it next comes round, once there are enough videos to tell.
 
 ![The Publish tab](docs/screenshots/app-publish.png)
 

@@ -188,12 +188,16 @@ HELP = [
                    "row (or Open post) opens it. Above the chart: the highlighted video's badges, like \"Top 5% of "
                    "your TikTok videos for views\". The chart compares its views with your typical video at the same "
                    "age. Fix episode re-files a post grouped with the wrong video; Export CSV saves every video as a "
-                   "spreadsheet."),
+                   "spreadsheet, with when it went up (date, weekday, hour and UTC time) and its views 1, 6 and 24 "
+                   "hours in."),
     ("Compare (3)", "The platform scoreboard, or pick an episode to see the same video on every platform, each "
                     "against that platform's typical video."),
     ("Publish (4)", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, "
                     "shows the file in Explorer, and checks for the new post 10 and 30 minutes later. Remove (or a "
-                    "right-click) hides a video or moves it to the Recycle Bin; Show hidden brings hidden ones back."),
+                    "right-click) hides a video or moves it to the Recycle Bin; Show hidden brings hidden ones back. "
+                    "Under the videos, Best time to post shows each platform's part of the day whose videos got the "
+                    "most views in their first day, and when it next comes round; it needs 2 videos a day old in "
+                    "each of 2 parts of the day, with one clearly ahead."),
     ("Accounts (5)", "Where each platform's stats come from, when they were last read, and the Instagram / X log-in. "
                      "Type in stats lets you enter the numbers by hand for a platform ReelForge can't read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "

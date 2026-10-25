@@ -20,6 +20,7 @@ NO_CURVE: Curve = ([], [])
 AGES = (1, 2, 3, 4, 6, 8, 12, 18, 24, 36, 48, 72, 96, 120, 168, 240, 336, 504, 720)
 RECENT = 60  # "typical" means typical of your last 60 videos on that platform
 HISTORY_DAYS = 120  # curves are only loaded for videos this recent
+AFTER_HOURS = (1, 6, 24)  # every video's views this many hours in: the CSV export and the best time to post
 
 
 def now() -> datetime:
@@ -126,6 +127,32 @@ def views_at(curve: Curve, pub: datetime, age_h: float) -> float | None:
         return float(views[i])
     t0, t1 = times[i - 1], times[i]
     return views[i - 1] + (views[i] - views[i - 1]) * ((target - t0) / (t1 - t0))
+
+
+def views_after(curve: Curve, pub: datetime, hours: float) -> float | None:
+    """Views a post had `hours` after it went up, from the readings either side of that moment (going up counts as a
+    reading of 0 views). None when there's no reading after it yet, or when those readings are further apart than
+    1.5 × `hours` or 3 hours, whichever is less: ReelForge wasn't reading then (the computer was off or asleep), so
+    unlike views_at it doesn't draw a line across the gap."""
+    times, views = curve
+    target = pub + timedelta(hours=hours)
+    i = bisect_left(times, target)
+    if i == len(times):
+        return None
+    if times[i] == target:
+        return float(views[i])
+    t0, v0 = (times[i - 1], views[i - 1]) if i and times[i - 1] > pub else (pub, 0)
+    if (times[i] - t0).total_seconds() > min(1.5 * hours, 3) * 3600:
+        return None
+    return v0 + (views[i] - v0) * ((target - t0) / (times[i] - t0))
+
+
+def add_early_views(posts: list[dict], early: Series) -> None:
+    """Each post's views 1, 6 and 24 hours after it went up, where ReelForge's readings tell (views_after):
+    post["after"] = {hours: views or None}. `early` is every post's first readings (db.early_series)."""
+    for p in posts:
+        curve = early.get((p["platform"], p["post_id"]), NO_CURVE)
+        p["after"] = {h: views_after(curve, p["published"], h) for h in AFTER_HOURS}
 
 
 def typical_curve(posts: list[dict], parsed: Series, platform: str | None, max_age_h: float, steps: int = 36,
@@ -445,6 +472,12 @@ def fmt_age(hours: float) -> str:
 def fmt_clock(t: datetime) -> str:
     """12-hour time: 2:05 PM."""
     return f"{t.hour % 12 or 12}:{t.minute:02d} {'AM' if t.hour < 12 else 'PM'}"
+
+
+def fmt_hours(a: datetime, b: datetime) -> str:
+    """A span of hours: 6–8 PM, 10 AM–2 PM, 8 PM–12 AM."""
+    start, end = fmt_clock(a).replace(":00", ""), fmt_clock(b).replace(":00", "")
+    return f"{start[:-3]}–{end}" if start[-2:] == end[-2:] else f"{start}–{end}"
 
 
 def fmt_ago(ts: str | None) -> str:

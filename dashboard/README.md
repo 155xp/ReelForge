@@ -30,9 +30,9 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 | Tab | What's on it |
 |---|---|
 | **1 Overview** | A card per platform (and all of them added up): followers, views, likes, the change over 24 hours and views per hour. Under the cards, today's **badges** (below). Then **views**, **followers** and **likes** gained over time, stacked by platform: each bar is the shortest stretch the window has room for (an hour on 24H when it's wide enough, a few hours or a day on the longer ranges), with yellow ▼ marks where each video went up, your **top performers** and how your **latest video** is doing. |
-| **2 Videos** | Every video on every platform: views, likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet. |
+| **2 Videos** | Every video on every platform: views, likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet, with when each post went up (date, weekday, hour and UTC time) and its views 1, 6 and 24 hours in. |
 | **3 Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. |
-| **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. |
+| **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
 | **5 Accounts** | Where each platform's stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
 | **6 Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
 
@@ -130,6 +130,14 @@ others. ReelForge looks for the new posts 10 and 30 minutes later and matches th
 **Remove** above the list (or a right-click on a video) hides it from the list or moves it to the Recycle Bin;
 **Show hidden** brings hidden videos back.
 
+**Best time to post**, under the list, shows each platform's best part of the day so far (12–4 AM, 4–8 AM,
+8 AM–12 PM, 12–4 PM, 4–8 PM or 8 PM–12 AM, in your computer's time zone): the one whose videos got the most views in
+their first day, its typical video against your other times, and when it next comes round. It needs two videos a day
+old in each of two parts of the day, and names one only when its typical video beats the next part's by a fifth or
+more; until then it says there aren't enough videos yet, or that no time is clearly better yet, with the numbers so
+far. A video's first day counts when ReelForge was reading around then (the computer was on). With few videos, which
+video it was matters more than when it went up, so take it as a time to try rather than a rule.
+
 ## Settings (`dashboard/config.toml`)
 
 | Setting | |
@@ -164,7 +172,7 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 | | |
 |---|---|
 | `__main__.py`, `app.py`, … | the app (Textual for the screen, httpx and Playwright with the installed Edge for reading stats) |
-| `notify.py`, `badges.py` | notifications, milestones and badges |
+| `notify.py`, `badges.py`, `besttime.py` | notifications, milestones, badges and the best time to post |
 | `refresh.pyw` | what the hourly background job runs |
 | `config.example.toml` | the settings template; your own settings are in `config.toml` (written by onboarding, not shared) |
 | `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` |

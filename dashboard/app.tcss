@@ -244,9 +244,21 @@ OptionList:focus > .option-list--option-highlighted {
 
 /* publish */
 
-#file-box {
+#publish-side {
     width: 1fr;
     min-width: 40;
+}
+
+#file-box {
+    height: 1fr;
+}
+
+#best-box {
+    height: auto;
+}
+
+.best-line {
+    height: 1;
 }
 
 #file-list {

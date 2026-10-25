@@ -6,7 +6,7 @@ import functools
 import math
 import textwrap
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean, median
 
@@ -24,8 +24,8 @@ from textual.widgets import (Button, DataTable, Input, Label, Markdown, OptionLi
 from textual.widgets.data_table import ColumnKey
 from textual.widgets.option_list import Option
 
-from . import analytics, badges, charts, config, db, desktop, notify, sync, trends, videos
-from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_num, fmt_pct
+from . import analytics, badges, besttime, charts, config, db, desktop, notify, sync, trends, videos
+from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
 from .platforms import Platform, PlatformError, PublishItem, browser
 from .platforms.base import Account, Post
 from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
@@ -200,9 +200,14 @@ class ReelForge(App):
                         yield DataTable(id="compare-table", cursor_type="row")
             with TabPane("Publish", id="publish"):
                 with Horizontal():
-                    with Vertical(id="file-box", classes="box"):
-                        yield ActionText(id="file-heading", classes="box-title")
-                        yield VideoList(id="file-list")
+                    with Vertical(id="publish-side"):
+                        with Vertical(id="file-box", classes="box"):
+                            yield ActionText(id="file-heading", classes="box-title")
+                            yield VideoList(id="file-list")
+                        with Vertical(id="best-box", classes="box"):
+                            yield ActionText(id="best-title", classes="box-title")
+                            for p in ps:
+                                yield ActionText(id=f"best-{p.key}", classes="best-line")
                     with VerticalScroll(id="publish-form", classes="box"):
                         yield Label("Caption", id="caption-label")
                         yield Input(id="f-caption", max_length=200, placeholder="one short line that hooks the viewer")
@@ -292,6 +297,7 @@ class ReelForge(App):
         self.start_updates()
         self.run_refresh(manual=False)
         self.compact_db()
+        self.set_interval(60, self.update_best_time)  # "next: today 8 PM" moves on with the clock
         minutes = minutes_setting(self.cfg, "refresh_minutes", 30)
         if minutes:
             self.set_interval(min(300, max(minutes * 60, 60)), lambda: self.run_refresh(manual=False))
@@ -409,9 +415,10 @@ class ReelForge(App):
         parsed = analytics.parse_series(db.post_series(analytics.history_since()))
         since = (analytics.now() - timedelta(days=HISTORY_DAYS)).isoformat(timespec="seconds")
         posts = [p for p in db.posts_latest() if p["platform"] in self.platforms and p["published_at"]]
+        analytics.add_early_views(analytics.enrich(posts, parsed), analytics.parse_series(db.early_series()))
         return {
             "parsed": parsed,
-            "posts": analytics.enrich(posts, parsed),
+            "posts": posts,
             "latest": db.latest_accounts(),
             "episodes": db.episodes(),
             "account_rows": {key: db.account_series(key, since) for key in self.platforms},
@@ -429,6 +436,7 @@ class ReelForge(App):
         self.update_uploads()
         self.update_accounts()
         self.update_posted()
+        self.update_best_time()
         # Tabs you're not looking at are rebuilt when you open them.
         self.stale = {"videos", "compare"}
         self.update_active_tab()
@@ -738,22 +746,30 @@ class ReelForge(App):
         self.update_video_detail()
 
     def action_export_csv(self) -> None:
-        """Every video's numbers as a spreadsheet file (data/exports/), shown in Explorer."""
+        """Every video's numbers as a spreadsheet file (data/exports/), shown in Explorer: when it went up (this
+        computer's date, weekday and hour, and the platform's own time in UTC) and its views 1, 6 and 24 hours in
+        (empty where ReelForge wasn't reading then, or the video isn't that old yet)."""
         import csv
 
         folder = config.DATA_DIR / "exports"
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"videos-{datetime.now():%Y%m%d-%H%M}.csv"
-        fields = ["platform", "title", "episode", "posted", "age_hours", "views", "likes", "comments", "shares",
-                  "engagement", "share_rate", "views_per_hour", "score", "score_on_platform", "url"]
+        fields = ["platform", "title", "episode", "posted", "posted_weekday", "posted_hour", "posted_utc",
+                  "age_hours", "views", *(f"views_after_{h}h" for h in analytics.AFTER_HOURS), "likes", "comments",
+                  "shares", "engagement", "share_rate", "views_per_hour", "score", "score_on_platform", "url"]
         try:
             with path.open("w", newline="", encoding="utf-8-sig") as f:  # the BOM makes Excel read it as UTF-8
                 out = csv.writer(f)
                 out.writerow(fields)
                 for p in sorted(self.posts, key=lambda q: q["published_at"], reverse=True):
+                    local = p["published"].astimezone()
+                    after = p.get("after", {})
                     out.writerow([self.platforms[p["platform"]].name, _cell(p["title"]), _cell(p["episode"]),
-                                  p["published"].astimezone().strftime("%Y-%m-%d %H:%M"), round(p["age_h"], 1),
-                                  p["views"], p["likes"], p["comments"], p["shares"],
+                                  local.strftime("%Y-%m-%d %H:%M"), local.strftime("%A"), local.hour,
+                                  p["published"].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                  round(p["age_h"], 1), p["views"],
+                                  *(None if after.get(h) is None else round(after[h]) for h in analytics.AFTER_HOURS),
+                                  p["likes"], p["comments"], p["shares"],
                                   None if p["eng"] is None else round(p["eng"], 4),
                                   None if p["share_rate"] is None else round(p["share_rate"], 4),
                                   round(p["vph"], 1), None if p["score"] is None else round(p["score"], 2),
@@ -1209,6 +1225,14 @@ class ReelForge(App):
             done = bool(video and episode and any(q["episode_id"] == episode["id"] and q["platform"] == p.key
                                                   for q in self.posts))
             self.query_one(f"#open-{p.key}", Button).label = f"{p.name} {'✓' if done else '→'}"
+
+    def update_best_time(self) -> None:
+        """Under the videos: each platform's best part of the day so far, and when it next comes round (besttime)."""
+        self.query_one("#best-title", ActionText).set_parts([
+            (Text("BEST TIME TO POST  ", style="bold"), 0), (Text("by views in each video's first day", style=MUTED), 1)])
+        found = besttime.best_times(self.posts, self.platforms)
+        for p in self.platforms.values():
+            self.query_one(f"#best-{p.key}", ActionText).set_parts(besttime.parts(found[p.key], tag(p)))
 
     def form_item(self) -> PublishItem:
         return PublishItem(
@@ -1884,12 +1908,6 @@ def _clock(fr: trends.Frame):
     return lambda pw: charts.clock_labels(fr.starts, pw, fr.step.total_seconds() / 3600)
 
 
-def _hours(a: datetime, b: datetime) -> str:
-    """A bucket's hours: 6–8 PM, 10 AM–2 PM."""
-    start, end = fmt_clock(a).replace(":00", ""), fmt_clock(b).replace(":00", "")
-    return f"{start[:-3]}–{end}" if start[-2:] == end[-2:] else f"{start}–{end}"
-
-
 def _days(a: datetime, b: datetime) -> str:
     """A bucket's days: Oct 20, or Oct 20–22 when it's several days combined."""
     last = (b - timedelta(hours=12)).date()  # the bucket's last day (b is the midnight after it)
@@ -1906,7 +1924,7 @@ def _slot_label(fr: trends.Frame, i: int) -> str:
         return days if "–" in days else f"{a:%a} {days}"
     if fr.hourly:
         return f"{a:%a} {fmt_clock(a).replace(':00', '')}"
-    return f"{a:%a} {_hours(a, b)}"
+    return f"{a:%a} {fmt_hours(a, b)}"
 
 
 def _when(fr: trends.Frame, i: int) -> str:
@@ -1916,4 +1934,4 @@ def _when(fr: trends.Frame, i: int) -> str:
         days = _days(a, b)
         return days if "–" in days else f"on {days}"
     day = "" if a.date() == fr.now.date() else f" {a:%a}"
-    return (f"at {fmt_clock(a).replace(':00', '')}" if fr.hourly else _hours(a, b)) + day
+    return (f"at {fmt_clock(a).replace(':00', '')}" if fr.hourly else fmt_hours(a, b)) + day
