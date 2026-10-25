@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 from datetime import datetime
 
 try:
@@ -87,14 +88,8 @@ def main(argv: list[str] | None = None) -> int:
         import ctypes
 
         ctypes.windll.kernel32.SetConsoleTitleW(app.title)  # the terminal tab's name
-        try:  # the anvil on ReelForge's tab in Windows Terminal (studio/terminal_profile.py)
-            from studio import terminal_profile
-
-            terminal_profile.ensure()
-        except Exception:
-            pass  # a nicety: never a reason not to open
+        threading.Thread(target=_terminal_profile, daemon=True).start()
     app.run()
-    import threading
 
     if any(t.is_alive() and not t.daemon for t in threading.enumerate() if t is not threading.main_thread()):
         print("Finishing the stats read that was running (it closes its browser first)…")
@@ -102,6 +97,17 @@ def main(argv: list[str] | None = None) -> int:
     if code == 75:
         print("ReelForge updated itself; starting it again…")
     return code
+
+
+def _terminal_profile() -> None:
+    """The anvil on ReelForge's tab in Windows Terminal (studio/terminal_profile.py), checked in the background each
+    time ReelForge opens: a nicety, never a reason not to open."""
+    try:
+        from studio import terminal_profile
+
+        terminal_profile.ensure()
+    except Exception:
+        pass
 
 
 def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:

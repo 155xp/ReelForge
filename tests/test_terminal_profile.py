@@ -44,6 +44,7 @@ class Profile(unittest.TestCase):
         self.assertEqual(str(v5(v5(fragments, "Git"), "Git Bash")), "2ece5bfe-50ed-5f3a-ab87-5cd4baafed2b")  # docs
         self.assertEqual(f"{{{v5(v5(fragments, 'ReelForge'), 'ReelForge')}}}", T.GUID)
 
+    @unittest.skipUnless(os.name == "nt", "PowerShell writes the profile on Windows")
     def test_written_once_and_kept_up_to_date(self):
         self.assertIn("is in Windows Terminal", T.ensure())
         profile = json.loads((self.where / "ReelForge.json").read_text(encoding="utf-8"))["profiles"][0]
@@ -66,14 +67,26 @@ class Profile(unittest.TestCase):
             self.assertEqual(profile["startingDirectory"], str(moved))
             self.assertIn(str(moved / "ReelForge.bat"), profile["commandline"])
 
+    def test_only_a_stale_profile_is_written(self):
+        written = []
+        with mock.patch.object(T, "_write", side_effect=lambda where, files: written.append((where, list(files)))):
+            T.ensure()
+        self.assertEqual(written, [(self.where, ["reelforge-terminal.png", "ReelForge.json"])])   # the icon first
+        self.where.mkdir(parents=True)
+        for name, data in T.files().items():
+            (self.where / name).write_bytes(data)
+        with mock.patch.object(T, "_write", side_effect=AssertionError("rewrote a profile that was up to date")):
+            self.assertIn("up to date", T.ensure())
+
     def test_a_test_copy_or_a_dry_run_leaves_terminal_alone(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        touched = AssertionError("changed Windows Terminal")
+        with tempfile.TemporaryDirectory() as tmp, mock.patch("subprocess.run", side_effect=touched):
             marker = Path(tmp) / "TEST-COPY.txt"
             marker.write_text("a test copy", encoding="utf-8")
             with mock.patch.object(P, "TEST_COPY", marker):
                 self.assertIn("test copy", T.ensure())
-        with mock.patch.dict(os.environ, {"STUDIO_DRY_SYSTEM": "1"}):
-            self.assertIn("dry run", T.ensure())
+            with mock.patch.dict(os.environ, {"STUDIO_DRY_SYSTEM": "1"}):
+                self.assertIn("dry run", T.ensure())
         self.assertFalse((self.local / "Microsoft").exists())
 
 
