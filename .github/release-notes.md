@@ -1,14 +1,10 @@
-## What's new in 1.0.2
+## What's new in 1.0.3
 
-- **Install with one line, with no download warnings.** Paste the line below into PowerShell: it downloads ReelForge
-  straight from GitHub, checks it and starts setup.
-- **Notifications take you there.** Click one and ReelForge shows what it's about: the video on Videos, the finished
-  video on Publish, the platform on Accounts.
-- **A sharper anvil** in the top-left, however you open ReelForge.
-- **Test copies stay out of the way.** A ReelForge folder with a `TEST-COPY.txt` in it says TEST, and never touches
-  the `reelforge` command, the hourly stats job or the desktop shortcut.
-- **A new README** with the demo videos, fresh screenshots and the steps after onboarding. The setup screens drop the
-  line under the logo.
+- **A setup that stops part way repairs itself.** If setup's window was closed (or Ctrl+C was pressed) while it was
+  making ReelForge's Python environment, every later open crashed with "No module named 'rich'", and running setup
+  again didn't help. Now ReelForge notices, makes that environment again and carries on with setup.
+- **The one-line install works with a short user folder name** (such as `C:\Users\JOHNSM~1`), which used to stop it
+  before setup.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

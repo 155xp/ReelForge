@@ -7,5 +7,5 @@
 
 KIT_NAME = "ReelForge"
 KIT_SLUG = "reelforge"
-KIT_VERSION = "1.0.2"
+KIT_VERSION = "1.0.3"
 BLENDER_VERSION = "4.5.5"   # the Blender LTS the pipeline is built and tested on (any 4.5.x works)
