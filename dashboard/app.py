@@ -58,7 +58,8 @@ THEME = Theme(
 )
 
 METRICS = ("views", "followers", "likes")
-TOP_COLUMNS = [("title", "Title", 20), ("age_h", "Age", 5), ("views", "Views", 8), ("score", "Score", 7)]
+TOP_COLUMNS = [("title", "Title", 20), ("age_h", "Age", 5), ("views", "Views", 8), ("views_12h", "12h", 6),
+               ("score", "Score", 7)]  # app.tcss #side is wide enough for them all, and a scrollbar
 VIDEO_COLUMNS = [  # (key, label, width); Views 12h is wide enough for its ▼ when the table is sorted by it
     ("platform", "", 4), ("title", "Title", 40), ("age_h", "Age", 5), ("views", "Views", 8),
     ("views_12h", "Views 12h", 11), ("likes", "Likes", 7), ("comments", "Cmts", 6), ("shares", "Shares", 6),
@@ -656,13 +657,13 @@ class ReelForge(App):
         rows = [(trends.distinct_title(titles.get(p["episode_id"]) or videos.strip_hashtags(p["title"] or ""),
                                        list(titles.values())) or "(untitled)", p) for p in ranked]
         key, reverse = self.top_sort
-        rows.sort(key=lambda r: r[0].lower() if key == "title" else r[1][key] or 0, reverse=reverse)
+        rows.sort(key=lambda r: r[0].lower() if key == "title" else _value(r[1], key) or 0, reverse=reverse)
         for k, label, _ in TOP_COLUMNS:
             arrow = (" ▼" if reverse else " ▲") if k == key else ""
             top.columns[ColumnKey(k)].label = Text(label + arrow, style="bold")
         for name, p in rows:
-            top.add_row(tag(self.platforms[p["platform"]]), name, fmt_age(p["age_h"]),
-                        num(p["views"]), score_text(p["score"]), key=f"{p['platform']}|{p['post_id']}")
+            top.add_row(tag(self.platforms[p["platform"]]), name, fmt_age(p["age_h"]), num(p["views"]),
+                        _after(p, 12), score_text(p["score"]), key=f"{p['platform']}|{p['post_id']}")
         self._restore_cursor(top, keep)
 
     def update_latest(self) -> None:
@@ -715,7 +716,7 @@ class ReelForge(App):
         rows = [p for p in self.posts if not self.filter or p["platform"] == self.filter]
 
         def sort_value(p):
-            v = p["after"][12] if key == "views_12h" else p.get(key)
+            v = _value(p, key)
             if key in ("title", "platform"):
                 return (v or "").lower()
             return v if v is not None else float("-inf")
@@ -1925,6 +1926,11 @@ def _cell(text: str | None) -> str:
     """Spreadsheet-safe text: a leading = + - or @ would make Excel run it as a formula."""
     text = text or ""
     return "'" + text if text[:1] in ("=", "+", "-", "@") else text
+
+
+def _value(p: dict, key: str):
+    """A post's number in a table's column, for sorting: Views 12h (views_12h) is its views 12 hours in."""
+    return p["after"][12] if key == "views_12h" else p.get(key)
 
 
 def _after(p: dict, hours: int) -> Text:

@@ -186,9 +186,10 @@ OptionList:focus > .option-list--option-highlighted {
     width: 1fr;
 }
 
+/* Wide enough for every Top performers column (app.TOP_COLUMNS), a scrollbar and the box round them. */
 #side {
     width: 1fr;
-    min-width: 60;
+    min-width: 68;
     max-width: 72;
 }
 

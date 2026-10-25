@@ -235,6 +235,39 @@ class AppTest(unittest.TestCase):
         self.assertEqual(known, sorted(known, reverse=True))
         self.assertTrue(all(p["after"][12] is None for p in posts[len(known):]))  # the rest go last
 
+    def test_top_performers_have_their_views_12_hours_in_and_every_column_shows(self):
+        from textual.widgets import DataTable
+
+        from dashboard.app import _after
+
+        app, _ = self.demo_app("overview")
+
+        async def main() -> tuple[list[tuple[str, str]], str, list[int]]:
+            sideways = []
+            async with app.run_test(size=(180, 50)) as pilot:  # the README's pictures: the narrowest Top performers
+                await pilot.pause(0.3)
+                top = app.query_one("#top-table", DataTable)
+                sideways.append(top.max_scroll_x)
+                columns = list(top.columns.values())
+                at = [c.key.value for c in columns].index("views_12h")
+                await pilot.click("#top-table", offset=(sum(c.get_render_width(top) for c in columns[:at]) + 2, 0))
+                await pilot.pause(0.2)
+                cells = [(row.key.value, top.get_cell(row.key, columns[at].key).plain) for row in top.ordered_rows]
+                await pilot.resize_terminal(180, 38)  # too short for all 15: a scrollbar takes 2 more cells
+                await pilot.pause(0.3)
+                sideways.append(top.max_scroll_x)
+                return cells, columns[at].label.plain, sideways
+
+        cells, label, sideways = asyncio.run(main())
+        self.assertEqual(sideways, [0, 0])  # nothing hides off to the right
+        self.assertEqual(app.top_sort, ("views_12h", True))
+        self.assertEqual(label, "12h ▼")
+        posts = [app._post_for(key) for key, _ in cells]
+        self.assertEqual([text for _, text in cells], [_after(p, 12).plain for p in posts])
+        known = [p["after"][12] for p in posts if p["after"][12] is not None]
+        self.assertGreater(len(known), 4)
+        self.assertEqual(known, sorted(known, reverse=True))
+
     def test_csv_has_when_each_post_went_up_and_its_early_views(self):
         from dashboard import config, desktop
 

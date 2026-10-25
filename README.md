@@ -92,10 +92,10 @@ ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to 
 ### Overview
 
 Followers, views and likes on every platform, hour by hour, with a mark where each video went up, plus your top
-videos and how the latest one is doing. The bell at the top right collects milestones, new videos ready to post and
-updates, and gets a red dot when there's something new. Click a notification to see what it's about: a video that's
-taking off opens on the Videos tab, highlighted, and a finished video is picked out on Publish. The big × on a
-notification's right deletes it, and Clear all deletes them all.
+videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right collects
+milestones, new videos ready to post and updates, and gets a red dot when there's something new. Click a
+notification to see what it's about: a video that's taking off opens on the Videos tab, highlighted, and a finished
+video is picked out on Publish. The big × on a notification's right deletes it, and Clear all deletes them all.
 
 <p align="center">
   <img src="docs/screenshots/app-notifications.png" width="49%" alt="The Overview tab with the notifications open">
