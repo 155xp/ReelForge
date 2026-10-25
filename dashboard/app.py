@@ -27,9 +27,9 @@ from textual.worker import get_current_worker
 
 from . import analytics, badges, besttime, charts, config, db, desktop, notify, sync, trends, videos
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
-from .platforms import Platform, PlatformError, PublishItem, browser
+from .platforms import Platform, PlatformError, PublishItem, browser, connected
 from .platforms.base import Account, Post
-from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
+from .screens import Disconnect, EpisodePicker, HelpScreen, LogStats, SignUp, VideoMenu
 from .widgets import (BAD, GOOD, MUTED, SCREENSHOTS, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell,
                       ChartPanel, Logo, NoteCard, NoteList, PlatformCard, TotalCard, VideoList, change_text, chip,
                       chips, clickable, frame, legend, num, score_text, tag)
@@ -39,6 +39,10 @@ try:  # the ReelForge folder's own package: its version and the updater
     from studio import update as kit_update
 except Exception:  # run on its own, outside a ReelForge folder
     KIT_VERSION, kit_update = "", None
+try:  # the sign-up guides and how a typed handle is read (the ReelForge folder's too)
+    from studio import signup
+except Exception:
+    signup = None
 
 # A test copy (a second ReelForge folder for trying changes, marked by TEST-COPY.txt; see studio/paths.py) says TEST
 # in the header and the window title, so it's never mistaken for the real one.
@@ -68,6 +72,11 @@ VIDEO_COLUMNS = [  # (key, label, width); Views 12h is wide enough for its ▼ w
     ("eng", "Eng", 6), ("share_rate", "Share", 6), ("vph", "Views/h", 7), ("score", "Score", 6),
     ("pscore", "On plat.", 8),
 ]
+COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"),  # the Publish tab's copy button under each platform's
+          "youtube": ("copy-youtube", "Copy YouTube hashtags"),
+          "instagram": ("copy-instagram", "Copy Instagram text"),
+          "x": ("copy-caption", "Copy caption")}  # the caption is the X text
+NOTHING_CONNECTED = "Connect an account on the Accounts tab (5) to see your stats here."
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
@@ -127,14 +136,20 @@ class ReelForge(App):
         Binding("escape", "leave_field", "Leave field", show=False),
     ]
 
-    def __init__(self, cfg: dict, platforms: dict[str, Platform], demo: bool = False, tab: str = "overview",
+    def __init__(self, cfg: dict, platforms: dict[str, Platform], demo: bool = False, tab: str | None = None,
                  drawer: bool = False):
+        """platforms: every platform (TikTok, YouTube, Instagram, X). Only the connected ones show (self.platforms,
+        see Platform.connected); the Accounts tab has all of them, to connect the others. tab: the one to open on
+        (None: the Overview, or Accounts while nothing is connected)."""
         super().__init__()
         # No animations: the tab underline (and scrolling) jump straight to where they're going.
         self.animation_level = "none"
-        self.cfg, self.platforms, self.demo = cfg, platforms, demo
-        self.start_tab = tab if tab in TABS else "overview"
+        self.cfg, self.every, self.demo = cfg, platforms, demo
+        self.stored: set[str] = self._safe(db.stored_platforms, set())  # platforms with stats (Platform.connected)
+        self.platforms: dict[str, Platform] = connected(self.every, self.stored)
+        self.start_tab = tab if tab in TABS else "overview" if self.platforms or tab else "accounts"
         self.start_drawer = drawer
+        self.config_seen = _mtime(config.CONFIG_PATH)  # another window connecting a platform changes it
         self.title = "ReelForge TEST" if TEST_COPY else "ReelForge"  # the terminal tab's name, whatever the channel
         self.note_seen = 0  # the newest notification already shown as a pop-up
         self.update_info: dict | None = None  # the last answer from the update check (studio.update.check)
@@ -177,7 +192,9 @@ class ReelForge(App):
     # --- layout ---------------------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        ps = list(self.platforms.values())
+        # Every platform's pieces are made, and only the connected ones show (show_platforms), so connecting one
+        # switches it on in place.
+        ps = list(self.every.values())
         with Horizontal(id="top"):
             with Horizontal(id="header"):
                 yield Logo(id="logo")
@@ -252,43 +269,35 @@ class ReelForge(App):
                              MUTED),
                         ), classes="box-title", id="manual-heading")
                         # Each copy button sits under its platform's button, both as wide as the wider label.
-                        copies = {"tiktok": ("copy-tiktok", "Copy TikTok text"),
-                                  "youtube": ("copy-youtube", "Copy YouTube hashtags"),
-                                  "instagram": ("copy-instagram", "Copy Instagram text"),
-                                  "x": ("copy-caption", "Copy caption")}  # the caption is the X text
-                        widths = {p.key: max(len(f"{p.name} →"), len(copies.get(p.key, ("", ""))[1])) + 4 for p in ps}
-                        open_all = f"Open all {len(ps)} →"
+                        widths = {p.key: max(len(f"{p.name} →"), len(COPIES.get(p.key, ("", ""))[1])) + 4 for p in ps}
                         # In a window too narrow for every button, the two rows scroll sideways together (Tab
                         # still reaches every button: a focused one scrolls into view).
                         with ScrollableContainer(id="manual-rows") as rows:
                             rows.can_focus = False
                             with Horizontal(classes="manual-row"):
-                                btn = Button(open_all, id="open-all", variant="primary")
-                                btn.styles.width = len(open_all) + 4
-                                yield btn
+                                yield Button("Open all →", id="open-all", variant="primary")  # see show_platforms
                                 for p in ps:
                                     btn = Button(f"{p.name} →", id=f"open-{p.key}", classes="open-btn")
                                     btn.styles.width = widths[p.key]
                                     yield btn
                                 yield Button("Show file", id="reveal")
                             with Horizontal(classes="manual-row"):
-                                spacer = Static(classes="copy-spacer")
-                                spacer.styles.width = len(open_all) + 4  # under "Open all"
-                                yield spacer
+                                yield Static(id="copy-spacer", classes="copy-spacer")  # under "Open all"
                                 for p in ps:
-                                    if p.key in copies:
-                                        btn_id, label = copies[p.key]
+                                    if p.key in COPIES:
+                                        btn_id, label = COPIES[p.key]
                                         btn = Button(label, id=btn_id, classes="copy-btn")
                                         btn.styles.width = widths[p.key]
                                         yield btn
-                                if "x" not in self.platforms:
-                                    yield Button("Copy caption", id="copy-caption", classes="copy-btn")
+                                # The caption on its own, for when X (whose post it is) isn't connected.
+                                yield Button("Copy caption", id="copy-caption-alone", classes="copy-btn")
                         yield ActionText(id="uploads-heading", classes="box-title")
                         yield DataTable(id="uploads-table", cursor_type="row")
             with TabPane("Accounts", id="accounts"):
+                yield ActionText(id="accounts-hint", classes="hint")
                 with Grid(id="accounts-grid"):
                     for p in ps:
-                        yield AccountPanel(p, self.demo)
+                        yield AccountPanel(p, self.demo, self.stored)
             with TabPane("Updates", id="updates"):
                 with Vertical(id="update-box", classes="box"):
                     yield Static(id="update-status")
@@ -323,6 +332,7 @@ class ReelForge(App):
 
         self.last_seen = db.get_meta("last_seen")  # totals when ReelForge was last open, for "since you last looked"
         self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
+        self.show_platforms()
         self.reload()
         self.scan_files()
         self.update_notes()
@@ -337,6 +347,40 @@ class ReelForge(App):
         self.set_interval(WATCH_EVERY, self.keep_in_step)
         # Say what changed while ReelForge was closed once the first refresh is in (or after a while without one).
         self.set_timer(45, self.welcome_back)
+
+    def show_platforms(self) -> None:
+        """Only the connected platforms (self.platforms) show anywhere: their cards, Compare charts, Publish buttons
+        and best-time lines. The rest are hidden until you connect them on the Accounts tab."""
+        on = self.platforms
+        for key in self.every:
+            for selector in (f"#card-{key}", f"#compare-{key}", f"#best-{key}", f"#open-{key}",
+                             f"#{COPIES[key][0]}"):
+                self.query_one(selector).display = key in on
+        # The All platforms card adds up two or more (or says how to connect the first one).
+        self.query_one("#card-total").display = len(on) != 1
+        open_all = self.query_one("#open-all", Button)
+        open_all.label = f"Open all {len(on)} →"
+        open_all.display = len(on) > 1
+        open_all.styles.width = len(str(open_all.label)) + 4
+        spacer = self.query_one("#copy-spacer")
+        spacer.display = open_all.display
+        spacer.styles.width = open_all.styles.width
+        self.query_one("#copy-caption-alone").display = bool(on) and "x" not in on
+        self.hidden_lines &= set(on)
+        if self.filter not in on:
+            self.filter = None
+        missing = [p for k, p in self.every.items() if k not in on]
+        hint = self.query_one("#accounts-hint", ActionText)
+        hint.display = bool(missing)
+        if not on:
+            hint.set_parts([
+                (Text("Connect the platforms you post to: ReelForge only shows the ones you've connected.  ",
+                      style=MUTED), 1),
+                (Text("Starting from scratch? ", style="bold"), 0), (chip("Make a Gmail first", "gmail"), 0),
+                (Text("  it's your YouTube login, and the others can sign up with the same email.", style=MUTED), 2)])
+        elif missing:
+            hint.set_parts([(Text(f"Only connected platforms show up in ReelForge. Connect {_either(missing)} here "
+                                  "any time.", style=MUTED), 0)])
 
     def totals(self) -> dict[str, float | None]:
         out = {}
@@ -375,10 +419,16 @@ class ReelForge(App):
                            key=f"hot:{p['platform']}|{p['post_id']}")
         badges.notify_new(self.posts, self.first_day, self.account_rows, self.platforms)
 
+    def shows_note(self, note: dict) -> bool:
+        """Whether a notification is in the drawer: not one about a platform that isn't connected (it's back once you
+        connect that platform again)."""
+        key = notify.platform_of(note, {k: p.name for k, p in self.every.items()})
+        return key is None or key in self.platforms
+
     def show_new_notes(self) -> None:
         """Pop up what's been added since the last look (a few at most), then refresh the bell and the drawer."""
         new = self._safe(lambda: notify.since(self.note_seen), [])
-        for n in new[-4:]:
+        for n in [n for n in new if self.shows_note(n)][-4:]:
             kind = notify.KINDS.get(n["kind"], notify.KINDS["info"])
             self.notify(n["body"] or "", title=f"{kind[0]} {n['title']}", timeout=12,
                         severity="error" if n["kind"] == "login" else "information")
@@ -470,6 +520,7 @@ class ReelForge(App):
         """Every second, and after each of this window's own reads (read_here): what the other ReelForge windows, and
         the hourly job, are up to. A read one of them has under way shows in the header, one it finished shows here
         too, and so do its notifications and errors."""
+        self.follow_config()  # a platform another window connected or disconnected
         try:
             with db.connect() as c:  # one quick look at the store
                 state, changes, notes = sync.shared(c), db.changes(c), notify.signature(c)
@@ -586,6 +637,10 @@ class ReelForge(App):
             t.append("● " if live else "○ ", style=Style(color=color) + clickable("tab('accounts')"))
             t.append(p.name, style=Style(color=color, bold=live) + clickable("tab('accounts')"))
             t.append("    ")
+        if not self.platforms:
+            t.append("No accounts connected yet  ", style=MUTED)
+            t.append_text(chip("Connect one", "tab('accounts')"))
+            t.append("    ")
         stamps = [r["ts"] for r in self.latest.values()]
         t.append(f"updated {fmt_ago(max(stamps) if stamps else None)}", style=MUTED)
         status = self.status or self.elsewhere  # this window's read, or another one's (see keep_in_step)
@@ -625,7 +680,7 @@ class ReelForge(App):
         self.query_one("#card-total", TotalCard).show(
             {f: sum(v) if v else None for f, v in totals.items()},
             {f: sum(v) if v else None for f, v in changes.items()},
-            _from_first(sums), sum(1 for k in self.platforms if k in self.latest), captions)
+            _from_first(sums), sum(1 for k in self.platforms if k in self.latest), captions, len(self.platforms))
 
     def update_trends(self) -> None:
         fr = trends.frame(self.range, analytics.now())
@@ -667,7 +722,8 @@ class ReelForge(App):
             self.trend_state.pop(metric, None)
             self.trend_views.pop(metric, None)
             panel.set_title(Text(metric.upper(), style="bold"))
-            panel.show_empty("Every platform is hidden: click a name above to show it again." if not visible
+            panel.show_empty(NOTHING_CONNECTED if not self.platforms else
+                             "Every platform is hidden: click a name above to show it again." if not visible
                              else None)
             return
         series = self.chart_series(pts, visible, fr)
@@ -1427,6 +1483,7 @@ class ReelForge(App):
         item = self.form_item()
         text, what = {
             "copy-caption": (item.title, "Caption"),
+            "copy-caption-alone": (item.title, "Caption"),
             "copy-tiktok": (item.text_for("tiktok"), "TikTok text"),
             "copy-instagram": (item.text_for("instagram"), "Instagram text"),
             "copy-youtube": (item.text_for("youtube"), "YouTube hashtags"),
@@ -1522,15 +1579,15 @@ class ReelForge(App):
 
     @on(Button.Pressed, ".login-btn")
     def login_button(self, event: Button.Pressed) -> None:
-        p = self.platforms[event.button.id.split("-", 1)[1]]
+        p = self.every[event.button.id.split("-", 1)[1]]
         if not p.public_handle:
-            self.notify(f'Add handle = "@you" under [{p.key}] in config.toml first.', severity="warning")
+            self.notify(f"Connect {p.name} with your @handle first.", severity="warning")
             return
         self.run_browser_login(p)
 
     @on(Button.Pressed, ".profile-btn")
     def profile_button(self, event: Button.Pressed) -> None:
-        p = self.platforms[event.button.id.split("-", 1)[1]]
+        p = self.every[event.button.id.split("-", 1)[1]]
         if p.public_handle:
             desktop.open_url(desktop.profile_url(p.key, p.public_handle))
 
@@ -1540,11 +1597,127 @@ class ReelForge(App):
 
     @on(Button.Pressed, ".refresh-btn")
     def refresh_button(self, event: Button.Pressed) -> None:
-        p = self.platforms[event.button.id.split("-", 1)[1]]
+        p = self.every[event.button.id.split("-", 1)[1]]
         if not p.has_stats:
             self.notify(f"{p.name} isn't set up yet (see the panel).", severity="warning")
             return
         self.run_refresh(True, True, p.key)
+
+    # --- connecting and disconnecting -------------------------------------------------------
+
+    @on(Button.Pressed, ".connect-btn")
+    @on(Input.Submitted, ".connect-handle")
+    def connect_button(self, event) -> None:
+        """Connect: the handle typed into a panel that isn't connected yet."""
+        key = event.control.id.split("-", 1)[1]
+        self.connect(key, self.query_one(f"#handle-{key}", Input).value)
+
+    def connect(self, key: str, typed: str) -> None:
+        p, panel = self.every[key], self.query_one(f"#acct-{key}", AccountPanel)
+        try:
+            handle = signup.handle_from(typed) if signup else ("@" + typed.strip().lstrip("@") if typed.strip() else "")
+        except ValueError as e:
+            panel.error(str(e))
+            return
+        if not handle:
+            panel.error(f"Type your {p.name} @handle first, or press Sign up to make the account.")
+            return
+        panel.error("")
+        if self.demo:
+            self.notify("Demo mode: nothing is saved.", timeout=4)
+            return
+        self.save_account(p, handle)
+
+    @on(Button.Pressed, ".signup-btn")
+    def signup_button(self, event: Button.Pressed) -> None:
+        """No account yet: the platform's sign-up guide, then Connect with the handle you made."""
+        key = event.button.id.split("-", 1)[1]
+        if signup is None:
+            return
+        typed = self.query_one(f"#handle-{key}", Input).value
+
+        def got(handle: str | None) -> None:
+            if handle:
+                self.query_one(f"#handle-{key}", Input).value = handle
+                self.connect(key, handle)
+
+        self.push_screen(SignUp(signup.GUIDES[key], typed, signup.open_page), got)
+
+    def action_gmail(self) -> None:
+        if signup is not None:
+            self.push_screen(SignUp(signup.GMAIL, "", signup.open_page))
+
+    def action_disconnect(self, key: str) -> None:
+        p = self.every.get(key)
+        if p is None or not p.public_handle:
+            return
+        if self.demo:
+            self.notify("Demo mode: nothing is saved.", timeout=4)
+            return
+        self.push_screen(Disconnect(p), lambda yes: yes and self.save_account(p, ""))
+
+    @work(thread=True, group="accounts", exit_on_error=False)
+    def save_account(self, p: Platform, handle: str) -> None:
+        """Connect a platform with its handle, or disconnect it (""): your settings change (config.save_handle), then
+        it shows up everywhere, or leaves, straight away."""
+        try:
+            config.save_handle(p.key, handle)
+        except Exception as e:
+            self.call_from_thread(self.notify, f"Couldn't save {p.name}'s handle: {e}", severity="error", timeout=12)
+            return
+        self.call_from_thread(self.account_saved, p, handle)
+
+    async def account_saved(self, p: Platform, handle: str) -> None:
+        p.cfg["handle"] = handle
+        self.config_seen = _mtime(config.CONFIG_PATH)
+        await self.follow_connections()
+        self.tell_others()
+        if not handle:
+            self.notify(f"ReelForge stops reading {p.name} and hides it everywhere. Its stats so far stay saved: "
+                        "connect it again to see them.", title=f"{p.name} disconnected", timeout=12)
+        elif p.key in self.platforms:
+            self.notify(f"Reading {handle}'s stats now…", title=f"{p.name} connected", timeout=8)
+            self.run_refresh(True, True, p.key)
+        else:  # Instagram and X: the one log-in comes next (its own message says where)
+            self.run_browser_login(p)
+
+    async def follow_connections(self) -> None:
+        """Show what's connected now, everywhere: after a connect or a disconnect (here or in another window), a
+        log-in, or a platform's first stats."""
+        self.stored = self._safe(db.stored_platforms, self.stored)
+        now = connected(self.every, self.stored)
+        for panel in self.query(AccountPanel):
+            await panel.follow(self.stored)
+        if list(now) != list(self.platforms):
+            self.platforms = now
+            self.show_platforms()
+            self.reload()
+            self.update_notes()
+        else:
+            self.show_platforms()  # the Accounts hint
+            self.update_accounts()
+        self.update_header()
+
+    def follow_config(self) -> None:
+        """Another ReelForge window connected or disconnected a platform: its handle changed in config.toml."""
+        if self.demo:
+            return
+        seen = _mtime(config.CONFIG_PATH)
+        if seen == self.config_seen:
+            return
+        self.config_seen = seen
+        try:
+            fresh = config.load_config()
+        except config.ConfigError:
+            return
+        changed = False
+        for key, p in self.every.items():
+            handle = str((fresh.get(key) or {}).get("handle", ""))
+            if handle != str(p.cfg.get("handle", "")):
+                p.cfg["handle"] = handle
+                changed = True
+        if changed and not self.demo:
+            self.call_later(self.follow_connections)
 
     @work(thread=True, group="login", exit_on_error=False)
     def run_browser_login(self, p: Platform) -> None:
@@ -1560,15 +1733,14 @@ class ReelForge(App):
             self.call_from_thread(self.notify, msg, title=f"{p.name} not logged in", severity="error", timeout=15)
             return
         self.call_from_thread(self.notify, f"Logged in to {p.name}. Reading your stats now…")
-        self.call_from_thread(self.update_accounts)
-        self.call_from_thread(self.update_header)
+        self.call_from_thread(self.follow_connections)  # connected now, if it was waiting for this
         self.call_from_thread(self.run_refresh, True, True, p.key)
 
     # --- typed-in stats --------------------------------------------------------------------
 
     def action_log_stats(self, start: str | None = None) -> None:
         """Type in numbers for platforms ReelForge can't read itself (Instagram and X before logging in)."""
-        manual = [p for p in self.platforms.values() if not p.has_stats]
+        manual = [p for p in self.every.values() if p.public_handle and not p.has_stats]
         if not manual:
             self.notify("Every platform already gets its stats automatically.")
             return
@@ -1590,7 +1762,7 @@ class ReelForge(App):
         if not result:
             return
         key, followers, views = result
-        p = self.platforms[key]
+        p = self.every[key]
         episodes = {e["id"]: e for e in db.episodes()}
         posts = []
         for episode_id, n in views.items():
@@ -1611,6 +1783,8 @@ class ReelForge(App):
         self.tell_others()
         self.notify(f"{p.name} stats saved.", timeout=3)
         self.reload()
+        if key not in self.platforms:  # its first numbers connect it
+            self.call_later(self.follow_connections)
 
     # --- fixing an episode link --------------------------------------------------------------
 
@@ -1655,7 +1829,7 @@ class ReelForge(App):
     def update_notes(self) -> None:
         """The bell's red dot, and the drawer's list (newest first)."""
         self.notes_sig = self._safe(notify.signature, None)  # first: a change after it shows next (keep_in_step)
-        notes = self._safe(notify.recent, [])
+        notes = [n for n in self._safe(notify.recent, []) if self.shows_note(n)]
         self.update_bell(notes)
         box = self.query_one("#notes", NoteList)
         keep = box.highlighted
@@ -1786,7 +1960,7 @@ class ReelForge(App):
             note_id = int(option.id[5:])
         drawn = self._safe(notify.signature, None) == self.notes_sig  # the drawer shows every change so far
         notify.delete(note_id)
-        notes = self._safe(notify.recent, [])
+        notes = [n for n in self._safe(notify.recent, []) if self.shows_note(n)]
         if notes:
             box.drop(f"note-{note_id}")  # where it is: deleting one far down doesn't jump the list back to the top
             self.update_bell(notes)
@@ -2025,6 +2199,19 @@ class ReelForge(App):
             table.move_cursor(row=table.get_row_index(key))
         except Exception:
             pass
+
+
+def _either(ps: list[Platform]) -> str:
+    """'Instagram', 'Instagram or X', 'TikTok, Instagram or X'."""
+    names = [p.name for p in ps]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " or " + names[-1]
+
+
+def _mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
 
 
 def _hours_since(ts: str | None) -> float:

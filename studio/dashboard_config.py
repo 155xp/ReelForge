@@ -118,6 +118,34 @@ def write(s: dict) -> list[Path]:
     return [target]
 
 
+def handles() -> dict[str, str] | None:
+    """Each platform's handle in the dashboard's settings now ("" for none), or None if they can't be read.
+    Connecting a platform on ReelForge's Accounts tab sets one there, disconnecting it clears it."""
+    target = P.DASHBOARD / "config.toml"
+    try:
+        data = tomllib.loads(target.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    tables = {p: data.get(p) if isinstance(data.get(p), dict) else {} for p in S.PLATFORMS}
+    return {p: str(t.get("handle", "")).strip() for p, t in tables.items()}
+
+
+def set_handle(platform: str, handle: str, target: Path | None = None) -> list[Path]:
+    """Set one platform's handle (or with "", clear it) in the dashboard's settings (or another config.toml), keeping
+    everything else in the file as it is."""
+    example = P.DASHBOARD / "config.example.toml"
+    target = target or P.DASHBOARD / "config.toml"
+    if not example.exists() and not target.exists():
+        return []
+    base = target.read_text(encoding="utf-8") if target.exists() else example.read_text(encoding="utf-8")
+    text = set_keys(base, {platform: {"handle": handle}})
+    tomllib.loads(text)            # never write a config the dashboard can't read
+    tmp = target.with_suffix(".tmp")
+    tmp.write_text(text, encoding="utf-8", newline="\n")
+    tmp.replace(target)            # all at once: the hourly job may be reading it
+    return [target]
+
+
 def _known_keys(example: Path) -> dict[str, set]:
     data = tomllib.loads(example.read_text(encoding="utf-8"))
     known = {"": {k for k, v in data.items() if not isinstance(v, dict)}}

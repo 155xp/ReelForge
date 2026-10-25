@@ -310,3 +310,30 @@ def write_all(answers: dict) -> list[Path]:
     from . import dashboard_config
     written += dashboard_config.write(s)
     return written
+
+
+def set_account(platform: str, handle: str) -> list[Path]:
+    """Connect a platform ("@name") or disconnect it (""), as the ReelForge window's Accounts tab does. Its handle goes
+    into the dashboard's settings and, once you've been through onboarding, into your answers too, and everything
+    onboarding writes follows: your AI's notes and caption rules then cover the platforms you're connected to, and
+    running onboarding again keeps them. Disconnecting keeps the platform in "Where will you post?" (your AI still
+    writes its captions) and only forgets the handle. Returns the paths written."""
+    from . import dashboard_config
+
+    if not P.ANSWERS.exists():
+        return dashboard_config.set_handle(platform, handle)
+    try:
+        a = json.loads(P.ANSWERS.read_text(encoding="utf-8"))
+    except ValueError:
+        return dashboard_config.set_handle(platform, handle)   # unreadable answers: leave them for onboarding
+    # The handles connected in the dashboard are the ones that count (someone may have typed one into its settings).
+    for p, h in {**(dashboard_config.handles() or {}), platform: handle}.items():
+        if h:
+            a[f"handle_{p}"] = h
+            a["platforms"] = [q for q in S.PLATFORMS if q in {*(a.get("platforms") or []), p}]
+        else:
+            a.pop(f"handle_{p}", None)
+    try:
+        return write_all(a)
+    except ValueError:                                        # answers onboarding would ask about again first
+        return dashboard_config.set_handle(platform, handle)

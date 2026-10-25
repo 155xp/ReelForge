@@ -346,7 +346,40 @@ OptionList:focus > .option-list--option-highlighted {
     border-title-style: bold;
 }
 
+/* "Connect the platforms you post to ...": while one isn't connected */
+#accounts-hint {
+    height: 1;
+    margin: 1 0 0 0;
+    text-wrap: nowrap;
+}
+
+/* each panel's first line: where its stats come from, and Disconnect at its right end */
+.acct-status {
+    height: 1;
+    text-wrap: nowrap;
+}
+
 .acct-body {
+    height: auto;
+}
+
+/* a platform that isn't connected yet: its @handle and Connect */
+.acct-connect {
+    height: 3;
+    margin-top: 1;
+}
+
+.acct-connect Input {
+    width: 1fr;
+    max-width: 40;
+    margin-right: 1;
+}
+
+.acct-connect Button {
+    margin-right: 1;
+}
+
+.acct-error {
     height: auto;
 }
 

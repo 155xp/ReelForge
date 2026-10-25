@@ -38,6 +38,20 @@ def load_config() -> dict:
     return cfg
 
 
+def save_handle(platform: str, handle: str) -> None:
+    """Connect a platform ("@name") or disconnect it (""): its handle in config.toml, the rest of the file as it was.
+    Your studio's settings follow (studio.generate.set_account), so your AI's notes cover the platforms you're
+    connected to and running onboarding again keeps them."""
+    load_config()  # config.toml from the example, if there isn't one yet
+    from studio import dashboard_config, generate
+    from studio import paths
+
+    if CONFIG_PATH.resolve() == (paths.DASHBOARD / "config.toml").resolve():
+        generate.set_account(platform, handle)
+    else:  # a config.toml somewhere else (the tests): only its handle
+        dashboard_config.set_handle(platform, handle, CONFIG_PATH)
+
+
 def resolve(path: str) -> Path:
     """Resolve a config path relative to the dashboard folder."""
     p = Path(path).expanduser()

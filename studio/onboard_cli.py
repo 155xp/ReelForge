@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from . import KIT_NAME
+from . import KIT_NAME, signup
 from .questions import QUESTIONS, STEPS, coerce, defaults_for, validate
 
 
@@ -28,6 +28,8 @@ def ask(answers: dict | None = None, inp=input, out=print) -> dict:
     out(f"\n{KIT_NAME}: set up your channel. Press Enter to keep the answer in [brackets].\n")
     for step, label in STEPS:
         out(f"\n== {label} ==")
+        if step == "accounts":
+            out(f"\nStarting from scratch? {signup.GMAIL.title} first: {signup.GMAIL.url}\n  {signup.GMAIL.why}")
         for q in QUESTIONS:
             if q.step != step or not q.visible(a):
                 continue
@@ -35,9 +37,13 @@ def ask(answers: dict | None = None, inp=input, out=print) -> dict:
                 a.pop(q.key, None)             # follow the format picked a moment ago
                 a = defaults_for(a)
             d = a.get(q.key, q.default_for(a))
-            out(f"\n{q.prompt}" + (" (required)" if q.required else ""))
+            out(f"\n{'Your ' + q.prompt + ' handle' if q.kind == 'handle' else q.prompt}" +
+                (" (required)" if q.required else ""))
             if q.help:
                 out(f"  {q.help}")
+            if q.kind == "handle":
+                out(f"  No account yet? Sign up at {signup.GUIDES[q.key.removeprefix('handle_')].url} "
+                    "(Enter skips: connect it later on ReelForge's Accounts tab)")
             if q.kind in ("choice", "multi"):
                 for n, (_, lab) in enumerate(q.options, 1):
                     out(f"  {n}. {lab}")

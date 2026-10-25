@@ -49,11 +49,17 @@ APP_SHOTS = {  # name: (tab, notifications drawer open, select the first video, 
     "updates": ("updates", False, False, GUIDE_SIZE, GUIDE),
 }
 CLICK_A_VIDEO_NOTE = {"app-notification-click", "notification-click"}  # taken after clicking one about a video
+UNCONNECTED = {"app-accounts": ("x",)}  # the platforms a shot leaves unconnected: Accounts shows X's Connect box
 FIRST_RUN_SHOTS = {  # name: (first-run screen, onboarding step)
     "first-run": ("tools", None),
     "onboarding-format": ("onboard", 2),
+    "onboarding-accounts": ("onboard", 4),
     "first-run-ready": ("done", None),
 }
+# Your accounts as a new channel sees it: the three recommended platforms, one handle typed in and two to sign up for.
+ACCOUNTS_ANSWERS = {"creator": "Sam", "channel_name": "Night Physics", "handle_tiktok": "@nightphysics",
+                    "about": "Mind-bending what-if videos: everyday things pushed to impossible extremes, with real "
+                             "science."}
 
 
 # ---------------------------------------------------------------- the screens, as SVG
@@ -93,7 +99,7 @@ async def app_shot(name: str, work: Path) -> Path:
     db.init(path)
     cfg = config.load_config()
     demo.seed(video=demo.newest_video(cfg))
-    app = ReelForge(cfg, demo.platforms(), demo=True, tab=tab, drawer=drawer)
+    app = ReelForge(cfg, demo.platforms(UNCONNECTED.get(name, ())), demo=True, tab=tab, drawer=drawer)
     async with app.run_test(size=size) as pilot:
         await pilot.pause(1.0)
         if select:
@@ -111,8 +117,10 @@ async def first_run_shot(name: str, work: Path) -> Path:
     from studio import settings as S
 
     start, step = FIRST_RUN_SHOTS[name]
-    saved = P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status
+    saved = P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status, firstrun.saved_answers
     P.ROOT = Path(r"C:\Users\you\ReelForge")          # a neutral folder in the picture
+    if name == "onboarding-accounts":
+        firstrun.saved_answers = lambda: dict(ACCOUNTS_ANSWERS)
     if start == "done":                               # a new channel's last screen, with nothing turned on here
         sample = copy.deepcopy(S.DEFAULTS)
         sample["channel"]["name"] = "Night Physics"
@@ -147,7 +155,7 @@ async def first_run_shot(name: str, work: Path) -> Path:
             await app.screen.show_step(step)
             await pilot.pause(0.4)
         app.save_screenshot(f"{name}.svg", str(work))
-    P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status = saved
+    P.ROOT, setup_flow.plan, S.load, stats_schedule.enable, command.status, firstrun.saved_answers = saved
     return work / f"{name}.svg"
 
 

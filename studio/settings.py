@@ -16,6 +16,7 @@ from .paths import SETTINGS
 
 PLATFORMS = ("tiktok", "youtube", "instagram", "x")
 PLATFORM_NAMES = {"tiktok": "TikTok", "youtube": "YouTube Shorts", "instagram": "Instagram Reels", "x": "X"}
+RECOMMENDED = ("tiktok", "youtube", "instagram")  # the three big short-video apps: onboarding ticks these to start
 
 # Loudness choices offered by onboarding (integrated LUFS). Sound-effects-only videos with heavy booms feel much
 # louder than their LUFS number suggests: -15 LUFS ("normal" for music and speech) was reported as far too loud on

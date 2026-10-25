@@ -257,11 +257,13 @@ def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str
 
 
 class DemoPlatform(Platform):
-    """Stands in for a real platform: each refresh reads the seeded posts a little further along their curves."""
+    """Stands in for a real platform: each refresh reads the seeded posts a little further along their curves. A
+    connected one has the made-up handle; one that isn't (connected=False) has none."""
 
-    def __init__(self, real: type[Platform]):
-        super().__init__({})
+    def __init__(self, real: type[Platform], connected: bool = True):
+        super().__init__({"handle": HANDLES[real.key]} if connected else {})
         self.key, self.name, self.color, self.setup_note = real.key, real.name, real.color, real.setup_note
+        self.public_stats = real.public_stats
 
     @property
     def logged_in(self) -> bool:
@@ -283,5 +285,6 @@ class DemoPlatform(Platform):
         return _read(self.key, datetime.now(timezone.utc))
 
 
-def platforms() -> dict[str, Platform]:
-    return {cls.key: DemoPlatform(cls) for cls in ORDER}
+def platforms(unconnected=()) -> dict[str, Platform]:
+    """All four, connected but for the keys in `unconnected` (what a new channel's Accounts tab looks like)."""
+    return {cls.key: DemoPlatform(cls, cls.key not in unconnected) for cls in ORDER}

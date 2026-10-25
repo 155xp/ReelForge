@@ -15,9 +15,10 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Horizontal, Vertical
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Button, OptionList, Sparkline, Static
+from textual.widgets import Button, Input, OptionList, Sparkline, Static
 from textual.widgets.option_list import OptionDoesNotExist
 
 from .analytics import fmt_ago, fmt_delta, fmt_num
@@ -592,18 +593,27 @@ class TotalCard(_Card):
         self.border_title = "All platforms"
 
     def show(self, totals: dict, changes: dict, gains: list[float], tracked: int,
-             captions: tuple[str, ...] = ()) -> None:
+             captions: tuple[str, ...] = (), connected: int = 1) -> None:
         if tracked:
             self.numbers(totals, changes)
+        elif not connected:
+            self.message(Text.assemble(("no accounts connected yet\n", MUTED), ("Accounts tab: ", MUTED),
+                                       ("connect one", "bold")))
         else:
             self.message(Text("no stats yet", style=MUTED))
         self.spark(gains, captions)
 
 
 class AccountPanel(Vertical):
-    """Where one platform's stats come from, how fresh they are, and its log-in / profile / refresh buttons."""
+    """One platform on the Accounts tab, in one of three states (see state_for):
 
-    def __init__(self, platform: Platform, demo: bool):
+      on      connected: where its stats come from, how fresh they are, its log-in / profile / refresh buttons, its
+              followers over time, and Disconnect at the right of its first line
+      login   its handle is in, waiting for the one log-in (Instagram and X): Log in, Type in stats, Disconnect
+      off     not connected: a box for your @handle and Connect, and Sign up for someone without the account yet
+    """
+
+    def __init__(self, platform: Platform, demo: bool, stored=frozenset()):
         super().__init__(classes="account", id=f"acct-{platform.key}")
         self.platform, self.demo = platform, demo
         self.color = platform.color
@@ -611,64 +621,140 @@ class AccountPanel(Vertical):
         self.pretend = demo and SCREENSHOTS
         self.logs_in = platform.browser_stats and not demo or self.pretend and platform.key in ("instagram", "x")
         self.border_title = platform.name
+        self.state = self.state_for(stored)
+
+    def state_for(self, stored) -> str:
+        p = self.platform
+        if p.connected(stored):
+            return "on"
+        return "login" if p.public_handle else "off"
+
+    async def follow(self, stored) -> bool:
+        """Show the platform's state now (after a connect, a disconnect or its first stats): True if it changed."""
+        state = self.state_for(stored)
+        if state == self.state:
+            return False
+        self.state = state
+        await self.recompose()
+        return True
 
     def compose(self) -> ComposeResult:
         # The buttons come right after the status lines, so a short window never pushes them out of sight;
         # the followers chart at the bottom takes whatever room is left.
         key = self.platform.key
+        yield ActionText(classes="acct-status")
         yield Static(classes="acct-body")
+        if self.state == "off":  # one row, so even a short window shows all three
+            with Horizontal(classes="acct-connect"):
+                yield Input(placeholder="@yourname", id=f"handle-{key}", classes="connect-handle")
+                yield Button("Connect", id=f"connect-{key}", classes="connect-btn", variant="primary")
+                yield Button("Sign up →", id=f"signup-{key}", classes="signup-btn")
+            yield Static(classes="acct-error")
+            yield Static(classes="acct-note")
+            return
         with Horizontal(classes="acct-buttons"):
             if self.logs_in:
                 yield Button("Log in", id=f"login-{key}", classes="login-btn", variant="primary")
-            yield Button("Open profile", id=f"profile-{key}", classes="profile-btn")
-            yield Button("Refresh now", id=f"refresh-{key}", classes="refresh-btn",
-                         disabled=self.demo and not self.pretend)
+            if self.state == "on":
+                yield Button("Open profile", id=f"profile-{key}", classes="profile-btn")
+                yield Button("Refresh now", id=f"refresh-{key}", classes="refresh-btn",
+                             disabled=self.demo and not self.pretend)
             # Only while ReelForge can't read this platform itself (see show()).
             yield Button("Type in stats", id=f"log-{key}", classes="log-btn")
         yield Static(classes="acct-note")
-        yield Static(classes="acct-chart-title")
-        yield Plot(classes="acct-chart")
+        if self.state == "on":
+            yield Static(classes="acct-chart-title")
+            yield Plot(classes="acct-chart")
 
     def on_mount(self) -> None:
         frame(self)
         self.styles.border_title_color = self.color
 
+    def status(self, line: Text, short: Text | None = None) -> None:
+        """The first line, with Disconnect at its right end while there's room (short: the line for a narrow panel)."""
+        out = chip("Disconnect", f"disconnect('{self.platform.key}')") if self.state != "off" else None
+
+        def parts(width: int) -> list:
+            if out is None:
+                return [(line, 0)]
+            text = next((t for t in (line, short or line) if t.cell_len + 2 + out.cell_len <= width), None)
+            if text is None:
+                return [(short or line, 0)]
+            return [(text, 0), (Text(" " * (width - text.cell_len - out.cell_len)), 0), (out, 0)]
+
+        self.query_one(".acct-status", ActionText).set_parts(parts)
+
+    def error(self, text: str) -> None:
+        """A problem with the handle typed into a panel that isn't connected yet."""
+        if self.query(".acct-error"):
+            self.query_one(".acct-error", Static).update(Text(text, style=BAD))
+
+    def show_off(self) -> None:
+        p = self.platform
+        self.status(Text("○ not connected", style=f"bold {MUTED}"))
+        then = "" if p.public_stats else ", then log in once in ReelForge's own browser window"
+        self.query_one(".acct-body", Static).update(Text(
+            f"Type your @handle and press Connect to see {p.name} in ReelForge{then}. No account yet? Sign up makes "
+            "one.", style=MUTED))
+        self.query_one(".acct-note", Static).update(Text(p.setup_note, style=MUTED))
+
     def show(self, latest, info: dict) -> None:
         """info: posts (videos tracked), since (first reading), error (last failed read), due (next refresh)."""
+        try:
+            self._show(latest, info)
+        except NoMatches:
+            pass  # changing state (follow): the window fills it in once its new parts are there
+
+    def _show(self, latest, info: dict) -> None:
+        if self.state == "off":
+            self.show_off()
+            return
         p = self.platform
         source = "demo" if self.demo and not self.pretend else p.stats_source
         if self.pretend and self.logs_in:
             source = "browser"  # what Instagram and X say once you've logged in
-        body = Text()
+        if self.state == "login":
+            source = None
         if source == "demo":
-            body.append("● demo data\n", style=f"bold {GOOD}")
+            self.status(Text("● demo data", style=f"bold {GOOD}"))
         elif source == "browser":
-            body.append(f"● reading {p.handle} through ReelForge's browser\n", style=f"bold {GOOD}")
+            self.status(Text(f"● reading {p.handle} through ReelForge's browser", style=f"bold {GOOD}"),
+                        Text(f"● reading {p.handle}", style=f"bold {GOOD}"))
         elif source == "public":
-            body.append(f"● public stats for {p.handle}\n", style=f"bold {GOOD}")
-        elif not p.public_handle:
-            body.append(f'○ add handle = "@you" under [{p.key}] in config.toml\n', style=f"bold {MUTED}")
+            self.status(Text(f"● public stats for {p.handle}", style=f"bold {GOOD}"))
+        elif self.state == "login":
+            self.status(Text(f"○ {p.handle}: log in once to finish connecting", style=f"bold {p.color}"),
+                        Text("○ log in once to finish", style=f"bold {p.color}"))
         else:
-            body.append("○ press Log in once to start tracking\n", style=f"bold {p.color}")
-        body.append(f"last refresh {fmt_ago(latest['ts'] if latest else None)}", style=MUTED)
-        if info.get("due"):
-            body.append(f" · next {info['due']}", style=MUTED)
-        body.append("\n")
-        if info.get("posts"):
-            body.append(f"{info['posts']} videos tracked", style=MUTED)
-            if info.get("since"):
-                body.append(f" · history since {info['since']}", style=MUTED)
+            self.status(Text(f"○ {p.handle}: log in again to keep tracking", style=f"bold {p.color}"),
+                        Text("○ log in again", style=f"bold {p.color}"))
+        body = Text()
+        if self.state == "login":
+            body.append(f"{p.name} shows up everywhere in ReelForge once you've logged in, or once you've typed its "
+                        "numbers in by hand.", style=MUTED)
+        else:
+            body.append(f"last refresh {fmt_ago(latest['ts'] if latest else None)}", style=MUTED)
+            if info.get("due"):
+                body.append(f" · next {info['due']}", style=MUTED)
             body.append("\n")
+            if info.get("posts"):
+                body.append(f"{info['posts']} videos tracked", style=MUTED)
+                if info.get("since"):
+                    body.append(f" · history since {info['since']}", style=MUTED)
+                body.append("\n")
         if info.get("error"):
-            body.append(f"last read failed: {info['error']}\n", style=BAD)
+            body.append(f"\nlast read failed: {info['error']}\n" if self.state == "login" else
+                        f"last read failed: {info['error']}\n", style=BAD)
         body.rstrip()
         self.query_one(".acct-body", Static).update(body)
         note = "Demo data, made up on this PC." if self.demo and not self.pretend else p.setup_note
         self.query_one(".acct-note", Static).update(Text(note, style=MUTED))
         if self.logs_in:
             self.query_one(f"#login-{p.key}", Button).label = "Log in again" if source == "browser" else "Log in"
-        self.query_one(f"#profile-{p.key}", Button).disabled = not p.public_handle and not self.pretend
         self.query_one(f"#log-{p.key}", Button).display = not p.has_stats
+        if self.state != "on":
+            return
+        self.query_one(f"#profile-{p.key}", Button).disabled = not p.public_handle and not self.pretend
         # Followers over time, when there's enough history to draw: (heading, draw, slots, describe(slot)).
         plot, title = self.query_one(Plot), self.query_one(".acct-chart-title", Static)
         self._chart = info.get("chart")

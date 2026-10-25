@@ -59,8 +59,9 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
    starts setup, so your browser, Windows and macOS have no download warning to show.
 3. **Say yes, then answer a few questions.** ReelForge lists what it still needs and, when you click **Set up**,
    downloads Blender, ffmpeg and the sound effects into its own folder (and Python too, if your Mac or Linux PC
-   doesn't have a recent one). Then it asks about your channel: what it's about, the format, where you post, and how
-   your videos should look and sound.
+   doesn't have a recent one). Then it asks about your channel: what it's about, the format, where you post (TikTok,
+   YouTube Shorts and Instagram Reels to start), and how your videos should look and sound. No accounts yet? It helps
+   you make them, starting with a new Gmail for your channel.
 
 <p align="center">
   <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
@@ -105,9 +106,9 @@ ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to 
 
 ### Overview
 
-Followers, views and likes on every platform, hour by hour, with a mark where each video went up, plus your top
-videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right collects
-milestones, new videos ready to post and updates, and gets a red dot when there's something new. Click a
+Followers, views and likes on each platform you've connected, hour by hour, with a mark where each video went up,
+plus your top videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right
+collects milestones, new videos ready to post and updates, and gets a red dot when there's something new. Click a
 notification to see what it's about: a video that's taking off opens on the Videos tab, highlighted, and a finished
 video is picked out on Publish. The big × on a notification's right deletes it, and Clear all deletes them all.
 
@@ -144,10 +145,16 @@ their views in their first day, and when it next comes round, once there are eno
 
 ### Accounts
 
-Where each platform's stats come from. TikTok and YouTube only need your handle. Instagram and X need you to log in
-once, in ReelForge's own browser window. There are no API keys to set up.
+The platforms you post to, each connected with your @handle. ReelForge shows only the ones you've connected, so
+there's never an empty card, chart or button for one you don't use. TikTok and YouTube need just your handle;
+Instagram and X also need one log-in, in ReelForge's own browser window. There are no API keys to set up. No account
+yet? Sign up opens the platform's own sign-up page with a few steps beside it (onboarding offers the same, and a new
+Gmail for your channel first). Disconnect hides a platform again without losing its stats.
 
-![The Accounts tab](docs/screenshots/app-accounts.png)
+<p align="center">
+  <img src="docs/screenshots/app-accounts.png" width="49%" alt="The Accounts tab: TikTok, YouTube and Instagram connected, and X with its Connect box">
+  <img src="docs/screenshots/onboarding-accounts.png" width="49%" alt="Onboarding's Your accounts step: a Gmail for your channel first, then a handle or Sign up for each platform">
+</p>
 
 ## Updates
 

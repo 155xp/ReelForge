@@ -90,6 +90,15 @@ def target(note: dict, names: dict[str, str] | None = None) -> Target:
     return Target(note.get("tab") or KINDS.get(note.get("kind"), KINDS["info"])[2])
 
 
+def platform_of(note: dict, names: dict[str, str] | None = None) -> str | None:
+    """The platform a notification is about (from its key, see target), or None for one about every platform or none:
+    an update, a finished video, views across every platform."""
+    to = target(note, names)
+    if to.post:
+        return to.post.partition("|")[0]
+    return to.account or (to.card if to.card != "total" else None)
+
+
 def add(kind: str, title: str, body: str = "", key: str | None = None, tab: str | None = None,
         ts: str | None = None, read: bool = False) -> bool:
     """Add a notification, unless one with the same key is already there. Returns whether it was added. Unless
@@ -186,13 +195,14 @@ def level(value: float | None, marks: tuple[int, ...]) -> int:
     return max((m for m in marks if value is not None and value >= m), default=0)
 
 
-def check_milestones(names: dict[str, str], fresh: set[str] = frozenset()) -> int:
+def check_milestones(names: dict[str, str], fresh: set[str] = frozenset(), on=None) -> int:
     """After a refresh: one notification for each milestone passed since the last check. Returns how many.
 
     names: platform key -> name, for the platforms just read. fresh: those read for the first time; their numbers
     become the starting point quietly, so a new account (or the very first check) doesn't set off a flood. A video
     first seen on an account that was already being read starts from zero, so a post that's already past 1K by its
-    first reading still counts.
+    first reading still counts. on: the connected platforms, the ones views across every platform add up (None: all
+    with stats).
     """
     marks: dict = db.get_meta("milestones", None) or {}
     seeding = "_seeded" not in marks
@@ -219,7 +229,7 @@ def check_milestones(names: dict[str, str], fresh: set[str] = frozenset()) -> in
                      f"You have {row['followers']:,} followers on {name}.", key=f"milestone:followers:{key}:{m}"):
             told += 1
 
-    views = [r["views"] for r in latest.values() if r["views"] is not None]
+    views = [r["views"] for k, r in latest.items() if r["views"] is not None and (on is None or k in on)]
     if views:
         total = sum(views)
         m = passed("views:total", total, TOTAL_VIEWS, seeding or bool(fresh))

@@ -318,6 +318,11 @@ class DoneScreen(tui.Framed):
         return [S.PLATFORM_NAMES[p] for p in ("instagram", "x")
                 if p in s["platforms"]["enabled"] and s["platforms"]["handles"].get(p)]
 
+    def to_connect(self) -> list[str]:
+        """The platforms you post to without a handle yet (no account yet): you connect them on the Accounts tab."""
+        s = S.load()
+        return [S.PLATFORM_NAMES[p] for p in s["platforms"]["enabled"] if not s["platforms"]["handles"].get(p)]
+
     @work(thread=True, exclusive=True)
     def apply_system(self) -> None:
         s = S.load()
@@ -382,16 +387,21 @@ class DoneScreen(tui.Framed):
         t.append(f'"{first}"', style="bold #ffffff")
         t.append("\n  3. ", style="bold")
         t.append("When it's done, it's waiting in ReelForge → Publish (tab 4), ready for you to post.\n")
-        logins = self.needs_login()
+        logins, missing = self.needs_login(), self.to_connect()
         if logins:
             t.append(f"\n{' and '.join(logins)} {'needs' if len(logins) == 1 else 'need'} a one-time log-in so "
                      "ReelForge can read your stats: Open ReelForge takes you to the Accounts tab.", style=WARN)
             self.query_one("#open", Button).label = "Open ReelForge to log in"
+        if missing:
+            names = missing[0] if len(missing) == 1 else ", ".join(missing[:-1]) + " and " + missing[-1]
+            t.append(f"\nWhen you've made your {names} {'account' if len(missing) == 1 else 'accounts'}, connect "
+                     f"{'it' if len(missing) == 1 else 'them'} on ReelForge's Accounts tab: until then ReelForge leaves "
+                     f"{'it' if len(missing) == 1 else 'them'} out.", style=WARN)
         self.query_one("#done-text", Static).update(t)
 
     @on(Button.Pressed, "#open")
     def open_app(self) -> None:
-        self.app.exit(("dashboard", "accounts" if self.needs_login() else "overview"))
+        self.app.exit(("dashboard", "accounts" if self.needs_login() or self.to_connect() else "overview"))
 
     @on(Button.Pressed, "#folder")
     def show_folder(self) -> None:

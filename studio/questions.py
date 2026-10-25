@@ -8,8 +8,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from . import signup
 from .formats import FORMATS, STYLES, TONES
-from .settings import LOUDNESS, PLATFORM_NAMES, PLATFORMS
+from .settings import LOUDNESS, PLATFORM_NAMES, PLATFORMS, RECOMMENDED
 
 
 @dataclass
@@ -17,7 +18,7 @@ class Q:
     key: str
     step: str
     prompt: str
-    kind: str = "text"            # text | long | choice | multi | yesno | number
+    kind: str = "text"            # text | long | choice | multi | yesno | number | handle (an @handle, or nothing)
     help: str = ""
     options: list[tuple[str, str]] = field(default_factory=list)   # (value, label)
     default: Any = None           # a value, or a function(answers) -> value
@@ -42,6 +43,7 @@ STEPS = [
     ("channel", "Your channel"),
     ("format", "Your format"),
     ("platforms", "Platforms"),
+    ("accounts", "Your accounts"),
     ("look", "Look and sound"),
     ("posting", "Captions and posting"),
     ("quality", "Quality"),
@@ -114,13 +116,18 @@ QUESTIONS: list[Q] = [
       help="Optional. Topics, words or looks your videos should never have."),
 
     # ---- platforms
-    Q("platforms", "platforms", "Where will you post?", "multi", default=list(PLATFORMS), required=True,
-      options=[(p, PLATFORM_NAMES[p]) for p in PLATFORMS]),
-    *[Q(f"handle_{p}", "platforms", f"Your {PLATFORM_NAMES[p]} handle", show=_has(p), placeholder="@yourname",
-        help="ReelForge reads your public stats with it. Optional; you can add it later.") for p in PLATFORMS],
+    Q("platforms", "platforms", "Where will you post?", "multi", default=list(RECOMMENDED), required=True,
+      options=[(p, PLATFORM_NAMES[p] + ("   · recommended" if p in RECOMMENDED else "")) for p in PLATFORMS],
+      help="Recommended: TikTok, YouTube Shorts and Instagram Reels, the three big short-video apps. You can add or "
+           "remove one later on ReelForge's Accounts tab."),
     Q("background_stats", "platforms", "Keep reading your stats every hour, even when ReelForge is closed?", "yesno",
       default=True, help="Adds a small background job that runs while your computer is on, so your charts never "
                          "miss an hour. Turn it off any time with: reelforge stats off"),
+
+    # ---- accounts: a handle each, or a sign-up guide (the Gmail one first, for a channel starting from scratch)
+    *[Q(f"handle_{p}", "accounts", PLATFORM_NAMES[p], "handle", show=_has(p), placeholder="@yourname",
+        help="It needs one log-in in ReelForge too, so ReelForge can read your stats: it asks when you open it."
+        if p in ("instagram", "x") else "") for p in PLATFORMS],
 
     # ---- look and sound
     Q("style", "look", "What should your videos look like?", "choice", default="cinematic",
@@ -216,6 +223,8 @@ def coerce(q: Q, value):
             if item not in out:
                 out.append(item)
         return out
+    if q.kind == "handle":
+        return signup.handle_from("" if value is None else str(value))  # "@name", from a link too
     return str(value).strip() if value is not None else ""
 
 
@@ -262,14 +271,25 @@ def parse_length(text: str) -> tuple[float, float]:
 
 
 def describe() -> list[dict]:
-    """The interview as plain data (for an AI running the interview in chat)."""
+    """The interview as plain data (for an AI running the interview in chat). A handle question carries the
+    platform's sign-up page and steps (signup) for someone without an account yet, and the first one also the Gmail
+    a channel starting from scratch can make first (gmail)."""
     out = []
     sample = defaults_for({})
     for q in QUESTIONS:
         d = q.default_for(sample)
         item = {"key": q.key, "step": dict(STEPS)[q.step], "question": q.prompt, "type": q.kind}
+        if q.kind == "handle":
+            item["question"] = f"Your {q.prompt} handle"
         if q.help:
             item["help"] = q.help
+        if q.kind == "handle":
+            guide = signup.GUIDES[q.key.removeprefix("handle_")]
+            item["signup"] = {"page": guide.url, "steps": list(guide.steps)}
+            if not any(i.get("gmail") for i in out):
+                item["gmail"] = {"offer": "No accounts yet? Offer to start with a new Gmail for the channel. "
+                                          + signup.GMAIL.why, "page": signup.GMAIL.url,
+                                 "steps": list(signup.GMAIL.steps)}
         if q.options:
             item["options"] = {v: label for v, label in q.options}
         if d not in (None, "", []):

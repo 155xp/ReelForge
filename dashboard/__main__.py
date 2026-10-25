@@ -69,21 +69,22 @@ def main(argv: list[str] | None = None) -> int:
             path.with_name(path.name + suffix).unlink(missing_ok=True)
         db.init(path)
         demo.seed(video=demo.newest_video(cfg))
-        platforms = demo.platforms()
+        every = demo.platforms()
     else:
         from .platforms import build
 
         db.init(config.DB_PATH)
-        # Only the platforms you've put a handle in; with none yet, all four, so the Accounts tab shows the way.
         every = build(cfg)
-        platforms = {k: p for k, p in every.items() if p.public_handle} or every
 
-    if word == "refresh":
-        return refresh(platforms, cfg, demo=args.demo)
+    if word == "refresh":  # only the connected platforms are read (Platform.connected)
+        from .platforms import connected
+
+        return refresh(connected(every, db.stored_platforms()), cfg, demo=args.demo)
 
     from .app import ReelForge
 
-    app = ReelForge(cfg, platforms, demo=args.demo, tab=tab_for(word) or "overview", drawer=word in DRAWER_WORDS)
+    # The window has every platform, for the Accounts tab, and shows the connected ones everywhere else.
+    app = ReelForge(cfg, every, demo=args.demo, tab=tab_for(word), drawer=word in DRAWER_WORDS)
     from studio import tui
 
     tui.set_title(app.title)  # the terminal tab's name

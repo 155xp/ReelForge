@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import traceback
 
+from rich.table import Table
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -17,7 +18,7 @@ from textual.widgets import (Button, Input, Label, Markdown, RadioButton, RadioS
 from textual.markup import escape
 from textual.widgets.selection_list import Selection
 
-from . import generate, tui
+from . import generate, signup, tui
 from . import paths as P
 from .questions import BY_KEY, QUESTIONS, STEPS, Q, coerce, defaults_for
 
@@ -28,6 +29,9 @@ BLURBS = {
     "format": "Start from a format that is already pulling views. Your AI copies what works, then does it better.",
     "platforms": "Where your videos go. ReelForge shows your stats for each one, and you post from its Publish "
                  "tab.",
+    "accounts": "Type your @handle on each, or press Sign up to make the account now. ReelForge opens each sign-up "
+                "page in your own browser and never sees your passwords. No rush: you can connect any of them later "
+                "on ReelForge's Accounts tab.",
     "look": "How your videos look and sound.",
     "posting": "How each post is written, and how often you post.",
     "quality": "How hard your AI should push on every video.",
@@ -70,6 +74,11 @@ class Field(Vertical):
             with Horizontal(classes="switchrow"):
                 yield Switch(value=bool(v), id=wid)
                 yield Label("Yes" if v else "No", id=f"yn-{q.key}", classes="yn")
+        elif q.kind == "handle":
+            with Horizontal(classes="handlerow"):
+                yield Input(value="" if v is None else str(v), placeholder=ph, id=wid)
+                yield Button("No account? Sign up →", id=f"signup-{q.key.removeprefix('handle_')}",
+                             classes="signup")
         yield Static("", classes="error", id=f"e-{q.key}")
 
     def raw(self):
@@ -122,6 +131,106 @@ class Quit(ModalScreen[bool]):
         self.dismiss(event.button.id == "leave")
 
 
+def guide_steps(guide: signup.Guide) -> Table:
+    """A sign-up guide's steps, numbered: open the page, what to do there, then (for an account) type the handle."""
+    steps = [f"Press {guide.button}: the page opens in your browser.", *guide.steps]
+    if guide.key != "gmail":
+        steps.append("Type your @handle below." + (" It also needs one log-in in ReelForge, so ReelForge can read "
+                                                   "your stats: it asks for it when you open ReelForge."
+                                                   if guide.logs_in else ""))
+    grid = Table.grid(padding=(0, 1))
+    grid.add_column(width=3, justify="right", style="bold")
+    grid.add_column(ratio=1)
+    for n, step in enumerate(steps, 1):
+        grid.add_row(f"{n}.", step)
+    return grid
+
+
+class SignupGuide(ModalScreen[str | None]):
+    """How to make one account (or the channel's Gmail): the steps, a button that opens the official sign-up page in
+    your own browser, and (for an account) a box for the @handle you end up with. Dismisses with that handle (maybe
+    ""), or None for Back."""
+
+    DEFAULT_CSS = """
+    SignupGuide { align: center middle; background: $background 70%; }
+    SignupGuide #guide { width: 84; max-width: 95%; height: auto; max-height: 95%; padding: 1 2; background: $panel;
+                         border: double $primary; }
+    SignupGuide #guide-title { text-style: bold; color: $accent; }
+    SignupGuide #guide-why { color: $text-muted; padding-bottom: 1; }
+    SignupGuide #guide-open { margin: 1 0 0 4; }
+    SignupGuide #guide-opened { color: $success; height: auto; padding: 0 0 0 4; }
+    SignupGuide #guide-handle-label { text-style: bold; padding-top: 1; }
+    SignupGuide #guide-error { color: $error; height: auto; }
+    SignupGuide .buttons { height: auto; padding-top: 1; }
+    SignupGuide .buttons Button { margin-right: 2; min-width: 14; }
+    """
+    BINDINGS = [Binding("escape", "back", "Back", show=False)]
+
+    def __init__(self, guide: signup.Guide, handle: str = ""):
+        super().__init__()
+        self.guide, self.handle = guide, handle
+
+    def compose(self) -> ComposeResult:
+        g = self.guide
+        with Vertical(id="guide"):
+            yield Static(g.title, id="guide-title")
+            yield Static(g.why, id="guide-why")
+            yield Static(guide_steps(g), id="guide-steps")
+            yield Button(f"{g.button} →", variant="primary", id="guide-open")
+            yield Static("", id="guide-opened")
+            if g.key != "gmail":
+                yield Label("Your @handle", id="guide-handle-label")
+                yield Input(value=self.handle, placeholder="@yourname", id="guide-handle")
+                yield Static("", id="guide-error")
+            with Horizontal(classes="buttons"):
+                yield Button("Done", id="guide-done")
+                yield Button("Back", id="guide-back")
+
+    def on_mount(self) -> None:
+        self.query_one("#guide-open", Button).focus()
+
+    @on(Button.Pressed, "#guide-open")
+    def open_page(self) -> None:
+        signup.open_page(self.guide.url)
+        self.query_one("#guide-opened", Static).update(
+            f"{tui.CHECK} Opened in your browser. Come back here when you're done.")
+        handle = self.query(Input)
+        (handle.first() if handle else self.query_one("#guide-done", Button)).focus()
+
+    @on(Input.Submitted, "#guide-handle")
+    @on(Button.Pressed, "#guide-done")
+    def done(self) -> None:
+        if self.guide.key == "gmail":
+            self.dismiss(None)
+            return
+        try:
+            handle = signup.handle_from(self.query_one("#guide-handle", Input).value)
+        except ValueError as e:
+            self.query_one("#guide-error", Static).update(str(e))
+            return
+        self.dismiss(handle)
+
+    @on(Button.Pressed, "#guide-back")
+    def action_back(self) -> None:
+        self.dismiss(None)
+
+
+class GmailOffer(Vertical):
+    """The box at the top of Your accounts: a Gmail just for the channel first, for someone starting from scratch."""
+
+    DEFAULT_CSS = """
+    GmailOffer { height: auto; border: round $panel-lighten-2; padding: 0 1; margin-bottom: 1; }
+    GmailOffer .offer-title { text-style: bold; }
+    GmailOffer .offer-why { color: $text-muted; }
+    GmailOffer Button { margin-top: 1; }
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Static("Starting from scratch? Make a Gmail for your channel first.", classes="offer-title")
+        yield Static(signup.GMAIL.why, classes="offer-why")
+        yield Button("Make a Gmail →", id="gmail")
+
+
 class OnboardScreen(tui.Framed):
     """The interview, step by step, then a review. Create writes everything and calls on_done(answers, written)."""
 
@@ -150,6 +259,9 @@ class OnboardScreen(tui.Framed):
     OnboardScreen SelectionList { height: auto; max-height: 12; }
     OnboardScreen .switchrow { height: auto; }
     OnboardScreen .yn { padding: 1 1; }
+    OnboardScreen .handlerow { height: auto; }
+    OnboardScreen .handlerow Input { width: 1fr; max-width: 44; }
+    OnboardScreen .handlerow .signup { margin-left: 2; min-width: 26; }
     OnboardScreen #nav { height: auto; dock: bottom; padding: 1 0 0 0; }
     OnboardScreen #nav Button { margin-right: 2; min-width: 22; }
     OnboardScreen #status { color: $text-muted; padding: 1 0 0 2; }
@@ -208,15 +320,16 @@ class OnboardScreen(tui.Framed):
         else:
             self.answers = defaults_for(self.answers)
             fields = [Field(q, self.answers.get(q.key), self.answers) for q in self.step_questions(key)]
-            await box.mount_all(fields)
+            await box.mount_all([GmailOffer()] + fields if key == "accounts" else fields)
             self.refresh_visibility()
             self.query_one("#next", Button).label = "Next"
         self.query_one("#back", Button).disabled = i == 0
         self.query_one("#status", Static).update("")
         box.scroll_home(animate=False)
-        first = box.query("Input, TextArea, RadioSet, SelectionList, Switch")
-        if first:
-            first.first().focus()
+        first = next((w for w in box.query("Input, TextArea, RadioSet, SelectionList, Switch")
+                      if not any(a.has_class("hidden") for a in w.ancestors)), None)  # not a platform you left out
+        if first is not None:
+            first.focus()
 
     def fields(self) -> list[Field]:
         return list(self.query(Field))
@@ -268,6 +381,25 @@ class OnboardScreen(tui.Framed):
     def changed(self, event) -> None:
         if event.control is not None:
             self._changed(event.control)
+
+    # ---------------------------------------------------------------- making accounts
+
+    @on(Button.Pressed, "#gmail")
+    def make_gmail(self) -> None:
+        self.app.push_screen(SignupGuide(signup.GMAIL))
+
+    @on(Button.Pressed, ".signup")
+    def sign_up(self, event: Button.Pressed) -> None:
+        """A platform's sign-up guide; the handle you type there goes into its box here."""
+        key = event.button.id.removeprefix("signup-")
+        field = self.query_one(f"#f-handle_{key}", Field)
+
+        def got(handle: str | None) -> None:
+            if handle is not None:
+                self.query_one(f"#w-handle_{key}", Input).value = handle   # counts as typed: it's your answer
+                field.error("")
+
+        self.app.push_screen(SignupGuide(signup.GUIDES[key], field.raw() or ""), got)
 
     # ---------------------------------------------------------------- navigation
 
@@ -342,15 +474,18 @@ class OnboardScreen(tui.Framed):
                 if not q.visible(a):
                     continue
                 v = a.get(q.key)
+                skipped = "_(skipped)_"
                 if q.kind == "choice":
                     v = dict(q.options).get(v, v)
                 elif q.kind == "multi":
-                    v = ", ".join(dict(q.options).get(x, x) for x in (v or []))
+                    v = ", ".join(dict(q.options).get(x, x).split("   ·")[0] for x in (v or []))
                 elif q.kind == "yesno":
                     v = "Yes" if v else "No"
+                elif q.kind == "handle":
+                    skipped = "_(not yet: connect it any time on ReelForge's Accounts tab)_"
                 elif isinstance(v, str) and "\n" in v:
                     v = "; ".join(x.strip() for x in v.splitlines() if x.strip())
-                lines.append(f"- **{q.prompt}** {v if v not in (None, '') else '_(skipped)_'}")
+                lines.append(f"- **{q.prompt}** {v if v not in (None, '') else skipped}")
             lines.append("")
         if problems:
             lines += ["### Needs fixing", *[f"- {p}" for p in problems]]

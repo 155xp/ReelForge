@@ -1,9 +1,11 @@
-"""Pop-up dialogs: type in stats, remove a video, fix which episode a post belongs to, and help."""
+"""Pop-up dialogs: type in stats, remove a video, fix which episode a post belongs to, make an account, disconnect
+one, and help."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from rich.table import Table
 from rich.text import Text
 from textual import on
 from textual.app import ComposeResult
@@ -179,6 +181,107 @@ class EpisodePicker(ModalScreen[str | None]):
         self.dismiss(None)
 
 
+class SignUp(ModalScreen[str | None]):
+    """Making an account you don't have yet (or the channel's Gmail), from the Accounts tab: a few steps, a button that
+    opens the platform's own sign-up page in your usual browser, and a box for the @handle you end up with.
+    Dismisses with that handle, for Connect to take from there (None: cancelled, or the Gmail guide).
+
+    guide: a studio.signup.Guide; open_page(url) opens the page (studio.signup.open_page)."""
+
+    BINDINGS = [("escape", "dismiss(None)", "Cancel")]
+
+    def __init__(self, guide, handle: str = "", open_page=None):
+        super().__init__()
+        self.guide, self.handle, self.open_page = guide, handle, open_page
+        self.account = guide.key != "gmail"
+
+    def compose(self) -> ComposeResult:
+        g = self.guide
+        steps = [f"Press {g.button}: the page opens in your browser.", *g.steps]
+        if self.account:
+            steps.append("Type your @handle below and press Connect." + (
+                " ReelForge then opens its own browser window for the one log-in." if g.logs_in else ""))
+        grid = Table.grid(padding=(0, 1))
+        grid.add_column(width=3, justify="right", style="bold")
+        grid.add_column(ratio=1)
+        for n, step in enumerate(steps, 1):
+            grid.add_row(f"{n}.", step)
+        with Vertical(id="dialog"):
+            yield Static(g.title.upper(), classes="dialog-title")
+            yield Static(Text(g.why, style=MUTED))
+            yield Static(grid, id="su-steps")
+            yield Button(f"{g.button} →", id="su-open", variant="primary")
+            yield Static("", id="su-opened")
+            if self.account:
+                yield Input(value=self.handle, placeholder="@yourname", id="su-handle")
+                yield Static("", id="su-error")
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel")
+                yield Button("Connect" if self.account else "Done", id="su-done",
+                             variant="primary" if self.account else "default")
+
+    def on_mount(self) -> None:
+        self.query_one("#su-open", Button).focus()
+
+    @on(Button.Pressed, "#su-open")
+    def open_it(self) -> None:
+        if self.open_page:
+            self.open_page(self.guide.url)
+        self.query_one("#su-opened", Static).update(Text("✓ Opened in your browser. Come back here when you're done.",
+                                                         style=GOOD))
+        self.query_one("#su-handle" if self.account else "#su-done").focus()
+
+    @on(Input.Submitted, "#su-handle")
+    @on(Button.Pressed, "#su-done")
+    def done(self) -> None:
+        if not self.account:
+            self.dismiss(None)
+            return
+        typed = self.query_one("#su-handle", Input).value
+        if not typed.strip():
+            self.query_one("#su-error", Static).update(Text("Type your new @handle first.", style="#ff4d5e"))
+            return
+        self.dismiss(typed)
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self) -> None:
+        self.dismiss(None)
+
+
+class Disconnect(ModalScreen[bool]):
+    """Are you sure? Disconnecting a platform hides it everywhere in ReelForge and stops its reads; its stats stay."""
+
+    BINDINGS = [("escape", "dismiss(False)", "Cancel")]
+
+    def __init__(self, platform: Platform):
+        super().__init__()
+        self.platform = platform
+
+    def compose(self) -> ComposeResult:
+        p = self.platform
+        note = Text()
+        note.append(f"{p.name}  ", style=f"bold {p.color}")
+        note.append(p.handle, style="bold")
+        note.append(f"\n\nReelForge stops reading {p.name}, and its cards, charts, columns, filters, upload buttons and "
+                    "notifications leave every tab. Everything it has read so far stays saved, so connecting it again "
+                    "(on this tab, with the same @handle) brings it all back.", style=MUTED)
+        if p.browser_stats:
+            note.append(f"\nYou stay logged in to {p.name} in ReelForge's browser.", style=MUTED)
+        with Vertical(id="dialog"):
+            yield Static(f"DISCONNECT {p.name.upper()}?", classes="dialog-title")
+            yield Static(note)
+            with Horizontal(classes="dialog-buttons"):
+                yield Button("Cancel", id="cancel")
+                yield Button("Disconnect", id="disconnect", variant="error")
+
+    def on_mount(self) -> None:
+        self.query_one("#cancel", Button).focus()
+
+    @on(Button.Pressed)
+    def choose(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "disconnect")
+
+
 HELP = [
     ("Overview (1)", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / "
                      "per day on the longer ranges), stacked by platform. Yellow marks show when each video went up. "
@@ -200,8 +303,11 @@ HELP = [
                     "back. Under the videos, Best time to post shows each platform's part of the day whose videos "
                     "got the most views in their first day, and when it next comes round; it needs 2 videos a day old "
                     "in each of 2 parts of the day, with one clearly ahead."),
-    ("Accounts (5)", "Where each platform's stats come from, when they were last read, and the Instagram / X log-in. "
-                     "Type in stats lets you enter the numbers by hand for a platform ReelForge can't read yet."),
+    ("Accounts (5)", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere "
+                     "else. TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No "
+                     "account yet? Sign up opens the platform's own sign-up page, and Disconnect hides one again (its "
+                     "stats stay saved). Each panel says where that platform's stats come from and when they were "
+                     "last read; Type in stats lets you enter the numbers by hand for one ReelForge can't read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
