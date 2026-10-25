@@ -229,6 +229,49 @@ class AppFitTest(unittest.TestCase):
             asyncio.run(run(size, drawer))
 
 
+class LateTitleTest(unittest.TestCase):
+    """An Overview chart sets its title a moment after the screen draws it. When a refresh or a click empties the chart
+    in that moment (here every platform is hidden), the late title leaves it alone instead of crashing ReelForge."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(setattr, db, "_path", db._path)
+        db.init(Path(tmp.name) / "demo.db")
+        demo.seed()
+
+    def test_chart_emptied_before_its_title(self):
+        from dashboard import config
+        from dashboard.app import METRICS, ReelForge
+
+        def title(panel: widgets.ChartPanel) -> str:
+            return str(panel.query_one(".box-title").content)
+
+        async def run() -> None:
+            app = ReelForge(config.load_config(), demo.platforms(), demo=True)
+            async with app.run_test(size=(150, 45)) as pilot:
+                await pilot.pause(0.5)
+                panels = [app.query_one(f"#{m}-chart", widgets.ChartPanel) for m in METRICS]
+                app.update_trends()  # the charts are drawn again (a refresh came in)
+                for panel in panels:
+                    panel.plot.render()  # the screen draws them, and each asks for its title
+                for key in app.platforms:  # but every platform is hidden before those titles are set
+                    app.action_toggle_line(key)
+                await pilot.pause(0.3)
+                for m, panel in zip(METRICS, panels):
+                    self.assertEqual(title(panel), m.upper())
+                    self.assertFalse(panel.plot.display)
+                    self.assertIsNone(panel.plot.draw_fn)  # the old chart is gone, not just out of sight
+                    self.assertIn("Every platform is hidden", str(panel.query_one(".empty").content))
+                app.action_toggle_line(next(iter(app.platforms)))  # one shown again: its numbers are back
+                await pilot.pause(0.3)
+                for panel in panels:
+                    self.assertTrue(panel.plot.display)
+                    self.assertIn("total", title(panel))
+
+        asyncio.run(run())
+
+
 class TestCopyHeader(unittest.TestCase):
     """A test copy (TEST-COPY.txt in the ReelForge folder) says TEST in the header and the window title. The title is
     just ReelForge (or ReelForge TEST) whatever the channel is called."""

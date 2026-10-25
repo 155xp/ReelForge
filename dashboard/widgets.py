@@ -464,6 +464,7 @@ class ChartPanel(Vertical):
         self.plot.show(draw_fn, slots)
 
     def show_empty(self, hint: str | None = None) -> None:
+        self.plot.show(None, 0)  # forget the last chart: what it was drawn from is gone
         self.plot.display = False
         empty = self.query_one(".empty", Static)
         empty.display = True

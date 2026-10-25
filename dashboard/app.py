@@ -727,9 +727,16 @@ class ReelForge(App):
                              else None)
             return
         series = self.chart_series(pts, visible, fr)
-        self.trend_state[metric] = (fr, series, trends.summarise(pts, fr))
+        state = (fr, series, trends.summarise(pts, fr))
+        self.trend_state[metric] = state
         self.trend_views[metric] = (fr, series)
         drawn: dict = {}  # step -> (frame, series, marks), worked out once per size the chart is drawn at
+
+        def retitle() -> None:
+            # This runs a moment after the chart is drawn. By then a refresh or a click may have drawn it again, or
+            # emptied it (every platform hidden), so it only retitles the drawing it belongs to.
+            if self.trend_state.get(metric) is state:
+                panel.set_title(self.metric_title(metric, panel.plot.hover))
 
         def draw(w: int, h: int, hover: int | None):
             view = trends.frame_fit(self.range, w - 8, fr.now)  # 8: room for the y labels and axis
@@ -739,7 +746,7 @@ class ReelForge(App):
             view, v_series, marks = drawn[view.step]
             if self.trend_views.get(metric, (None,))[0] is not view:
                 self.trend_views[metric] = (view, v_series)
-                self.call_later(lambda: panel.set_title(self.metric_title(metric, panel.plot.hover)))
+                self.call_later(retitle)
             return charts.bars(v_series, view.n, w, h, _clock(view), marks, hover)
 
         panel.set_title(self.metric_title(metric, panel.plot.hover))
