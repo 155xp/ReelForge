@@ -16,8 +16,16 @@
   - **The hourly stats job** is a launchd agent on a Mac and a systemd timer on Linux (or a cron job without systemd).
   - **Fixed:** an update on a Mac could leave ReelForge's launchers unable to run, and setup's colours were wrong in
     macOS's Terminal before macOS 26.
+- **Views 12h.** The Videos tab and Top performers show each video's views 12 hours after it went up, so a video from
+  this morning and one from last week compare fairly (until then it says when the number comes in). Export CSV has
+  them too, between the 6 and 24 hour columns.
 - **Delete notifications.** Each notification has a big × on its right that deletes it, and **Clear all** deletes
   every one.
+- **A bigger bell** in the window's top-right corner, well away from Quit.
+- **Every open ReelForge window shows the same stats.** Windows (and the hourly job) take turns reading, and each
+  shows what any of them read, with its notifications.
+- **Fixed:** hashtags typed together (`#fyp#whatif`) no longer stay in the caption, a custom video length can be
+  written as a range like 20-30 seconds, and a review that says "not approved" no longer counts as an approval.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

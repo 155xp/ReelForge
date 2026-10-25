@@ -8,7 +8,7 @@
 
 <p align="center">
   ReelForge lets Claude Code or Codex make faceless short videos for TikTok, YouTube Shorts, Instagram Reels and X,
-  then shows you how each one does once you've posted it.
+  then shows you how each one does once you've posted it. It runs on Windows, macOS and Linux.
 </p>
 
 <p align="center">
@@ -134,8 +134,9 @@ video grows over its first three days on each one.
 
 ### Publish
 
-Every finished video waits here with its post already written. Each platform's button opens that site's upload page
-and copies exactly the text it needs, so you drag the video in and press Post. ReelForge spots the post by itself.
+Every finished video waits here with its post already written. Each platform's button opens that site's upload page,
+copies exactly the text it needs and shows the video in Explorer, Finder or your file manager, so you drag it in and
+press Post. ReelForge spots the post by itself.
 Under the list, Best time to post shows the part of the day your videos have done best in on each platform, by
 their views in their first day, and when it next comes round, once there are enough videos to tell.
 
