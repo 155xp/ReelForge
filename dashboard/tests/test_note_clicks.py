@@ -63,6 +63,9 @@ class NoteClickTest(unittest.TestCase):
         notify.add("hot", "Taking off on TikTok", "The newest video is doing 4.2× your typical video.", key=self.hot)
         notify.add("milestone", "TikTok passed 10K followers", "You have 10,021 followers on TikTok.",
                    key="milestone:followers:tiktok:10000")
+        # At some hours the demo has told the same news already and marked it read; the × tests need it unread.
+        with db.connect() as c:
+            c.execute("UPDATE notifications SET read = 0 WHERE key = ?", (self.hot,))
 
     def run_app(self, scenario, tab: str = "overview") -> ReelForge:
         """Open ReelForge on `tab` with the drawer open, then run `scenario(app, pilot)`."""
