@@ -1,7 +1,7 @@
 """Clicking a notification shows what it's about, in the real window on demo data: the video on the Videos tab (its
 platform's videos showing, scrolled into view), the finished video on Publish, the platform's panel on Accounts or
 card on the Overview, and the Updates tab; also when that tab is open already. Clicking its × (or Delete) deletes it
-for good instead (dashboard.app, dashboard.notify)."""
+for good instead, and Clear all deletes every one (dashboard.app, dashboard.notify)."""
 
 from __future__ import annotations
 
@@ -90,17 +90,23 @@ class NoteClickTest(unittest.TestCase):
 
     @staticmethod
     async def click_x(app: ReelForge, pilot, key: str | None, title: str | None = None) -> dict:
-        """Click the × at the right end of this notification's first line (scrolled into sight, not highlighted)."""
+        """Click the middle of the × on this notification's right side (scrolled into sight, not highlighted)."""
         note = next(n for n in notify.recent() if (n["key"] == key if key else n["title"] == title))
         box = app.query_one("#notes", NoteList)
-        line = box._index_to_line[box.get_option_index(f"note-{note['id']}")]
+        index = box.get_option_index(f"note-{note['id']}")
+        line = box._index_to_line[index] + (box._heights[index] - 2) // 2  # its middle line (the gap under it aside)
         if not box.scroll_y <= line < box.scroll_y + box.scrollable_content_region.height:
             box.scroll_to(y=line, animate=False)
             await pilot.pause()
-        x = box.scrollable_content_region.right - box.region.x - 2  # the middle of " × "
+        x = box.scrollable_content_region.right - box.region.x - 1 - widgets.X_WIDTH // 2  # the middle of the ×
         await pilot.click(box, offset=(x, line - round(box.scroll_y)))
         await pilot.pause(0.3)
         return note
+
+    @staticmethod
+    def tools(app: ReelForge) -> str:
+        """The buttons under the drawer's heading."""
+        return app.query_one("#drawer-tools").content.plain
 
     @staticmethod
     def shown(app: ReelForge) -> list[str]:
@@ -184,6 +190,27 @@ class NoteClickTest(unittest.TestCase):
             self.assertTrue(box.get_option_at_index(0).disabled)
             self.assertIn("Nothing yet", str(box.get_option_at_index(0).prompt))
             self.assertEqual(app.query_one("#bell", Bell).unread, 0)
+
+        self.run_app(scenario)
+
+    def test_clear_all_deletes_them_all_for_good(self):
+        async def scenario(app, pilot):
+            box = app.query_one("#notes", NoteList)
+            self.assertIn("Mark all read", self.tools(app))  # some are unread
+            await pilot.click("#drawer-tools", offset=(self.tools(app).index("Clear all") + 2, 0))
+            await pilot.pause(0.3)
+            self.assertEqual(notify.recent(), [])
+            self.assertIn("Nothing yet", str(box.get_option_at_index(0).prompt))
+            self.assertEqual(app.query_one("#bell", Bell).unread, 0)
+            self.assertEqual(self.tools(app).strip(), "")  # nothing left to read or clear
+            self.assertEqual(app.query_one(TabbedContent).active, "overview")
+            # The next refresh finds the same video still taking off: it stays cleared. Something new still shows.
+            notify.add("hot", "Taking off on TikTok", "The newest video is doing 4.4× your typical video.", key=self.hot)
+            notify.add("info", "Something new", "It happened after Clear all.")
+            app.show_new_notes()
+            await pilot.pause()
+            self.assertEqual(self.shown(app), ["Something new"])
+            self.assertEqual(self.tools(app).strip(), "Mark all read    Clear all")
 
         self.run_app(scenario)
 

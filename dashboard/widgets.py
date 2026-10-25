@@ -3,10 +3,10 @@ platform cards and account panels."""
 
 from __future__ import annotations
 
+import functools
 import os
 
 from rich.cells import cell_len
-from rich.console import Group
 from rich.style import Style
 from rich.table import Table
 from rich.text import Text
@@ -274,22 +274,90 @@ class VideoList(OptionList):
         await super()._on_click(event)
 
 
-def note_prompt(mark: Text, title: Text, rest: Text, delete: str) -> Group:
-    """A notification in the drawer: its unread dot and icon (mark), its title beside them (wrapped under itself),
-    a × at the right end of the first line that runs the app action `delete`, then the rest of it underneath.
+# The × that deletes a notification: a bold X 3 rows tall, drawn with blocks like the logo. As sub-pixels ("#"): 2 x 2 a
+# cell where Windows Terminal draws the quadrant characters itself, 1 x 2 (half blocks) anywhere else (see studio.logo).
+X_QUAD = [
+    ".###.......###",
+    "...###...###..",
+    ".....#####....",
+    ".....#####....",
+    "...###...###..",
+    ".###.......###",
+]
+X_HALF = [
+    ".#....#",
+    "..#..#.",
+    "...##..",
+    "...##..",
+    "..#..#.",
+    ".#....#",
+]
+X_WIDTH = 7  # cells
+BLOCKS = " ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"  # by the parts filled: 1 top-left, 2 top-right, 4 bottom-left, 8 bottom-right
+NOTE_LINES = 3  # a notification shows at most this many lines of its body
+
+
+@functools.cache
+def quadrants() -> bool:
+    try:
+        from studio import logo
+
+        return logo.quadrants()
+    except Exception:  # run on its own, outside a ReelForge folder
+        return False
+
+
+def x_rows(lines: int) -> list[str]:
+    """The × beside a notification `lines` tall, in the middle of its height: 3 rows, or 4 with it half a row lower
+    when the notification has an even number of lines."""
+    across = 2 if quadrants() else 1  # sub-pixels a cell
+    grid = X_QUAD if across == 2 else X_HALF
+    if lines % 2 == 0 and lines > 2:
+        blank = "." * len(grid[0])
+        grid = [blank, *grid, blank]
+    rows = []
+    for y in range(0, len(grid), 2):
+        row = ""
+        for x in range(0, len(grid[0]), across):
+            bits = 0
+            for dy in (0, 1):
+                for dx in range(across):
+                    if grid[y + dy][x + dx] == "#":  # a half block's sub-pixel fills both quarters of its half
+                        bits |= (1 << dx if across == 2 else 3) << 2 * dy
+            row += BLOCKS[bits]
+        rows.append(row)
+    return rows
+
+
+class NoteCard:
+    """A notification in the drawer: its unread dot and icon (mark), its title beside them, the start of its body and
+    how long ago underneath, and on the right, in the middle of its height, the × that runs the app action `delete`.
+    Then a blank line, between it and the next one (an option's padding would never show: OptionList leaves it out
+    of its height).
 
     The × is a "@click" link, so the drawer's link styles colour it (app.tcss) and Textual lights it up under the
     mouse; NoteList keeps a click on it from opening the notification as well."""
-    head = Table.grid(expand=True)
-    head.add_column(width=mark.cell_len)
-    head.add_column(ratio=1)
-    head.add_column(width=3)
-    head.add_row(mark, title, Text(" × ", style=Style(bold=True) + Style.from_meta({"@click": delete})))
-    return Group(head, rest)
+
+    def __init__(self, mark: Text, title: Text, body: Text, ago: Text, delete: str):
+        self.mark, self.title, self.body, self.ago = mark, title, body, ago
+        self.link = Style.from_meta({"@click": delete})  # one style for the whole ×, so all of it lights up
+
+    def __rich_console__(self, console, options):
+        width = max(options.max_width - self.mark.cell_len - 1 - X_WIDTH, 1)  # the text's, with a space before the ×
+        body = self.body.wrap(console, width)[:NOTE_LINES] if self.body.plain.strip() else []
+        lines = [*self.title.wrap(console, width), *body, self.ago]
+        grid = Table.grid(expand=True)
+        grid.add_column(width=self.mark.cell_len)
+        grid.add_column(ratio=1)
+        grid.add_column(width=1)
+        grid.add_column(width=X_WIDTH, vertical="middle")
+        grid.add_row(self.mark, Text("\n").join(lines), "", Text("\n".join(x_rows(len(lines))), style=self.link))
+        yield grid
+        yield Text()
 
 
 class NoteList(OptionList):
-    """The notifications in the drawer. Click one to open it, its × (see note_prompt) to delete it; Delete deletes the
+    """The notifications in the drawer. Click one to open it, its × (see NoteCard) to delete it; Delete deletes the
     highlighted one."""
 
     BINDINGS = [Binding("delete", "app.delete_note", "Delete", show=False)]

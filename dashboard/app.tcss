@@ -59,24 +59,29 @@ TabbedContent {
 
 #drawer-head {
     height: 1;
-    margin: 1 0;
+    margin-top: 1;
 }
 
-/* Each notification's × (a link, see widgets.note_prompt): a small button like the chips, red under the mouse. */
+#drawer-tools {
+    height: 1;
+    margin-bottom: 1;
+}
+
+/* Each notification's × (a link, see widgets.NoteCard): grey, red under the mouse. */
 #notes {
     height: 1fr;
     border: none;
     background: $surface;
     link-style: none;
-    link-color: #c9d1d9;
-    link-background: #1c222b;
+    link-color: #6e7681;
+    link-background: transparent;
     link-style-hover: none;
-    link-color-hover: #ffffff;
-    link-background-hover: $error;
+    link-color-hover: $error;
+    link-background-hover: $error 15%;
 }
 
 #notes > .option-list--option {
-    padding: 0 0 1 0;
+    padding: 0;
 }
 
 /* badges: the account's on the Overview, the highlighted video's on Videos */

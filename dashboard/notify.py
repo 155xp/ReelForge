@@ -140,6 +140,12 @@ def delete(note_id: int) -> None:
         c.execute("UPDATE notifications SET deleted = 1, read = 1 WHERE id = ?", (note_id,))
 
 
+def delete_all() -> None:
+    """Clear all: every notification leaves the drawer for good, as if each had been deleted (see delete)."""
+    with db.connect() as c:
+        c.execute("UPDATE notifications SET deleted = 1, read = 1 WHERE deleted = 0")
+
+
 def mark_read(note_id: int) -> None:
     with db.connect() as c:
         c.execute("UPDATE notifications SET read = 1 WHERE id = ?", (note_id,))

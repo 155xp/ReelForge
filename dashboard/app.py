@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import functools
 import math
-import textwrap
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,8 +29,8 @@ from .platforms import Platform, PlatformError, PublishItem, browser
 from .platforms.base import Account, Post
 from .screens import EpisodePicker, HelpScreen, LogStats, VideoMenu
 from .widgets import (BAD, GOOD, MUTED, SCREENSHOTS, SHORT, TYPICAL, AccountPanel, ActionText, Bars, Bell,
-                      ChartPanel, Logo, NoteList, PlatformCard, TotalCard, VideoList, change_text, chip, chips,
-                      clickable, frame, legend, note_prompt, num, score_text, tag)
+                      ChartPanel, Logo, NoteCard, NoteList, PlatformCard, TotalCard, VideoList, change_text, chip,
+                      chips, clickable, frame, legend, num, score_text, tag)
 
 try:  # the ReelForge folder's own package: its version and the updater
     from studio import KIT_VERSION
@@ -158,6 +157,7 @@ class ReelForge(App):
             yield from self.compose_tabs(ps)
             with Vertical(id="drawer"):
                 yield ActionText(id="drawer-head")
+                yield ActionText(id="drawer-tools")
                 yield NoteList(id="notes")
 
     def compose_tabs(self, ps: list[Platform]) -> ComposeResult:
@@ -1550,28 +1550,28 @@ class ReelForge(App):
             icon, color, _ = notify.KINDS.get(n["kind"], notify.KINDS["info"])
             mark = Text("● " if not n["read"] else "  ", style=f"bold {BAD}")
             mark.append(f"{icon} ", style=f"bold {color}")
-            rest = Text()
-            for part in textwrap.wrap(n["body"] or "", 36)[:3]:
-                rest.append(f"    {part}\n", style=MUTED)
-            rest.append(f"    {fmt_ago(n['ts'])}", style="#5c6370")
             title = Text(n["title"], style="bold" if not n["read"] else "")
-            box.add_option(Option(note_prompt(mark, title, rest, f"app.delete_note({n['id']})"),
+            body = Text(" ".join((n["body"] or "").split()), style=MUTED)
+            ago = Text(fmt_ago(n["ts"]), style="#5c6370")
+            box.add_option(Option(NoteCard(mark, title, body, ago, f"app.delete_note({n['id']})"),
                                   id=f"note-{n['id']}"))
         if keep is not None and keep < box.option_count:
             box.highlighted = keep
 
     def update_bell(self, notes: list[dict]) -> None:
-        """The bell's red dot, and the drawer's heading: how many are unread, Mark all read and Close."""
+        """The bell's red dot, and the drawer's heading: how many are unread and Close, then Mark all read and Clear all
+        under them (while there's something to read or clear)."""
         unread = sum(1 for n in notes if not n["read"])
         self.query_one("#bell", Bell).show(unread)
         head = Text("NOTIFICATIONS  ", style="bold")
-        head.append(f"{unread} new  " if unread else "all read  ", style=BAD if unread else MUTED)
-        parts = [(head, 0)]
-        if unread:
-            parts.append((chip("Mark all read", "mark_all_read"), 0))
-            parts.append((Text(" "), 0))
-        parts.append((chip("Close", "close_drawer"), 0))
-        self.query_one("#drawer-head", ActionText).set_parts(parts)
+        head.append(f"{unread} new" if unread else "all read", style=BAD if unread else MUTED)
+        close = chip("Close", "close_drawer")
+        self.query_one("#drawer-head", ActionText).set_parts(  # Close at the right end
+            lambda width: [(head, 0), (Text(" " * max(width - head.cell_len - close.cell_len, 1)), 0), (close, 0)])
+        buttons = [("Mark all read", "mark_all_read")] if unread else []
+        if notes:
+            buttons.append(("Clear all", "clear_notes"))
+        self.query_one("#drawer-tools", ActionText).set_parts([(chips(*buttons, gap="  "), 0)])
 
     @on(OptionList.OptionSelected, "#notes")
     @db_safe
@@ -1649,6 +1649,12 @@ class ReelForge(App):
     @db_safe
     def action_mark_all_read(self) -> None:
         notify.mark_all_read()
+        self.update_notes()
+
+    @db_safe
+    def action_clear_notes(self) -> None:
+        """Clear all: every notification leaves the drawer for good, as with each one's × (see notify.delete_all)."""
+        notify.delete_all()
         self.update_notes()
 
     @db_safe

@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import statistics
 import tempfile
 import unittest
 from datetime import timedelta
 from pathlib import Path
+from unittest import mock
 
+from rich.console import Console
 from rich.text import Text
 
 from dashboard import analytics, db, demo, notify, trends, widgets
@@ -49,6 +52,40 @@ class CardTest(unittest.TestCase):
         parts = [(Text("LIKES  "), 0), (Text("198.6K total   "), 0), (Text("+38K in 24h"), 1)]
         self.assertEqual(widgets.fit(parts, 30).plain, "LIKES  198.6K total   ")
         self.assertEqual(widgets.fit(parts, 12).plain, "LIKES  ")  # not "LIKES  198.6"
+
+
+class NoteCardTest(unittest.TestCase):
+    """A notification's × is in the middle of its right side however many lines it has, in quadrants and in half
+    blocks, and it's one link, so all of it lights up under the mouse; a blank line keeps it apart from the next one
+    (dashboard.widgets.NoteCard)."""
+
+    def test_the_x_is_in_the_middle_of_the_right_side(self):
+        width = 43
+        console = Console(width=width, file=io.StringIO(), color_system="truecolor")
+        for quads in (True, False):
+            for words in range(0, 30, 3):
+                card = widgets.NoteCard(Text("● ▶ "), Text("Taking off on YouTube"), Text(" ".join(["word"] * words)),
+                                        Text("2h ago"), "app.delete_note(1)")
+                with mock.patch.object(widgets, "quadrants", lambda: quads):
+                    *lines, gap = console.render_lines(card, console.options)
+                self.assertEqual("".join(seg.text for seg in gap).strip(), "")
+                x_rows, link_ids = [], set()
+                for y, line in enumerate(lines):
+                    x = 0
+                    for seg in line:
+                        if seg.style and "@click" in seg.style.meta:
+                            x_rows.append(y)
+                            link_ids.add(seg.style._link_id)
+                            self.assertGreaterEqual(x, width - widgets.X_WIDTH, (quads, words))  # at the right end
+                        elif x + seg.cell_length > width - widgets.X_WIDTH - 1:
+                            self.assertEqual(seg.text.strip(), "", (quads, words))  # nothing runs into it
+                        x += seg.cell_length
+                rows = sorted(set(x_rows))
+                self.assertEqual(rows, list(range(rows[0], rows[-1] + 1)))
+                self.assertEqual(len(rows), 4 if len(lines) % 2 == 0 else 3, (quads, words))
+                self.assertEqual(rows[0], len(lines) - 1 - rows[-1], (quads, words))  # as far from top as bottom
+                self.assertEqual(len(link_ids), 1)
+                self.assertLessEqual(len(lines), 5)  # title, at most 3 lines of the body, how long ago
 
 
 class DemoTest(unittest.TestCase):
