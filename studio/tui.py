@@ -50,7 +50,7 @@ Screen { background: $background; }
     height: 1fr;
 }
 #brand { width: 100%; height: auto; content-align: center top; padding-top: 1; }
-#tagline { width: 100%; height: auto; content-align: center top; color: $text-muted; padding-bottom: 1; }
+#brand.big { padding-bottom: 1; }
 #body { height: 1fr; }
 Button:focus { text-style: bold underline; }
 .muted { color: $text-muted; }
@@ -76,7 +76,6 @@ def small_brand() -> Text:
         if i == 1:
             line.append("  ")
             line.append_text(wordmark())
-            line.append("   " + logo.TAGLINE, style="#8a94a3")
         lines.append(line)
     return Text("\n").join(lines)
 
@@ -127,7 +126,6 @@ class Framed(Screen):
     def compose(self) -> ComposeResult:
         with Vertical(id="frame"):
             yield Brand(self.BIG_MIN_HEIGHT, id="brand")
-            yield Static(Text(logo.TAGLINE), id="tagline")
             with Vertical(id="body"):
                 yield from self.body()
 
@@ -148,4 +146,4 @@ class Framed(Screen):
         brand = self.query_one(Brand)
         brand.redraw(width, height)
         big = height >= self.BIG_MIN_HEIGHT and width >= logo.width(logo.big()) + 8
-        self.query_one("#tagline").display = big
+        brand.set_class(big, "big")

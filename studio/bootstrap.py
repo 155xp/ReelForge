@@ -164,11 +164,6 @@ class Box:
             for i, line in enumerate(art):
                 out.append(self._at(y + i, x) + line)
             y += len(art) + 1
-            tag = logo.TAGLINE
-            if len(tag) <= c - 8:
-                out.append(self._at(y, (c - len(tag)) // 2) + MUTED + tag + RESET)
-                y += 1
-            y += 1
         self.top = y
         out.append(self._body())
         self._write("".join(out))

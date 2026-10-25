@@ -22,7 +22,6 @@ from . import logo_art
 WHITE = "#ffffff"
 RED = "#e8213a"
 PALETTE = {"W": WHITE, "R": RED}
-TAGLINE = "Your AI makes the videos. You post them."
 
 # The anvil of assets/logo/reelforge-anvil.png, drawn by hand: the horn on the left, the face stepping up from it,
 # the heel on the right, the waist, and the feet with the arch between them. 7 sub-pixels tall in the 3 rows' 9, so
