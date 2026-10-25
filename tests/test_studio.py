@@ -295,6 +295,69 @@ class TestCopy(unittest.TestCase):
         self.assertIn("test copy", setup_flow.apply(shortcut))
 
 
+class HalfMadeSetup(unittest.TestCase):
+    """A setup that stopped part way (its window closed while Python was making .venv) leaves a .venv that has
+    Python but no pip and no packages. Opening ReelForge then asks the launchers to repair it (exit code 3) instead
+    of crashing on the first import, and setup makes that .venv again."""
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    @classmethod
+    def setUpClass(cls):
+        import subprocess
+        import sys
+        import tempfile
+
+        cls.tmp = tempfile.TemporaryDirectory()
+        venv = Path(cls.tmp.name) / ".venv"
+        base = getattr(sys, "_base_executable", sys.executable)
+        subprocess.run([base, "-m", "venv", "--without-pip", str(venv)], check=True, capture_output=True)
+        cls.bare = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def launcher(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("reelforge_launcher", self.ROOT / "bin" / "reelforge.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)         # its checks run only when it's run as the program
+        return module
+
+    def test_reelforge_on_a_bare_python_asks_for_repair(self):
+        import subprocess
+
+        r = subprocess.run([str(self.bare), str(self.ROOT / "bin" / "reelforge.py")], capture_output=True,
+                           text=True, timeout=120)
+        self.assertEqual(r.returncode, self.launcher().REPAIR, r.stdout + r.stderr)
+        self.assertIn("stopped part way", r.stdout)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_setup_makes_that_venv_again(self):
+        import sys
+
+        from studio import bootstrap
+
+        with mock.patch.object(bootstrap, "VENV_PY", self.bare):
+            self.assertFalse(bootstrap._healthy())
+        with mock.patch.object(bootstrap, "VENV_PY", Path(sys.executable)):    # the tests' own Python has pip
+            self.assertTrue(bootstrap._healthy())
+
+    def test_the_package_list_keeps_up_with_requirements(self):
+        import re
+
+        launcher = self.launcher()
+        imported_as = {"pillow": "PIL"}
+        wanted = set()
+        for line in (self.ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines():
+            if m := re.match(r"\s*([A-Za-z0-9_.-]+)", line.split("#")[0]):
+                wanted.add(imported_as.get(m.group(1).lower(), m.group(1).lower()))
+        self.assertLessEqual(wanted, set(launcher.PACKAGES))
+        self.assertEqual(launcher.missing(), [])          # the tests' own Python has them all
+
+
 class SetupPlan(unittest.TestCase):
     def test_missing_tools_are_listed(self):
         from studio import setup_flow

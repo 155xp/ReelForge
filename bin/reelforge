@@ -27,6 +27,12 @@ main() {
   while :; do
     "$RF/.venv/bin/python" "$RF/bin/reelforge.py" "$@"
     code=$?
+    # 3: ReelForge's Python packages are missing (a setup that stopped part way), so setup repairs .venv
+    if [ "$code" -eq 3 ]; then
+      echo "ReelForge's Python environment needs repairing. Starting setup..."
+      "$RF/setup.sh"
+      return $?
+    fi
     # 75: ReelForge just updated itself, so start it again
     [ "$code" -eq 75 ] || return "$code"
   done

@@ -225,10 +225,13 @@ def _same_file(a: Path, b: Path) -> bool:
 
 
 def _healthy() -> bool:
+    """.venv's Python runs and has pip. A setup that stopped part way (its window closed while Python was making
+    .venv) can leave one without pip, which could never install the packages: that one is made again."""
     if not VENV_PY.exists():
         return False
     try:
-        return subprocess.run([str(VENV_PY), "-c", "import sys"], capture_output=True, timeout=60).returncode == 0
+        return subprocess.run([str(VENV_PY), "-m", "pip", "--version"], capture_output=True,
+                              timeout=120).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -378,14 +381,15 @@ def main(argv: list[str]) -> int:
         v = sys.version_info
         ui.line(f"{ok} Python {v.major}.{v.minor}.{v.micro}", GREEN)
         if not _healthy():
-            if VENV.exists():
+            again = VENV.exists()           # an unfinished one, from a setup that stopped part way
+            if again:
                 shutil.rmtree(VENV, ignore_errors=True)
-            row = ui.line("Making ReelForge's own Python environment (.venv)...")
-            if _run(ui, row, "Making ReelForge's own Python environment (.venv)",
-                    [sys.executable, "-m", "venv", str(VENV)]) != 0 or not VENV_PY.exists():
+            what = "Making ReelForge's own Python environment (.venv)" + (" again" if again else "")
+            row = ui.line(what + "...")
+            if _run(ui, row, what, [sys.executable, "-m", "venv", str(VENV)]) != 0 or not VENV_PY.exists():
                 hint = "" if WINDOWS else " (on Debian/Ubuntu: sudo apt install python3-venv)"
                 return _fail(ui, f"Couldn't make the .venv folder{hint}.")
-            ui.set(row, f"{ok} ReelForge's Python environment: made", GREEN)
+            ui.set(row, f"{ok} ReelForge's Python environment: made" + (" again" if again else ""), GREEN)
         if not STAMP.exists() or not _same_file(REQUIREMENTS, STAMP):
             row = ui.line("Python packages...")
             pkgs = Packages(ui, ok, bad)
