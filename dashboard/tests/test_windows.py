@@ -348,7 +348,9 @@ class WindowsTest(unittest.TestCase):
                        key="milestone:followers:tiktok:25000")  # another window's refresh found it
             await self.until(pilot, lambda: bell.unread == unread + 1)
             self.assertEqual(bell.unread, unread + 1)
-            self.assertIn("You have 25,010 followers on TikTok.", self.toasts(app))  # popped up here too
+            # popped up here too (on a slow machine the pop-up can land a moment after the bell)
+            await self.until(pilot, lambda: "You have 25,010 followers on TikTok." in self.toasts(app))
+            self.assertIn("You have 25,010 followers on TikTok.", self.toasts(app))
             notify.mark_all_read()  # Mark all read, in another window
             await self.until(pilot, lambda: bell.unread == 0)
             self.assertEqual(bell.unread, 0)
