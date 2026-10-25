@@ -230,9 +230,52 @@ class Logo(Static):
         super().__init__(Text("\n").join(Text.assemble(" ", row, " ") for row in anvil_rows()), **kwargs)
 
 
+# The bell, 3 rows tall, drawn with blocks like the logo and a notification's × (sub-pixels as there): "B" is the bell,
+# "R" the red dot at its top right while something is unread. They never share a cell, as a cell has one colour.
+BELL_QUAD = [
+    "......BB....RRRR",
+    "....BBBBBB..RRRR",
+    "...BBBBBBBB.....",
+    "...BBBBBBBB.....",
+    "BBBBBBBBBBBBBB..",
+    "......BB........",
+]
+BELL_HALF = [
+    "...B..RR",
+    "..BBB.RR",
+    ".BBBBB..",
+    ".BBBBB..",
+    "BBBBBBB.",
+    "...B....",
+]
+BELL = "#ffcc33"  # gold, like a bell emoji
+
+
+def bell_rows(unread: bool) -> Text:
+    """The bell as 3 rows of block characters, with the red dot if something is unread."""
+    across = 2 if quadrants() else 1  # sub-pixels a cell
+    grid = BELL_QUAD if across == 2 else BELL_HALF
+    rows = []
+    for y in range(0, len(grid), 2):
+        row = Text()
+        for x in range(0, len(grid[0]), across):
+            subs = [grid[y + dy][x + dx] for dy in (0, 1) for dx in range(across)]
+            ink = next((s for s in subs if s == "B" or (s == "R" and unread)), None)
+            if ink is None:
+                row.append(" ")
+                continue
+            bits = 0
+            for i, s in enumerate(subs):
+                if s == ink:  # a half block's sub-pixel fills both quarters of its half
+                    bits |= 1 << i if across == 2 else 3 << 2 * i
+            row.append(BLOCKS[bits], BELL if ink == "B" else BAD)
+        rows.append(row)
+    return Text("\n").join(rows)
+
+
 class Bell(Static):
-    """The notifications button at the header's right end: one line, the height of the header's text, with a red dot
-    while something is unread. Click it to open the drawer."""
+    """The notifications button: a bell 3 rows tall in the window's top-right corner, off the header's grey bar and
+    well clear of Quit, with a red dot while something is unread. Click it to open the drawer."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -244,9 +287,7 @@ class Bell(Static):
         self.update(self._draw())
 
     def _draw(self) -> Text:
-        out = Text("🔔")
-        out.append("●" if self.unread else " ", style=f"bold {BAD}")
-        return out
+        return bell_rows(bool(self.unread))
 
     def on_mount(self) -> None:
         self.show(self.unread)

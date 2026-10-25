@@ -2,9 +2,15 @@ Screen {
     background: $background;
 }
 
-/* header: logo, platform status, buttons */
+/* the top: the header's grey bar (logo, platform status, buttons), then the bell in the corner, off the bar and
+   well clear of Quit */
+
+#top {
+    height: 3;
+}
 
 #header {
+    width: 1fr;
     height: 3;
     background: $panel;
 }
@@ -15,9 +21,9 @@ Screen {
 }
 
 #bell {
-    width: 4;
-    height: 1;
-    margin: 1 1 1 0;
+    width: auto;
+    height: 3;
+    margin: 0 1 0 4;
 }
 
 #bell:hover {

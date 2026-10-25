@@ -42,7 +42,7 @@ sign a video is spreading.
 
 ## Notifications
 
-The **bell** at the header's right end opens the drawer, which slides in from the right; the bell, **Close** or Esc
+The **bell** in the top-right corner opens the drawer, which slides in from the right; the bell, **Close** or Esc
 closes it. A **red dot** on the bell means something's unread (the drawer says how many); **Mark all read** clears
 it. The big **×** on a notification's right deletes it (Delete does the same for the highlighted one), and **Clear
 all** deletes every one. Click a notification to see what it's about, from any tab (the drawer stays open, so you

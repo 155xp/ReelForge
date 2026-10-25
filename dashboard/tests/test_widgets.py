@@ -88,6 +88,57 @@ class NoteCardTest(unittest.TestCase):
                 self.assertLessEqual(len(lines), 5)  # title, at most 3 lines of the body, how long ago
 
 
+class BellTest(unittest.TestCase):
+    """The bell is 3 rows of blocks, in quadrants and in half blocks, with its red dot only while something is unread.
+    It sits in the window's top-right corner, off the header's grey bar and well clear of Quit, and a click anywhere on
+    it opens the drawer and closes it again (dashboard.widgets.Bell)."""
+
+    def test_three_rows_of_blocks_with_a_red_dot_while_unread(self):
+        for grid, across in ((widgets.BELL_QUAD, 2), (widgets.BELL_HALF, 1)):
+            for y in range(0, len(grid), 2):
+                for x in range(0, len(grid[0]), across):
+                    inks = {grid[y + dy][x + dx] for dy in (0, 1) for dx in range(across)} - {"."}
+                    self.assertLessEqual(len(inks), 1, (across, x, y))  # a cell has one colour
+        for quads in (True, False):
+            for unread in (0, 3):
+                with mock.patch.object(widgets, "quadrants", lambda: quads):
+                    lines = widgets.bell_rows(bool(unread)).split("\n")
+                self.assertEqual(len(lines), 3)
+                self.assertEqual({line.cell_len for line in lines}, {8}, quads)
+                colours = {str(span.style) for line in lines for span in line.spans}
+                self.assertEqual(colours, {widgets.BELL, widgets.BAD} if unread else {widgets.BELL}, (quads, unread))
+
+    def test_in_the_corner_off_the_grey_bar(self):
+        from dashboard import config
+        from dashboard.app import ReelForge
+
+        tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(tmp.cleanup)
+        self.addCleanup(setattr, db, "_path", db._path)
+        db.init(Path(tmp.name) / "demo.db")
+        demo.seed()
+
+        async def run(size):
+            app = ReelForge(config.load_config(), demo.platforms(), demo=True)
+            async with app.run_test(size=size) as pilot:
+                await pilot.pause(0.3)
+                bell, header = app.query_one("#bell", widgets.Bell), app.query_one("#header")
+                quit_end = app.query_one("#actions").content_region.right  # Quit is the last button
+                self.assertNotIn(header, bell.ancestors)
+                self.assertEqual((bell.region.y, bell.region.height, bell.region.right), (0, 3, size[0] - 1), size)
+                self.assertGreaterEqual(bell.region.x - header.region.right, 4, size)  # the window's dark background
+                self.assertGreaterEqual(bell.region.x - quit_end, 5, size)
+                drawer = app.query_one("#drawer")
+                for corner in ((0, 0), (bell.region.width - 1, 2)):
+                    for opened in (True, False):
+                        await pilot.click("#bell", offset=corner)
+                        await pilot.pause(0.1)
+                        self.assertEqual(drawer.display, opened, (size, corner))
+
+        for size in ((110, 40), (122, 30), (200, 52)):
+            asyncio.run(run(size))
+
+
 class DemoTest(unittest.TestCase):
     """Demo mode's history in a scratch database."""
 

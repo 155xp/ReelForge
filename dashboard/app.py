@@ -148,10 +148,11 @@ class ReelForge(App):
 
     def compose(self) -> ComposeResult:
         ps = list(self.platforms.values())
-        with Horizontal(id="header"):
-            yield Logo(id="logo")
-            yield ActionText(id="status")
-            yield ActionText(chips(("Refresh", "refresh"), ("Help", "help"), ("Quit", "quit")), id="actions")
+        with Horizontal(id="top"):
+            with Horizontal(id="header"):
+                yield Logo(id="logo")
+                yield ActionText(id="status")
+                yield ActionText(chips(("Refresh", "refresh"), ("Help", "help"), ("Quit", "quit")), id="actions")
             yield Bell(id="bell")
         with Horizontal(id="main"):
             yield from self.compose_tabs(ps)
