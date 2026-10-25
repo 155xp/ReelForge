@@ -10,18 +10,26 @@ what the tab will show), and otherwise the same rules directly, then prints what
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from . import settings as S
 from .paths import COMPLETED, EPISODES, ROOT
 
+# The latest of these is the verdict. "NOT APPROVED" has to be tried before "APPROVED", and the words have to be
+# whole, so a review that says DISAPPROVED or "not approved" is not an approval.
+_VERDICT = re.compile(r"\b(NOT\s+APPROVED|APPROVED|REJECTED)\b")
+
 
 def review_approved(review: Path) -> bool:
-    """True if build/qa/review.md's latest verdict is APPROVED (a later REJECTED wins over an earlier APPROVED)."""
+    """True if build/qa/review.md's latest verdict is APPROVED (a later REJECTED wins over an earlier APPROVED).
+
+    Only the whole words count: DISAPPROVED is not an approval, and "NOT APPROVED" is a rejection."""
     if not review.exists():
         return False
     text = review.read_text(encoding="utf-8", errors="replace").upper()
-    return text.rfind("APPROVED") > text.rfind("REJECTED")
+    found = _VERDICT.findall(text)
+    return bool(found) and found[-1] == "APPROVED"
 
 
 def _dashboard_listing():
