@@ -8,7 +8,7 @@
 ; Once code signing is set up (.github/SIGNING.md), the workflow also passes /DSign and /Sreelforge=<sign command>.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.1"
+  #define MyAppVersion "1.0.2"
 #endif
 #define MyAppName "ReelForge"
 #define Stage "..\dist\stage\ReelForge"

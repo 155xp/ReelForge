@@ -1,14 +1,28 @@
-**Your AI makes the videos. You post them.** ReelForge turns Claude Code (or Codex) into a studio for a faceless
-short-form channel: a short interview sets it up for your channel, then your AI scripts, builds, renders and checks
-every video in Blender and puts it in ReelForge's Publish tab, where you post it by hand. Nothing is ever posted
-for you.
+## What's new in 1.0.2
+
+- **Install with one line, with no download warnings.** Paste the line below into PowerShell: it downloads ReelForge
+  straight from GitHub, checks it and starts setup.
+- **Notifications take you there.** Click one and ReelForge shows what it's about: the video on Videos, the finished
+  video on Publish, the platform on Accounts.
+- **A sharper anvil** in the top-left, however you open ReelForge.
+- **Test copies stay out of the way.** A ReelForge folder with a `TEST-COPY.txt` in it says TEST, and never touches
+  the `reelforge` command, the hourly stats job or the desktop shortcut.
+- **A new README** with the demo videos, fresh screenshots and the steps after onboarding. The setup screens drop the
+  line under the logo.
+
+Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
+
+---
+
+ReelForge lets Claude Code or Codex make faceless short videos for TikTok, YouTube Shorts, Instagram Reels and X,
+then shows you how each one does once you've posted it. Nothing is ever posted for you.
 
 ## Download
 
 | Your computer | Download | Then |
 |---|---|---|
-| **Windows 10 / 11** | `ReelForge-…-Windows-Setup.exe` | Run it (if Windows says "Windows protected your PC", click **More info**, then **Run anyway**: the installer isn't code-signed). It installs into your user folder, adds the `reelforge` command and a desktop icon, and starts setup. |
-| Windows, one line, no warnings | `install.ps1` | Open PowerShell, paste `irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 \| iex` and press Enter. It downloads ReelForge straight from GitHub into your user folder, checks it and starts setup, so neither the browser nor Windows warns about it. |
+| **Windows 10 / 11** | `install.ps1` | Open PowerShell, paste `irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 \| iex` and press Enter. It downloads ReelForge straight from GitHub into your user folder, checks it and starts setup, so neither the browser nor Windows warns about it. |
+| Windows, installer | `ReelForge-…-Windows-Setup.exe` | Run it (if Windows says "Windows protected your PC", click **More info**, then **Run anyway**: the installer isn't code-signed). It installs into your user folder, adds the `reelforge` command and a desktop icon, and starts setup. |
 | Windows, no installer | `ReelForge-…-Windows.zip` | Unzip it to a short path (e.g. `C:\Users\you\ReelForge`) and double-click `setup.bat`. |
 | macOS (experimental) | `ReelForge-…-macOS.zip` | Unzip it, right-click `Set up ReelForge.command`, choose **Open**. Needs Python 3.11+ and ffmpeg (`brew install python@3.13 ffmpeg`). |
 | Linux (experimental) | `ReelForge-…-Linux.tar.gz` | Extract it and run `./setup.sh`. Needs Python 3.11+ and ffmpeg. |
