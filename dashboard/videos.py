@@ -62,17 +62,25 @@ def tiktok_tags(tags: str) -> str:
     return " ".join([first, *rest][:MAX_TAGS])
 
 
+def _hashtag_token(word: str) -> bool:
+    """A word that is only hashtags, with an optional .,!? after the last ('#fyp', '#fyp#whatif.')."""
+    return re.fullmatch(r"(#\w+)+[.,!?]*", word) is not None
+
+
 def strip_hashtags(text: str) -> str:
     """The caption without its hashtags, on one line. The hashtags tacked on at the end go ("Gravity flipped?
     #fyp #whatif"); one inside the sentence keeps its word ("What if #gravity doubled" -> "What if gravity
-    doubled"). A single hashtag at the very end counts as tacked on only after a ?, ! or full stop."""
+    doubled"). A single hashtag at the very end counts as tacked on only after a ?, ! or full stop. Hashtags
+    glued together ("#fyp#whatif") are tags, not a word, so they go wherever they sit."""
     words = text.split()
     tail = 0
-    while tail < len(words) and re.fullmatch(r"(#\w+)+[.,!?]*", words[len(words) - 1 - tail]):
+    while tail < len(words) and _hashtag_token(words[len(words) - 1 - tail]):
         tail += 1
     before = words[len(words) - 1 - tail] if tail < len(words) else ""
-    if tail and (tail >= 2 or tail == len(words) or before[-1:] in "?!."):
+    glued_tail = any(w.count("#") > 1 for w in words[len(words) - tail:])
+    if tail and (tail >= 2 or tail == len(words) or before[-1:] in "?!." or glued_tail):
         words = words[:len(words) - tail]
+    words = [w for w in words if not (w.count("#") > 1 and _hashtag_token(w))]
     return " ".join(_HASHTAG.sub(lambda m: m.group(0)[1:], " ".join(words)).split())
 
 
