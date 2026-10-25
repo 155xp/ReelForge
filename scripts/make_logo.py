@@ -1,11 +1,12 @@
-"""Make ReelForge's logo files from the logo images: the app icon and the README banner.
+"""Make ReelForge's logo files from the logo images: the app icon and the README's logo.
 
   python scripts/make_logo.py
 
 The sources are assets/logo/reelforge-logo.png (the anvil, "reel" in white and "forge" in red, on black) and
 assets/logo/reelforge-anvil.png (the anvil alone, white on black); --logo and --anvil use other files. Writes
-assets/icon/reelforge.ico + reelforge.png + reelforge-terminal.png and docs/banner.png. The icon's 16-32 pixel sizes
-are drawn on the pixel grid rather than shrunk from the big one, which blurs the anvil into a blob;
+assets/icon/reelforge.ico + reelforge.png + reelforge-terminal.png and docs/logo-dark.png + logo-light.png (the
+README's logo with no background, for GitHub's dark and light themes). The icon's 16-32 pixel sizes are drawn on the
+pixel grid rather than shrunk from the big one, which blurs the anvil into a blob;
 reelforge-terminal.png is the 32 pixel one, for ReelForge's tab in Windows Terminal (studio/terminal_profile.py).
 The terminal's logo isn't made here: shrunk that far, a trace of the logo leaves pixels sticking out, so it's drawn
 by hand in studio/logo_art.py and studio/logo.py. Needs Pillow (in the kit's .venv).
@@ -19,12 +20,13 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "assets" / "logo" / "reelforge-logo.png"
 ANVIL = ROOT / "assets" / "logo" / "reelforge-anvil.png"
 RED = (232, 33, 58)
+INK = (27, 31, 36)                   # the README logo's anvil and "reel" on a light page: the dark of its badge
 FIRM = 1.4                           # how hard a small icon's edge pixels are pushed towards solid or empty
 
 
@@ -89,6 +91,33 @@ def small_icons(anvil: Image.Image) -> list[Image.Image]:
             small_icon(halves_to(coverage(anvil, 32, firm=1.0), coverage(anvil, 16)))]
 
 
+def white_and_red(logo: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+    """How much of each pixel of the logo (on black) its white and its red cover, 0-1 each. Each pixel is split into
+    the two colours, the red being the one most of the logo's red pixels have, which also leaves the image's noise
+    behind."""
+    px = np.asarray(logo, dtype=np.float32) / 255
+    reds = px[(px[..., 0] > 0.8) & (px[..., 1] < 0.4)]
+    colours = np.array([(1, 1, 1), np.median(reds, axis=0)]).T          # one column each: white, red
+    amounts = np.linalg.lstsq(colours, px.reshape(-1, 3).T, rcond=None)[0].clip(0, None)
+    white, red = amounts.reshape(2, *px.shape[:2])
+    return white, red
+
+
+def wordmark(logo: Image.Image, ink: tuple[int, int, int]) -> Image.Image:
+    """The logo with no background, cropped to its edges: the anvil and "reel" in `ink`, "forge" in RED. Every pixel
+    is one colour or the other, whichever there's more of round it, so only how see-through a pixel is softens the
+    edges. The faint noise round the letters (5% or less) goes, and their nearly solid insides are made solid."""
+    white, red = white_and_red(logo)
+    alpha = np.clip((white + red - 0.05) / 0.9, 0, 1)
+
+    def nearby(amount: np.ndarray) -> np.ndarray:
+        return np.asarray(Image.fromarray((amount.clip(0, 1) * 255).astype(np.uint8)).filter(ImageFilter.BoxBlur(3)))
+
+    rgb = np.where((nearby(red) > nearby(white))[..., None], RED, ink)
+    img = Image.fromarray(np.dstack([rgb, (alpha * 255).round()]).astype(np.uint8), "RGBA")
+    return img.crop(img.getchannel("A").getbbox())
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--logo", type=Path, default=LOGO, help="the logo image (anvil + wordmark on black)")
@@ -104,10 +133,11 @@ def main() -> int:
             sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (20, 20), (16, 16)])
     small[-1].save(ROOT / "assets" / "icon" / "reelforge-terminal.png", optimize=True)
     print("wrote assets/icon/reelforge.ico, reelforge.png and reelforge-terminal.png")
-    # The README's banner is the logo itself (a few dozen colours are plenty for white and red on black)
-    big.quantize(64, Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(ROOT / "docs" / "banner.png",
-                                                                              optimize=True)
-    print("wrote docs/banner.png")
+    # The README's logo has no background, so it comes in two: white for GitHub's dark theme, and the badge's dark for
+    # its light one (README.md's <picture> shows the one that matches)
+    for theme, ink in (("dark", (255, 255, 255)), ("light", INK)):
+        wordmark(big, ink).save(ROOT / "docs" / f"logo-{theme}.png", optimize=True)
+    print("wrote docs/logo-dark.png and logo-light.png")
     return 0
 
 
