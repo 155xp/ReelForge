@@ -68,11 +68,11 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
   <img src="docs/screenshots/onboarding-format.png" width="49%" alt="Onboarding: pick the format your channel starts with">
 </p>
 
-Rather use an installer on Windows? Open the [latest release](https://github.com/dan2756/ReelForge/releases/latest),
-click the file that ends in `Windows-Setup.exe` under **Assets**, and open it. If Windows says "Windows protected your
-PC", click **More info**, then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts
-when the installer finishes. The same page has a zip for the Mac and a tar.gz for Linux, if you'd rather download
-those yourself.
+Rather use an installer on Windows? Download it from [reelforge.tools](https://reelforge.tools) and open it. It's
+also on GitHub: open the [latest release](https://github.com/dan2756/ReelForge/releases/latest) and click the file
+that ends in `Windows-Setup.exe` under **Assets**. If Windows says "Windows protected your PC", click **More info**,
+then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts when the installer
+finishes. Both places have a zip for the Mac and a tar.gz for Linux too, if you'd rather download those yourself.
 
 ## Make your first video
 
