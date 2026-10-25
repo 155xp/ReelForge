@@ -18,8 +18,13 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 
 Onboarding fills in your handles. TikTok and YouTube stats start straight away; for Instagram and X, go to
 **Accounts (5)** and press **Log in** once (see below). It looks best in Windows Terminal with the window maximised.
-Everything is a button on the page it applies to; the only keys are **1**-**6** to switch tabs and **r** / **R** to
-refresh / force a refresh.
+Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**6** switch tabs, **r** / **R**
+refresh / force a refresh, **Tab** moves between buttons, lists and fields (**Enter** presses, the arrows move through
+a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q** quits.
+
+The window is an [OpenTUI](https://github.com/anomalyco/opentui) app (`ui/` in the ReelForge folder), run by Bun; setup
+puts Bun in `tools/bun` and the window's packages in `ui/node_modules`, and ReelForge gets them again by itself if
+they're ever missing (an update that needs new ones, say).
 
 You can have ReelForge open in several windows at once, each on its own tab (the Overview in one, Publish in
 another). They share one set of stats: one window reads them at a time, with **refreshing …** in every window's top
@@ -48,7 +53,7 @@ sign a video is spreading.
 
 ## Notifications
 
-The **bell** in the top-right corner opens the drawer, which slides in from the right; the bell, **Close** or Esc
+The **bell** in the top-right corner opens the drawer on the right; the bell, **Close** or Esc
 closes it. A **red dot** on the bell means something's unread (the drawer says how many); **Mark all read** clears
 it. The big **×** on a notification's right deletes it (Delete does the same for the highlighted one), and **Clear
 all** deletes every one. Click a notification to see what it's about, from any tab (the drawer stays open, so you
@@ -172,6 +177,7 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 | Problem | Fix |
 |---|---|
 | ReelForge says it needs its Python environment | Run setup again (`setup.bat`, or `./setup.sh`). |
+| "ReelForge's window couldn't run" | It says why, and the details are in `dashboard/data/window-log.txt`. `reelforge doctor` checks Bun and the window's packages; `reelforge setup` puts them right. |
 | A platform's name is red in the top bar | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
 | Instagram "wants to check it's you" | Press **Log in again** and follow Instagram's steps in the window that opens. |
 | A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
@@ -183,9 +189,10 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 
 | | |
 |---|---|
-| `__main__.py`, `app.py`, … | the app (Textual for the screen, httpx and Playwright with an installed browser for reading stats) |
+| `service.py`, `view.py` | what the window shows and what its buttons do; the window itself is the OpenTUI app in `ui/` (`ui/README.md`), which runs this through `studio/bridge.py` |
+| `__main__.py`, `sync.py`, `analytics.py`, `trends.py`, … | opening it, reading stats (httpx, and Playwright with an installed browser), and the numbers behind every chart |
 | `notify.py`, `badges.py`, `besttime.py` | notifications, milestones, badges and the best time to post |
 | `refresh.pyw` | what the hourly background job runs |
 | `config.example.toml` | the settings template; your own settings are in `config.toml` (written by onboarding, not shared) |
-| `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` (macOS/Linux: `.venv/bin/python`) |
+| `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` (macOS/Linux: `.venv/bin/python`); the window's own tests are in `ui/test/` (`bun test` in `ui/`) |
 | `data/` | your stats database, backups and ReelForge's browser profile: private, never shared |

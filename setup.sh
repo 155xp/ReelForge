@@ -2,10 +2,10 @@
 # ReelForge setup for macOS and Linux.
 #   ./setup.sh          one list of what's missing, one yes, then onboarding
 #   ./setup.sh --yes    the same without questions (for an AI setting up for you, with your OK)
-# Everything goes inside this folder (.venv, tools/); nothing is installed system-wide. Without Python 3.11 or newer
-# it offers a private Python 3.13 in tools/python (about 25 MB, from the python-build-standalone project that uv and
-# other tools use, checked against its published checksums). Once Python is found, studio/bootstrap.py draws the
-# first-run box and does the rest.
+# Everything goes inside this folder (.venv, tools/, ui/node_modules); nothing is installed system-wide. Without Python
+# 3.11 or newer it offers a private Python 3.13 in tools/python (about 25 MB, from the python-build-standalone project
+# that uv and other tools use, checked against its published checksums). Once Python is found, studio/bootstrap.py
+# draws the first-run box, gets the Python packages and Bun (which runs ReelForge's window), and does the rest.
 set -euo pipefail
 cd "$(dirname "$0")"
 chmod +x ./*.sh bin/reelforge 2>/dev/null || true

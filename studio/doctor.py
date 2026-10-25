@@ -50,6 +50,31 @@ def run(render_test: bool = False) -> int:
     return 0
 
 
+def window_check(r: Report, fix: str) -> None:
+    """ReelForge's window: Bun runs it, and its packages (OpenTUI) are installed (studio/ui.py)."""
+    from . import ui
+
+    bun = ui.bun_path()
+    version = ""
+    if bun:
+        try:
+            version = subprocess.run([str(bun), "--version"], capture_output=True, text=True, timeout=30,
+                                     stdin=subprocess.DEVNULL).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            version = ""
+    if not version:
+        r.add(FAIL, "Window", f"Bun isn't installed: {fix} (it downloads Bun {ui.BUN_VERSION})")
+        return
+    if not ui.packages_ready():
+        r.add(FAIL, "Window", f"Bun {version}, but the window's packages aren't installed: {fix}")
+        return
+    try:
+        core = json.loads((ui.UI / "node_modules" / "@opentui" / "core" / "package.json").read_text("utf-8"))
+        r.add(OK, "Window", f"Bun {version}, OpenTUI {core['version']}")
+    except (OSError, ValueError, KeyError):
+        r.add(FAIL, "Window", f"Bun {version}, but OpenTUI isn't installed: {fix}")
+
+
 def checks(render_test: bool = False, quiet: bool = False) -> Report:
     """Every check, as a Report (printed line by line unless quiet)."""
     r = Report(quiet)
@@ -59,13 +84,14 @@ def checks(render_test: bool = False, quiet: bool = False) -> Report:
     r.add(OK if v >= (3, 11) else FAIL, "Python", f"{v.major}.{v.minor}.{v.micro}" +
           ("" if v >= (3, 11) else " (needs 3.11 or newer)"))
     missing = []
-    for mod in ("numpy", "PIL", "jinja2", "textual", "httpx", "playwright"):
+    for mod in ("numpy", "PIL", "jinja2", "httpx", "playwright"):
         try:
             importlib.import_module(mod)
         except ImportError:
             missing.append(mod)
     r.add(FAIL if missing else OK, "Python packages", f"missing {', '.join(missing)}: {fix}" if missing else
-          "numpy, Pillow, Jinja2, Textual, httpx, Playwright")
+          "numpy, Pillow, Jinja2, httpx, Playwright")
+    window_check(r, fix)
 
     blender = tools.find_blender()
     if not blender:

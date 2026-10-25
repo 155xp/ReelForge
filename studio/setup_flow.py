@@ -3,8 +3,8 @@
 or Edge, a browser for the stats), ask once, set it all up, check everything, then onboarding. Everything downloaded
 goes into this folder (Playwright keeps its Chromium in its own cache folder).
 
-In a terminal this is the boxed first-run screen (studio/firstrun.py). With --yes, or when nobody is at the
-keyboard (an AI running setup for someone), the same steps print as plain lines.
+In a terminal this is the boxed first-run screen (the window's: ui/src/setup/, through studio/setup_service.py).
+With --yes, or when nobody is at the keyboard (an AI running setup for someone), the same steps print as plain lines.
 """
 
 from __future__ import annotations

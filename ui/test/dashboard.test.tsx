@@ -1,0 +1,205 @@
+// The ReelForge window itself, drawn without a terminal on demo data with its real Python side: what fits where, the
+// keys, clicks on chips, headers, the bell and the drawer's notifications, and the dialogs. (What the Python side
+// does when they're pressed is tested in dashboard/tests/.)
+
+import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
+import { join } from "node:path"
+import { headless, type Headless } from "../scripts/headless"
+import { clickText, find } from "../scripts/shots"
+import { ROOT } from "../src/bridge"
+import { DASH } from "../src/theme"
+
+const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
+setDefaultTimeout(30_000) // each test starts a real window (2.5 s to draw it) before its clicks and keys
+let open: Headless | null = null
+
+async function window(tab = "overview", size: [number, number] = [180, 50], drawer = false): Promise<Headless> {
+  open = await headless("dashboard", { demo: true, only_demos: true, tab, drawer }, size[0], size[1], PRELOAD)
+  await open.settle(2500)
+  return open
+}
+
+afterEach(async () => {
+  await open?.close()
+  open = null
+})
+
+const frame = (h: Headless) => h.t.captureCharFrame()
+const rows = (h: Headless) => frame(h).split("\n")
+
+/** The tab that's lit (its label on the primary colour). */
+function activeTab(h: Headless): string {
+  const line = h.t.captureSpans().lines[3]!
+  const lit = line.spans.find((s) => s.bg.toInts().slice(0, 3).join() === [0x3d, 0xff, 0x9a].join())
+  return lit?.text.trim().replace(/ ●$/, "") ?? ""
+}
+
+const KEYS: Record<string, "ESCAPE" | "RETURN" | "TAB" | "DELETE"> = { escape: "ESCAPE", return: "RETURN", tab: "TAB", delete: "DELETE" }
+
+async function press(h: Headless, key: string) {
+  h.t.mockInput.pressKey(KEYS[key] ?? key)
+  await h.settle(300)
+}
+
+describe("the Overview fits", () => {
+  for (const [w, hh, drawer] of [
+    [110, 40, false],
+    [150, 45, true],
+    [200, 52, true],
+  ] as const) {
+    test(`at ${w}x${hh}${drawer ? " with the drawer open" : ""}: no card line runs into its border`, async () => {
+      const h = await window("overview", [w, hh], drawer)
+      const all = rows(h)
+      const top = all.findIndex((r) => r.includes("╭─ All"))
+      expect(top).toBeGreaterThan(0)
+      expect([...all[top]!].filter((ch) => ch === "╭").length).toBe(5)
+      for (let y = top + 1; y < top + 7; y++) {
+        const line = all[y]!.slice(0, drawer ? w - 48 : w)
+        expect([...line].filter((ch) => ch === "│").length).toBe(10)
+      }
+    })
+  }
+})
+
+describe("the header and the bell", () => {
+  test("the bell sits in the corner, off the grey bar, and opens and closes the drawer", async () => {
+    const h = await window("overview", [122, 30])
+    const spans = h.t.captureSpans().lines[1]!.spans
+    let x = 0
+    const cells: string[] = []
+    for (const s of spans) for (let i = 0; i < s.width; i++, x++) cells.push(s.bg.toInts().slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join(""))
+    const bar = cells.lastIndexOf(DASH.panel.slice(1))
+    expect(122 - 1 - 8 - bar).toBeGreaterThanOrEqual(4) // the window's dark background between the bar and the bell
+    expect(frame(h)).not.toContain("NOTIFICATIONS")
+    await h.t.mockMouse.click(122 - 3, 1)
+    await h.settle(400)
+    expect(frame(h)).toContain("NOTIFICATIONS")
+    await h.t.mockMouse.click(122 - 8, 0)
+    await h.settle(400)
+    expect(frame(h)).not.toContain("NOTIFICATIONS")
+  })
+
+  test("Quit quits", async () => {
+    const h = await window()
+    await clickText(h, " Quit ", 2)
+    expect(h.exits).toEqual([{ code: 0, result: undefined }])
+  })
+})
+
+describe("keys", () => {
+  test("1-6 switch tabs, but not while you type; Esc leaves the field", async () => {
+    const h = await window()
+    expect(activeTab(h)).toBe("Overview")
+    await press(h, "2")
+    expect(activeTab(h)).toBe("Videos")
+    await press(h, "4")
+    expect(activeTab(h)).toBe("Publish")
+    for (let i = 0; i < 30 && !find(h, "What if everyone"); i++) await h.settle(100) // the picked video's caption
+    await h.t.mockMouse.click(find(h, "What if everyone")![0] + 3, find(h, "What if everyone")![1])
+    await h.settle(200)
+    h.t.mockInput.pressKey("END")
+    await h.t.mockInput.typeText(" 3")
+    await h.settle(300)
+    expect(activeTab(h)).toBe("Publish")
+    expect(frame(h)).toContain("time? 3")
+    await press(h, "escape")
+    await press(h, "3")
+    expect(activeTab(h)).toBe("Compare")
+  })
+
+  test("Tab moves between buttons, and Enter presses one", async () => {
+    const h = await window("updates")
+    expect(frame(h)).not.toContain("HOW REELFORGE WORKS")
+    for (let i = 0; i < 2; i++) await press(h, "tab") // Check now, then Release page... back round to Check now
+    await press(h, "escape")
+    await clickText(h, " Help ", 2)
+    expect(frame(h)).toContain("HOW REELFORGE WORKS")
+    await press(h, "return") // Close has the keyboard
+    expect(frame(h)).not.toContain("HOW REELFORGE WORKS")
+  })
+})
+
+describe("tables and charts", () => {
+  test("a header sorts, and again flips the order", async () => {
+    const h = await window("videos")
+    expect(frame(h)).not.toContain("Views 12h ▼")
+    await clickText(h, "Views 12h", 2)
+    expect(frame(h)).toContain("Views 12h ▼")
+    await clickText(h, "Views 12h ▼", 2)
+    expect(frame(h)).toContain("Views 12h ▲")
+  })
+
+  test("the range chips and a platform's key change the charts", async () => {
+    const h = await window()
+    expect(frame(h)).toContain("in 24h")
+    await clickText(h, " 7D ", 2)
+    expect(frame(h)).toContain("in 7d")
+    await clickText(h, "■ TikTok", 2)
+    const views = h.bridge.view<{ legend: [string, string][] }>("trends")!.legend
+    expect(views.find((s) => s[0] === "■ TikTok")![1]).toContain("strike")
+  })
+
+  test("pointing at a bar reads its numbers", async () => {
+    const h = await window()
+    const title = find(h, "VIEWS")!
+    const before = rows(h)[title[1]]
+    await h.t.mockMouse.moveTo(title[0] + 30, title[1] + 8)
+    await h.settle(300)
+    expect(rows(h)[title[1]]).not.toBe(before)
+    expect(rows(h)[title[1]]).toMatch(/VIEWS\s+\S+ \d+( |:)/)
+  })
+})
+
+describe("the drawer", () => {
+  const noteTitles = (h: Headless) => h.bridge.view<{ items: { title: [string, string][] }[] }>("notes")!.items.map((n) => n.title.map((s) => s[0]).join(""))
+
+  test("a notification's × deletes it without opening it", async () => {
+    const h = await window("overview", [180, 50], true)
+    const before = noteTitles(h)
+    const at = find(h, before[0]!.slice(0, 20))!
+    await h.t.mockMouse.click(180 - 6, at[1] + 1) // the middle of its ×
+    await h.settle(500)
+    expect(noteTitles(h)).toEqual(before.slice(1))
+    expect(activeTab(h)).toBe("Overview")
+  })
+
+  test("Delete deletes the highlighted one; a click opens what it's about", async () => {
+    const h = await window("overview", [180, 50], true)
+    const before = noteTitles(h)
+    await clickText(h, before[1]!.slice(0, 20), 2) // highlights it
+    await press(h, "delete")
+    expect(noteTitles(h)).toEqual([before[0]!, ...before.slice(2)])
+    const video = noteTitles(h).find((t) => /^(Taking off|A video passed)/.test(t))!
+    await clickText(h, video.slice(0, 20), 2)
+    await clickText(h, video.slice(0, 20), 2)
+    await h.settle(500)
+    expect(activeTab(h)).toBe("Videos")
+  })
+
+  test("Esc closes it", async () => {
+    const h = await window("overview", [180, 50], true)
+    await press(h, "escape")
+    expect(frame(h)).not.toContain("NOTIFICATIONS")
+  })
+})
+
+describe("dialogs", () => {
+  test("Remove asks what to do with the picked video; Cancel leaves it", async () => {
+    const h = await window("publish", [200, 56])
+    await clickText(h, " Remove ", 2)
+    expect(frame(h)).toContain("REMOVE VIDEO")
+    expect(frame(h)).toContain("demo_everyone_jumps.mp4")
+    await clickText(h, "  Cancel  ", 3)
+    expect(frame(h)).not.toContain("REMOVE VIDEO")
+    expect(frame(h)).toContain("demo_everyone_jumps.mp4")
+  })
+
+  test("Fix episode lists the videos to file a post under", async () => {
+    const h = await window("videos")
+    await clickText(h, " Fix episode ", 2)
+    expect(frame(h)).toContain("WHICH VIDEO IS THIS?")
+    expect(frame(h)).toContain("Not one of my videos")
+    await press(h, "escape")
+    expect(frame(h)).not.toContain("WHICH VIDEO IS THIS?")
+  })
+})

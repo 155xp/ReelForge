@@ -38,6 +38,21 @@ jobs:
         run: python -m unittest discover tests -v
       - name: Dashboard tests
         run: python -m unittest discover -s dashboard/tests -t .
+      # The window (ui/: OpenTUI on Bun), drawn without a terminal, with its real Python side.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.3"
+      - name: The window's packages
+        working-directory: ui
+        run: bun install --frozen-lockfile
+      - name: The window's types
+        working-directory: ui
+        run: bun x tsc --noEmit -p .
+      - name: The window's tests
+        working-directory: ui
+        env:
+          STUDIO_DRY_SYSTEM: "1"
+        run: bun test --timeout 60000
 
   install:
     name: Install on ${{ matrix.os }}
@@ -77,6 +92,8 @@ jobs:
           cd ~/ReelForge
           ls tools
           test -x tools/python/bin/python3
+          tools/bun/bun --version
+          test -f ui/node_modules/@opentui/core/package.json
           .venv/bin/python -c "import sys; print(sys.version); assert 'ReelForge/tools/python' in sys.base_prefix, sys.base_prefix"
           export PATH="$HOME/.local/bin:$PATH"
           reelforge help | sed -n 1,3p

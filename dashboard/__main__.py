@@ -20,7 +20,6 @@ from datetime import datetime
 
 try:
     import httpx  # noqa: F401
-    import textual  # noqa: F401
 except ImportError:
     sys.exit(3)  # the launchers take exit code 3 to mean "repair the environment"
 
@@ -61,42 +60,50 @@ def main(argv: list[str] | None = None) -> int:
     except config.ConfigError as e:
         print(f"ReelForge can't start: {e}")
         return 2
-    if args.demo:
-        from . import demo
+
+    if word == "refresh":
+        cfg, platforms = load_platforms(args.demo)
+        return refresh(platforms, cfg, demo=args.demo)
+
+    # The window is the OpenTUI app in ui/; it runs dashboard/service.py through studio/bridge.py.
+    from studio import tui, ui
+
+    tui.set_title("ReelForge TEST" if (config.APP_DIR.parent / "TEST-COPY.txt").exists() else "ReelForge")
+    if sys.platform == "win32":
+        threading.Thread(target=_terminal_profile, daemon=True).start()
+    code, _ = ui.run("dashboard", {"tab": tab_for(word) or "overview", "drawer": word in DRAWER_WORDS,
+                                   "demo": args.demo})
+    if code == 75:
+        print("ReelForge updated itself; starting it again…")
+    return code
+
+
+def load_platforms(demo: bool = False, only_demos: bool = False) -> tuple[dict, dict]:
+    """The settings and the platforms to show, with the stats database open: the real one, or for the demo a fresh
+    one of made-up stats (only_demos: the Publish tab lists just the kit's own demo videos, for the README's
+    pictures)."""
+    cfg = config.load_config()
+    if demo:
+        from . import demo as demo_data
 
         path = config.DATA_DIR / "demo.db"
         for suffix in ("", "-wal", "-shm"):
             path.with_name(path.name + suffix).unlink(missing_ok=True)
         db.init(path)
-        demo.seed(video=demo.newest_video(cfg))
-        platforms = demo.platforms()
-    else:
-        from .platforms import build
+        if only_demos:
+            from . import videos
 
-        db.init(config.DB_PATH)
-        # Only the platforms you've put a handle in; with none yet, all four, so the Accounts tab shows the way.
-        every = build(cfg)
-        platforms = {k: p for k, p in every.items() if p.public_handle} or every
+            names = {p.parent.name for p in (config.APP_DIR.parent / "examples").glob("*/episode.json")}
+            every = videos.find
+            videos.find = lambda c: [f for f in every(c) if f.stem in names]
+        demo_data.seed(video=demo_data.newest_video(cfg))
+        return cfg, demo_data.platforms()
+    from .platforms import build
 
-    if word == "refresh":
-        return refresh(platforms, cfg, demo=args.demo)
-
-    from .app import ReelForge
-
-    app = ReelForge(cfg, platforms, demo=args.demo, tab=tab_for(word) or "overview", drawer=word in DRAWER_WORDS)
-    from studio import tui
-
-    tui.set_title(app.title)  # the terminal tab's name
-    if sys.platform == "win32":
-        threading.Thread(target=_terminal_profile, daemon=True).start()
-    app.run()
-
-    if any(t.is_alive() and not t.daemon for t in threading.enumerate() if t is not threading.main_thread()):
-        print("Finishing the stats read that was running (it closes its browser first)…")
-    code = app.return_code or 0
-    if code == 75:
-        print("ReelForge updated itself; starting it again…")
-    return code
+    db.init(config.DB_PATH)
+    # Only the platforms you've put a handle in; with none yet, all four, so the Accounts tab shows the way.
+    every = build(cfg)
+    return cfg, {k: p for k, p in every.items() if p.public_handle} or every
 
 
 def _terminal_profile() -> None:
@@ -142,7 +149,7 @@ def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:
 
 def _check_updates() -> None:
     """Ask GitHub about a newer ReelForge at most every 6 hours, so the bell can say so before you open the app."""
-    from .app import UPDATE_EVERY_H, _hours_since
+    from .service import UPDATE_EVERY_H, _hours_since
 
     try:
         from studio import KIT_VERSION

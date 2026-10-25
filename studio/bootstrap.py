@@ -1,6 +1,7 @@
 """Setup's first minute, before ReelForge's own Python environment exists: it draws the first-run box with the
-logo, makes the environment (.venv), installs the Python packages, then hands over to the full first-run screens
-(studio/firstrun.py) inside the same box.
+logo, makes the environment (.venv), installs the Python packages, gets Bun and the window's packages (OpenTUI: the
+first-run screens and ReelForge's window are an OpenTUI app, ui/), then hands over to the full first-run screens
+inside the same box.
 
 setup.ps1 and setup.sh run it with the Python they found:  python -m studio.bootstrap [--yes] [--no-onboard]
 Standard library only (nothing else is installed yet). With --yes, or without a terminal, it prints plain lines.
@@ -302,7 +303,31 @@ class Packages:
         return sum(r[2] == "done" for r in self.rows.values())
 
 
-def _run(ui, row: int, label: str, cmd: list[str], watch: Packages | None = None) -> int:
+class WindowSetup:
+    """studio.ui install's lines as one line on screen: Bun's download, then the window's packages."""
+
+    def __init__(self, ui, row: int, ok: str):
+        self.ui, self.row, self.ok = ui, row, ok
+        self.text = "Bun and the window's packages: checking"
+        self.error = ""
+
+    def feed(self, line: str) -> None:
+        line = line.strip()
+        if line.startswith("ERROR:"):
+            self.error = line[6:].strip()
+        elif line.startswith("Downloading Bun"):
+            self.text = "Bun and the window's packages: " + line[0].lower() + line[1:]
+        elif line.startswith("Installing the window's packages"):
+            self.text = "Bun and the window's packages: installing OpenTUI"
+
+    def draw(self, tick: int) -> None:
+        self.ui.set(self.row, f"{SPIN[tick % 4]} {self.text}", WHITE)
+
+    def finish(self, ok: bool) -> None:
+        pass
+
+
+def _run(ui, row: int, label: str, cmd: list[str], watch=None) -> int:
     """Run a command with its output in the log, a spinner and a clock on screen. watch, if given, hears each line
     of the output and redraws its own lines as the spinner turns."""
     LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -405,6 +430,13 @@ def main(argv: list[str]) -> int:
             ui.set(row, f"{ok} Python packages: {pkgs.count()} ready", GREEN)
         else:
             ui.line(f"{ok} Python packages: ready", GREEN)
+        row = ui.line("Bun and the window's packages...")
+        window = WindowSetup(ui, row, ok)
+        if _run(ui, row, "Bun and the window's packages", [str(VENV_PY), "-m", "studio.ui", "install"], window) != 0:
+            ui.set(row, f"{bad} Bun and the window's packages: {window.error or 'the install stopped'}", YELLOW)
+            return _fail(ui, "Bun or the window's packages didn't install. Check your internet connection and run "
+                             "setup again.")
+        ui.set(row, f"{ok} Bun and the window's packages: ready", GREEN)
         ui.line("Starting setup...", MUTED)
         time.sleep(0.4)
     except KeyboardInterrupt:

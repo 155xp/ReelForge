@@ -9,8 +9,8 @@ Terminal 1.24 takes those from the font, which leaves faint seams and fringes ro
   big()     the full logo, 8 rows tall: the first-run screens
   anvil()   the anvil alone, 3 rows tall: small spots like the app's header
   ansi(art)       the art as lines of text with colour codes (24-bit, or the nearest of 256 colours where that's
-                  all the terminal shows)
-  rich_text(art)  the art as a rich Text (Textual)
+                  all the terminal shows): setup's first box, before the window can run
+  cells(art)      each row as (character, colour, background): what the window (ui/) draws
 """
 
 from __future__ import annotations
@@ -147,7 +147,7 @@ def cells(art: Art) -> list[list[tuple[str, str | None, str | None]]]:
 
 def truecolor() -> bool:
     """Whether the terminal shows 24-bit colour: Windows' terminals do, and others say so in COLORTERM (the test
-    Textual's screens use too). macOS's own Terminal shows only 256 colours before macOS 26 and turns 24-bit codes
+    the window uses too). macOS's own Terminal shows only 256 colours before macOS 26 and turns 24-bit codes
     into the wrong ones. REELFORGE_TRUECOLOR=1 or 0 overrides."""
     forced = os.environ.get("REELFORGE_TRUECOLOR", "").strip()
     if forced in ("0", "1"):
@@ -196,17 +196,3 @@ def ansi(art: Art, indent: int = 0) -> list[str]:
             parts.append(ch)
         lines.append("".join(parts).rstrip() + "\x1b[0m")
     return lines
-
-
-def rich_text(art: Art):
-    """The art as a rich Text (for Textual); imports rich only when called."""
-    from rich.style import Style
-    from rich.text import Text
-
-    t = Text(no_wrap=True, overflow="crop")
-    for i, line in enumerate(cells(art)):
-        if i:
-            t.append("\n")
-        for ch, fg, bg in line:
-            t.append(ch, Style(color=fg, bgcolor=bg) if (fg or bg) else None)
-    return t

@@ -62,9 +62,10 @@ class InstallTest(unittest.TestCase):
 
     def test_kept_paths(self):
         for rel in ("my-studio/studio.toml", "episodes/ep01/episode.json", "completed videos/x/x.mp4", "CLAUDE.md",
-                    "dashboard/data/stats.db", "dashboard/config.toml", ".venv/Scripts/python.exe", "tools/blender/b"):
+                    "dashboard/data/stats.db", "dashboard/config.toml", ".venv/Scripts/python.exe", "tools/blender/b",
+                    "ui/node_modules/@opentui/core/package.json"):
             self.assertTrue(update.kept(rel), rel)
-        for rel in ("dashboard/app.py", "dashboard/config.example.toml", "studio/__init__.py", "README.md"):
+        for rel in ("dashboard/service.py", "ui/src/main.tsx", "ui/bun.lock", "studio/__init__.py", "README.md"):
             self.assertFalse(update.kept(rel), rel)
 
     def test_zip_update_copies_kit_files_and_leaves_yours(self):

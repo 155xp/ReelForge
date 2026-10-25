@@ -1,0 +1,23 @@
+{
+  "name": "reelforge-ui",
+  "private": true,
+  "type": "module",
+  "description": "ReelForge's window and first-run screens: an OpenTUI app run by Bun (see README.md here)",
+  "scripts": {
+    "dashboard": "bun src/main.tsx dashboard",
+    "demo": "bun src/main.tsx dashboard {\"demo\":true}",
+    "setup": "bun src/main.tsx setup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opentui/core": "0.6.8",
+    "@opentui/react": "0.6.8",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.3",
+    "@types/react": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

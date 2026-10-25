@@ -1,5 +1,10 @@
 ## What's new in 1.0.5
 
+- **A new window, built with [OpenTUI](https://github.com/anomalyco/opentui).** ReelForge's window, setup's screens
+  and onboarding are rebuilt on OpenTUI: the same six tabs, charts, notifications and buttons, drawn faster, and
+  every button, list and field reachable with Tab and Enter as well as the mouse. Bun runs it: setup downloads it into
+  the ReelForge folder (about 60 MB with the window's packages), and a ReelForge you update gets it the first time it
+  opens.
 - **Macs and Linux PCs get the full ReelForge.** They're no longer experimental: everything ReelForge does on
   Windows, it now does on a Mac (Apple Silicon or Intel) and on Linux, and every change is tested on all three before
   it ships.

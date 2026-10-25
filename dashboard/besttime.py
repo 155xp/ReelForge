@@ -18,11 +18,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from statistics import median
 
-from rich.text import Text
-
 from . import analytics
 from .analytics import fmt_clock, fmt_hours
-from .widgets import MUTED, short_num
+from .view import MUTED, Text, short_num
 
 SLOT_HOURS = 4  # the day in six parts
 MIN_VIDEOS = 2  # known videos a part of the day needs to count
@@ -90,21 +88,21 @@ def next_time(slot: int, now: datetime | None = None) -> str:
 
 
 def parts(bt: BestTime, tag: Text, now: datetime | None = None) -> list[tuple[Text, int]]:
-    """A platform's line on the card as (text, importance) parts: widgets.fit leaves out the highest numbers first."""
+    """A platform's line on the card as (text, importance) parts: the frontend leaves out the highest numbers first."""
     head = tag.copy()
     head.append(" " * max(6 - head.cell_len, 2))  # the lines start level: "● TT  ", "● X   "
     if bt.slot is not None:
-        return [(head, 0), (Text(slot_label(bt.slot), style="bold"), 0),
+        return [(head, 0), (Text(slot_label(bt.slot), "bold"), 0),
                 (Text(f"  {short_num(bt.typical(bt.slot))}", style="bold"), 1),
-                (Text(f" vs {short_num(bt.others)} other times", style=MUTED), 3),
-                (Text(f"  next: {next_time(bt.slot, now)}", style=MUTED), 2)]
+                (Text(f" vs {short_num(bt.others)} other times", MUTED), 3),
+                (Text(f"  next: {next_time(bt.slot, now)}", MUTED), 2)]
     ranked = bt.ranked()
     if len(ranked) >= MIN_SLOTS:  # the two closest, with their typical first-day views
         a, b = ranked[:2]
-        return [(head, 0), (Text("no clear best time yet", style=MUTED), 0),
+        return [(head, 0), (Text("no clear best time yet", MUTED), 0),
                 (Text(f"  {slot_label(a)} {short_num(bt.typical(a))}", style=MUTED), 2),
                 (Text(f", {slot_label(b)} {short_num(bt.typical(b))}", style=MUTED), 3)]
-    out = [(head, 0), (Text("not enough videos yet", style=MUTED), 0)]
+    out = [(head, 0), (Text("not enough videos yet", MUTED), 0)]
     if bt.known:  # the numbers so far, for the part of the day with the most videos
         s = max(bt.known, key=lambda s: (len(bt.known[s]), bt.typical(s)))
         n = len(bt.known[s])

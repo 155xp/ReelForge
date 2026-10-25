@@ -13,7 +13,8 @@ onboarding writes. Commands below use Windows paths; on macOS/Linux use `.venv/b
 |---|---|---|
 | Blender 4.5 LTS | `tools/` (setup downloads 4.5.5), or an installed 4.5 | env `STUDIO_BLENDER` |
 | ffmpeg + ffprobe | `tools/ffmpeg` (setup downloads it: gyan.dev on Windows, Martin Riedl's builds on macOS, BtbN's on Linux), or winget, Homebrew or PATH | env `STUDIO_FFMPEG` |
-| Python 3.11+ with numpy, Pillow, Jinja2, Textual | the kit's `.venv` (setup makes it, on macOS/Linux from `tools/python` if there was no recent Python) | |
+| Python 3.11+ with numpy, Pillow, Jinja2 | the kit's `.venv` (setup makes it, on macOS/Linux from `tools/python` if there was no recent Python) | |
+| Bun, for ReelForge's window (OpenTUI, `ui/`) | `tools/bun` (setup downloads it from Bun's GitHub releases), or a Bun of your own on the PATH | env `REELFORGE_BUN` |
 | Fonts | Georgia + Consolas on Windows; Georgia + JetBrains Mono on macOS; DejaVu serif + JetBrains Mono on Linux | env `STUDIO_FONTS_DIR` |
 
 `python -m studio doctor` checks all of them. Eevee renders about 1.5-4 frames a second at 1080×1920 on a fast

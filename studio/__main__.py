@@ -122,19 +122,19 @@ def onboard(argv: list[str]) -> int:
         print("\n" + apply_background_stats())
         print(next_steps())
         return 0
-    try:
-        from . import firstrun
-    except ImportError as e:
-        print(f"The full-screen interview needs the Textual package ({e}). Using plain questions instead.")
-        return onboard(["--plain"])
-    return after_first_run(firstrun.run("onboard"))
+    return first_run("onboard")
 
 
-def after_first_run(result) -> int:
-    """What the first-run screens asked for when they closed: open ReelForge on a tab, or nothing."""
-    if result and result[0] == "dashboard":
-        return dashboard([result[1]])
-    return 0
+def first_run(start: str) -> int:
+    """The first-run screens (the OpenTUI app's: the tools, onboarding, then what to do next), from `start`. When
+    their last button asks for it, ReelForge opens next, on the tab it picked."""
+    from . import tui, ui
+
+    tui.set_title(f"{KIT_NAME} TEST setup" if P.test_copy() else f"{KIT_NAME} setup")
+    code, result = ui.run("setup", {"start": start})
+    if result and result.get("open") == "dashboard":
+        return dashboard([result.get("tab") or "overview"])
+    return code
 
 
 def new_episode(argv: list[str]) -> int:
@@ -230,8 +230,7 @@ def open_app(argv: list[str]) -> int:
     """`reelforge` with no command: the first-run screens until everything's set up, then the window."""
     state = ready_state()
     if state and _interactive():
-        from . import firstrun
-        return after_first_run(firstrun.run("tools" if state == "setup" else "onboard"))
+        return first_run("tools" if state == "setup" else "onboard")
     if state == "setup":
         print("ReelForge isn't set up yet: run reelforge setup (or setup.bat / ./setup.sh).")
     elif state == "onboard":
@@ -261,8 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "setup":
         yes = "--yes" in rest or "-y" in rest
         if not yes and _interactive():
-            from . import firstrun
-            return after_first_run(firstrun.run("tools"))
+            return first_run("tools")
         from . import setup_flow
         return setup_flow.run(yes=yes, onboard="--no-onboard" not in rest)
     if cmd == "doctor":

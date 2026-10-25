@@ -9,8 +9,8 @@ How the new version goes in depends on how this copy got here:
   git        a git clone: git pull (only when you haven't changed the kit's own files yourself)
   zip        anything else: the new version's download is unpacked and copied over this folder
 
-Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the
-downloaded sounds, the dashboard's data, settings and videos, and CLAUDE.md / AGENTS.md (onboarding rewrites those
+Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the window's
+packages (ui/node_modules: the update installs what the new version's window needs), the downloaded sounds, the dashboard's data, settings and videos, and CLAUDE.md / AGENTS.md (onboarding rewrites those
 from your answers, so they get the new version's instructions). After an update the dashboard exits with code 75,
 which tells the reelforge launcher to start it again.
 """
@@ -42,9 +42,9 @@ API = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES = f"https://github.com/{REPO}/releases"
 RESTART = 75  # the exit code that asks the reelforge launcher to start ReelForge again
 # Never overwritten by an update: the person's own channel, videos, tools, data and generated instructions.
-KEEP = ("my-studio/", "episodes/", "completed videos/", "research/", "tools/", ".venv/", ".git/", ".claude/",
-        "assets/sfx/mixkit/", "assets/sfx/_cache/", "dashboard/data/", "dashboard/videos/", "dashboard/config.toml",
-        "CLAUDE.md", "AGENTS.md")
+KEEP = ("my-studio/", "episodes/", "completed videos/", "research/", "tools/", ".venv/", "ui/node_modules/", ".git/",
+        ".claude/", "assets/sfx/mixkit/", "assets/sfx/_cache/", "dashboard/data/", "dashboard/videos/",
+        "dashboard/config.toml", "CLAUDE.md", "AGENTS.md")
 
 Progress = Callable[[str, int, int], None]  # (what's happening, done, total); total 0 = no idea how long
 
@@ -341,7 +341,8 @@ def _venv_python(root: Path) -> str:
 
 
 def _after(root: Path, requirements_before: str, progress: Progress, log: Callable[[str], None]) -> None:
-    """New Python packages if the update needs them, then CLAUDE.md / AGENTS.md rewritten from your answers."""
+    """New Python packages if the update needs them, the window's (Bun and OpenTUI, studio/ui.py), then CLAUDE.md /
+    AGENTS.md rewritten from your answers."""
     py = _venv_python(root)
     if _hash(root / "requirements.txt") != requirements_before:
         progress("Installing new Python packages", 0, 0)
@@ -352,6 +353,11 @@ def _after(root: Path, requirements_before: str, progress: Progress, log: Callab
         stamp = root / ".venv" / "installed.txt"
         if stamp.parent.exists():
             shutil.copy2(root / "requirements.txt", stamp)
+    progress("Getting the window's packages", 0, 0)
+    res = subprocess.run([py, "-m", "studio.ui", "install"], capture_output=True, text=True, cwd=root,
+                         env={**os.environ, "PYTHONUTF8": "1"}, stdin=subprocess.DEVNULL)
+    if res.returncode != 0:
+        log("Updated, but the window's packages didn't install; ReelForge tries again when it opens.")
     if (root / "my-studio" / "studio.toml").exists():
         progress("Rewriting CLAUDE.md and AGENTS.md", 0, 0)
         res = subprocess.run([py, "-m", "studio", "onboard", "--regenerate"], capture_output=True, text=True,
