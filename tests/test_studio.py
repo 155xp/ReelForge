@@ -47,6 +47,15 @@ class Questions(unittest.TestCase):
         with self.assertRaises(ValueError):
             questions.coerce(q["max_hashtags"], "lots")
 
+    def test_custom_length_accepts_the_ways_people_write_it(self):
+        for text in ("20-30", "20 to 30", "45s-60s", "20-30 seconds", "20–30", "61 - 75s"):
+            _, problems = questions.validate(answers(length="custom", length_custom=text))
+            self.assertEqual(problems, [], text)
+        self.assertEqual(questions.parse_length("75-61 seconds"), (61.0, 75.0))
+        self.assertEqual(questions.parse_length("30"), (30.0, 30.0))
+        with self.assertRaises(ValueError):
+            questions.parse_length("1m-2m")
+
     def test_describe_is_json(self):
         json.dumps(questions.describe())
 

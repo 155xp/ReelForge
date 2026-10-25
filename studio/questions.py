@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -245,8 +246,18 @@ def validate(answers: dict) -> tuple[dict, list[str]]:
 
 
 def parse_length(text: str) -> tuple[float, float]:
-    parts = str(text).replace("s", "").replace("to", "-").split("-")
-    lo, hi = (float(parts[0]), float(parts[-1])) if len(parts) >= 2 else (float(parts[0]), float(parts[0]))
+    """'61-75', '20 to 30', '45s-60s', '20-30 seconds' or '20–30' -> (min, max) in seconds."""
+    raw = str(text).strip().lower().replace("–", "-").replace("—", "-")
+    raw = re.sub(r"\bseconds?\b", " ", raw)
+    raw = re.sub(r"(\d)\s*s\b", r"\1", raw)  # 20s -> 20, without eating the s in some other word
+    raw = raw.replace("to", "-")
+    parts = [p for p in re.split(r"\s*-\s*", raw) if p.strip()]
+    if not parts:
+        raise ValueError("write it as min-max seconds, e.g. 20-30")
+    try:
+        lo, hi = float(parts[0]), float(parts[-1])
+    except ValueError:
+        raise ValueError("write it as min-max seconds, e.g. 20-30") from None
     return min(lo, hi), max(lo, hi)
 
 
