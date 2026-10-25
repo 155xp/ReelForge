@@ -1,10 +1,14 @@
-## What's new in 1.0.3
+## What's new in 1.0.4
 
-- **A setup that stops part way repairs itself.** If setup's window was closed (or Ctrl+C was pressed) while it was
-  making ReelForge's Python environment, every later open crashed with "No module named 'rich'", and running setup
-  again didn't help. Now ReelForge notices, makes that environment again and carries on with setup.
-- **The one-line install works with a short user folder name** (such as `C:\Users\JOHNSM~1`), which used to stop it
-  before setup.
+- **Best time to post.** Under the videos on Publish, ReelForge shows the part of the day your videos have done best
+  in on each platform, by their views in their first day, and when it next comes round, once there are enough videos
+  to tell. Export CSV also says when each video went up (date, weekday, hour and UTC time) and its views 1, 6 and 24
+  hours in.
+- **ReelForge's own tab in Windows Terminal.** The tab is called ReelForge, whatever your channel is called, and shows
+  the anvil, and ReelForge is in Terminal's **+** menu.
+- **A clean logo on the setup screens.** The anvil and "reelforge" are drawn by hand, pixel by pixel, with blocks
+  Windows Terminal draws itself, so nothing sticks out of them any more, and the ticks in setup's list lose the boxes
+  round them.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

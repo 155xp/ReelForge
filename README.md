@@ -294,7 +294,8 @@ the [latest release](https://github.com/dan2756/ReelForge/releases/latest). On a
 <br>
 
 If you used the install line (or a zip, or a Mac or Linux), run `reelforge stats off` and `reelforge command off`,
-delete the ReelForge icon from your desktop, then delete the ReelForge folder.
+delete the ReelForge icon from your desktop, then delete the ReelForge folder. On Windows, also delete
+`%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\ReelForge`, ReelForge's profile in Windows Terminal.
 
 If you used the installer, go to **Apps** in Windows **Settings**, find ReelForge and choose **Uninstall**. That
 removes ReelForge, the tools it downloaded, the hourly stats job and the `reelforge` command, and keeps your channel,
