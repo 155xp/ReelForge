@@ -2,7 +2,6 @@
 # fills that one in for you; edit config.toml, not this one. Lines starting with # are notes. After changing
 # anything, close ReelForge and open it again.
 
-name = ""                      # your channel's name, shown in the window title, e.g. "My Channel"
 videos_dir = "videos"          # where you put finished videos to upload (.mp4, .mov, .m4v); relative to this folder
 refresh_minutes = 30           # how often ReelForge re-reads your stats while it's open (0 = only when you press
                                # Refresh); the hourly background job (reelforge stats on) reads them while it's closed

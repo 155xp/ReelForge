@@ -44,11 +44,6 @@ def resolve(path: str) -> Path:
     return p if p.is_absolute() else (APP_DIR / p).resolve()
 
 
-def channel_name(cfg: dict) -> str:
-    """Your channel's name, for the window title ("ReelForge · <name>")."""
-    return str(cfg.get("name", "")).strip()
-
-
 def videos_dir(cfg: dict) -> Path:
     """Where you keep finished videos to upload (any .mp4 / .mov / .m4v in it is listed)."""
     return resolve(cfg.get("videos_dir", "videos"))

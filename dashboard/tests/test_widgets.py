@@ -142,7 +142,8 @@ class AppFitTest(unittest.TestCase):
 
 
 class TestCopyHeader(unittest.TestCase):
-    """A test copy (TEST-COPY.txt in the ReelForge folder) says TEST in the header and the window title."""
+    """A test copy (TEST-COPY.txt in the ReelForge folder) says TEST in the header and the window title. The title is
+    just ReelForge (or ReelForge TEST) whatever the channel is called."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -159,17 +160,18 @@ class TestCopyHeader(unittest.TestCase):
 
         async def run(test_copy: bool) -> tuple[str, str]:
             with mock.patch.object(window, "TEST_COPY", test_copy):
-                app = window.ReelForge(config.load_config(), demo.platforms(), demo=True)
+                cfg = {**config.load_config(), "name": "Night Physics"}  # what older onboarding wrote there
+                app = window.ReelForge(cfg, demo.platforms(), demo=True)
                 async with app.run_test(size=(150, 45)) as pilot:
                     await pilot.pause(0.3)
                     content = app.query_one("#status").content
                     return app.title, content.plain if isinstance(content, Text) else str(content)
 
         title, header = asyncio.run(run(True))
-        self.assertTrue(title.startswith("ReelForge TEST"), title)
+        self.assertEqual(title, "ReelForge TEST")
         self.assertTrue(header.startswith(" TEST "), header)
         title, header = asyncio.run(run(False))
-        self.assertNotIn("TEST", title)
+        self.assertEqual(title, "ReelForge")
         self.assertNotIn("TEST", header)
 
 

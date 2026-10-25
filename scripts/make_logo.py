@@ -5,15 +5,18 @@ README banner.
 
 The sources are assets/logo/reelforge-logo.png (the anvil, "reel" in white and "forge" in red, on black) and
 assets/logo/reelforge-anvil.png (the anvil alone, white on black); --logo and --anvil use other files. Writes
-studio/logo_art.py, assets/icon/reelforge.ico + reelforge.png and docs/banner.png. The terminal art is the full logo
-resized to the terminal's grid: 2 x 3 sub-pixels per cell (sextants, which Windows Terminal draws exactly) and 1 x 2
-(half blocks, any terminal). The anvil on its own (the app's header) is too small to resize well, so it's drawn by
-hand in studio/logo.py instead. Needs Pillow (in the kit's .venv).
+studio/logo_art.py, assets/icon/reelforge.ico + reelforge.png + reelforge-terminal.png and docs/banner.png. The
+terminal art is the full logo resized to the terminal's grid: 2 x 3 sub-pixels per cell (sextants, which Windows
+Terminal draws exactly) and 1 x 2 (half blocks, any terminal). The anvil on its own (the app's header) is too small to
+resize well, so it's drawn by hand in studio/logo.py instead. The icon's 16-32 pixel sizes are drawn on the pixel
+grid rather than shrunk from the big one, which blurs the anvil into a blob; reelforge-terminal.png is the 32 pixel
+one, for ReelForge's tab in Windows Terminal (studio/terminal_profile.py). Needs Pillow (in the kit's .venv).
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -26,6 +29,7 @@ ANVIL = ROOT / "assets" / "logo" / "reelforge-anvil.png"
 RED = (232, 33, 58)
 BIG_ROWS = 8                         # terminal rows for the full logo
 INK = 0.5                            # how much of a sub-pixel the logo has to cover for it to be drawn
+FIRM = 1.4                           # how hard a small icon's edge pixels are pushed towards solid or empty
 
 
 def trim(img: Image.Image) -> Image.Image:
@@ -158,7 +162,7 @@ def write_art(big: Image.Image) -> Path:
         'by hand in studio/logo.py). SEXTANT grids have 2 x 3 sub-pixels per terminal cell, HALF grids 1 x 2\n'
         '(studio/logo.py turns them into characters)."""\n\n'
         + block("BIG_SEXTANT", big_s) + "\n" + block("BIG_HALF", big_h),
-        encoding="utf-8")
+        encoding="utf-8", newline="\n")
     return path
 
 
@@ -173,6 +177,50 @@ def icon(anvil: Image.Image, size: int = 1024) -> Image.Image:
     return img
 
 
+def coverage(anvil: Image.Image, size: int, firm: float = FIRM) -> np.ndarray:
+    """How much of each pixel of a small icon (size x size) the anvil covers, 0-1. The anvil fills more of the square
+    than in the big icon, it's shrunk straight onto whole pixels so its flat top and bottom stay sharp, and `firm`
+    pushes the edge pixels towards solid or empty."""
+    a = trim(anvil).convert("L")
+    w = size - 2 * math.ceil(size / 16)
+    h = round(w * a.height / a.width)
+    cover = np.asarray(a.resize((w, h), Image.BOX), dtype=np.float32) / 255
+    out = np.zeros((size, size), dtype=np.float32)
+    x, y = (size - w) // 2, (size - h + 1) // 2
+    out[y:y + h, x:x + w] = np.clip((cover - 0.5) * firm + 0.5, 0, 1)
+    return out
+
+
+def halves_to(big: np.ndarray, small: np.ndarray) -> np.ndarray:
+    """`big` (twice `small`'s size) evened out so that each 2 x 2 block averages to `small`'s pixel: shrunk to half,
+    as Windows Terminal draws its tab icons on a 100% display, it's exactly the sharp small icon."""
+    n = len(small)
+    blocks = big.reshape(n, 2, n, 2).transpose(0, 2, 1, 3).reshape(n, n, 4)
+    for _ in range(8):
+        need = small[..., None] * 4 - blocks.sum(axis=2, keepdims=True)    # how far each block is off its target
+        room = np.where(need > 0, 1 - blocks, blocks)            # how far each of its pixels can move that way
+        total = room.sum(axis=2, keepdims=True)
+        share = np.where(total > 1e-6, room / np.maximum(total, 1e-6), 0.25)
+        blocks = np.clip(blocks + need * share, 0, 1)
+    return blocks.reshape(n, n, 2, 2).transpose(0, 2, 1, 3).reshape(2 * n, 2 * n)
+
+
+def small_icon(cover: np.ndarray) -> Image.Image:
+    """A small icon from the anvil's coverage: white on the rounded black square, the same shape as the big one."""
+    size, ss = len(cover), 16
+    square = Image.new("L", (size * ss, size * ss), 0)
+    ImageDraw.Draw(square).rounded_rectangle([0, 0, size * ss - 1, size * ss - 1], radius=size * ss // 5, fill=255)
+    alpha = np.asarray(square.resize((size, size), Image.BOX), dtype=np.float32) / 255
+    rgba = np.dstack([cover, cover, cover, alpha])
+    return Image.fromarray((rgba * 255).round().astype(np.uint8), "RGBA")
+
+
+def small_icons(anvil: Image.Image) -> list[Image.Image]:
+    """The icon at 16, 20, 24 and 32 pixels. The 32 is the 16 at twice the detail: it halves to exactly the 16."""
+    return [small_icon(coverage(anvil, 16)), small_icon(coverage(anvil, 20)), small_icon(coverage(anvil, 24)),
+            small_icon(halves_to(coverage(anvil, 32, firm=1.0), coverage(anvil, 16)))]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--logo", type=Path, default=LOGO, help="the logo image (anvil + wordmark on black)")
@@ -183,10 +231,12 @@ def main() -> int:
     print("wrote", write_art(big).relative_to(ROOT))
     (ROOT / "assets" / "icon").mkdir(parents=True, exist_ok=True)
     ic = icon(anvil)
+    small = small_icons(anvil)
     ic.resize((512, 512), Image.LANCZOS).save(ROOT / "assets" / "icon" / "reelforge.png")
-    ic.save(ROOT / "assets" / "icon" / "reelforge.ico",
-            sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (16, 16)])
-    print("wrote assets/icon/reelforge.ico, assets/icon/reelforge.png")
+    ic.save(ROOT / "assets" / "icon" / "reelforge.ico", append_images=small,
+            sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (24, 24), (20, 20), (16, 16)])
+    small[-1].save(ROOT / "assets" / "icon" / "reelforge-terminal.png", optimize=True)
+    print("wrote assets/icon/reelforge.ico, reelforge.png and reelforge-terminal.png")
     # The README's banner is the logo itself (a few dozen colours are plenty for white and red on black)
     big.quantize(64, Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(ROOT / "docs" / "banner.png",
                                                                               optimize=True)

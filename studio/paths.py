@@ -52,11 +52,12 @@ def env_flag(name: str) -> bool:
 
 def test_copy() -> bool:
     """A test copy (a second ReelForge folder for trying changes or replaying setup) has TEST-COPY.txt in it. Its
-    window says TEST, and it never changes the computer: the reelforge command, the hourly stats job and the desktop
-    shortcut stay with your main ReelForge folder."""
+    window says TEST, and it never changes the computer: the reelforge command, the hourly stats job, the desktop
+    shortcut and Windows Terminal's ReelForge profile stay with your main ReelForge folder."""
     return TEST_COPY.exists()
 
 
 def dry_system() -> bool:
-    """Leave the PATH, the scheduler and the desktop alone: STUDIO_DRY_SYSTEM=1 (tests), or a test copy."""
+    """Leave the PATH, the scheduler, the desktop and Windows Terminal alone: STUDIO_DRY_SYSTEM=1 (tests), or a test
+    copy."""
     return env_flag("STUDIO_DRY_SYSTEM") or test_copy()

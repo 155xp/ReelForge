@@ -115,9 +115,7 @@ class ReelForge(App):
         self.cfg, self.platforms, self.demo = cfg, platforms, demo
         self.start_tab = tab if tab in TABS else "overview"
         self.start_drawer = drawer
-        name = config.channel_name(cfg)
-        kit = "ReelForge TEST" if TEST_COPY else "ReelForge"
-        self.title = f"{kit} · {name}" if name else kit
+        self.title = "ReelForge TEST" if TEST_COPY else "ReelForge"  # the terminal tab's name, whatever the channel
         self.note_seen = 0  # the newest notification already shown as a pop-up
         self.update_info: dict | None = None  # the last answer from the update check (studio.update.check)
         self.updating = False

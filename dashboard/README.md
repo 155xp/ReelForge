@@ -16,10 +16,14 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | `reelforge notifications` | the Overview with the notifications drawer open |
 | `reelforge --demo` | a tour on made-up numbers: nothing is read or saved |
 
-Onboarding fills in your channel's name and handles. TikTok and YouTube stats start straight away; for Instagram and
-X, go to **Accounts (5)** and press **Log in** once (see below). It looks best in Windows Terminal with the window
-maximised. Everything is a button on the page it applies to; the only keys are **1**-**6** to switch tabs and
-**r** / **R** to refresh / force a refresh.
+Onboarding fills in your handles. TikTok and YouTube stats start straight away; for Instagram and X, go to
+**Accounts (5)** and press **Log in** once (see below). It looks best in Windows Terminal with the window maximised.
+Everything is a button on the page it applies to; the only keys are **1**-**6** to switch tabs and **r** / **R** to
+refresh / force a refresh.
+
+On Windows, ReelForge also adds itself to Windows Terminal: opened from the desktop shortcut or the Start menu, its
+tab is called ReelForge and shows the anvil, and **ReelForge** is in Terminal's **+** menu. Terminal picks this up the
+next time it starts. A tab you type `reelforge` into is called ReelForge too, but keeps that tab's own icon.
 
 ## The six tabs
 
@@ -130,7 +134,6 @@ others. ReelForge looks for the new posts 10 and 30 minutes later and matches th
 
 | Setting | |
 |---|---|
-| `name` | your channel's name, for the window title |
 | `handle` under `[tiktok]`, `[youtube]`, `[instagram]`, `[x]` | your handle on each platform; blank leaves the platform out |
 | `default_tags` | hashtags for videos that don't bring their own |
 | `refresh_minutes` | how often ReelForge re-reads stats while it's open (Instagram/X wait at least an hour) |

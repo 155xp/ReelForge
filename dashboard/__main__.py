@@ -87,6 +87,12 @@ def main(argv: list[str] | None = None) -> int:
         import ctypes
 
         ctypes.windll.kernel32.SetConsoleTitleW(app.title)  # the terminal tab's name
+        try:  # the anvil on ReelForge's tab in Windows Terminal (studio/terminal_profile.py)
+            from studio import terminal_profile
+
+            terminal_profile.ensure()
+        except Exception:
+            pass  # a nicety: never a reason not to open
     app.run()
     import threading
 

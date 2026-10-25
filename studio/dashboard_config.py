@@ -95,8 +95,8 @@ def set_keys(text: str, values: dict[str, dict]) -> str:
 def wanted(s: dict) -> dict[str, dict]:
     """The dashboard settings onboarding manages."""
     tags = " ".join("#" + t for t in S.tag_list(s["captions"]["default_tags"])[: s["captions"]["max_hashtags"]])
-    v: dict[str, dict] = {"": {"name": s["channel"]["name"], "default_tags": tags,
-                               "episodes_dir": "../episodes", "completed_dir": "../completed videos"}}
+    v: dict[str, dict] = {"": {"default_tags": tags, "episodes_dir": "../episodes",
+                               "completed_dir": "../completed videos"}}
     for p in S.PLATFORMS:
         v[p] = {"handle": s["platforms"]["handles"].get(p, "") if p in s["platforms"]["enabled"] else ""}
     return v

@@ -3,8 +3,9 @@
 ;   ISCC.exe /DMyAppVersion=1.0.0 scripts\installer.iss      -> dist\ReelForge-1.0.0-Windows-Setup.exe
 ; It copies ReelForge into your user folder (no admin rights needed), adds Start-menu and desktop shortcuts and the
 ; reelforge command, then runs setup.bat (the first-run screens). Uninstalling removes ReelForge, the tools setup
-; downloaded, the hourly stats job and the reelforge command, but keeps your channel (my-studio, episodes,
-; completed videos) and the dashboard's data. ReelForge's Updates tab runs a newer copy of this installer silently.
+; downloaded, the hourly stats job, the reelforge command and ReelForge's Windows Terminal profile, but keeps your
+; channel (my-studio, episodes, completed videos) and the dashboard's data. ReelForge's Updates tab runs a newer copy
+; of this installer silently.
 ; Once code signing is set up (.github/SIGNING.md), the workflow also passes /DSign and /Sreelforge=<sign command>.
 
 #ifndef MyAppVersion
@@ -77,6 +78,8 @@ Type: filesandordirs; Name: "{app}\tools"
 Type: filesandordirs; Name: "{app}\assets\sfx\_cache"
 Type: filesandordirs; Name: "{app}\assets\sfx\mixkit"
 Type: files; Name: "{userdesktop}\ReelForge.lnk"
+; the Windows Terminal profile ReelForge adds when it opens (studio/terminal_profile.py)
+Type: filesandordirs; Name: "{localappdata}\Microsoft\Windows Terminal\Fragments\ReelForge"
 
 [Code]
 function NeedsAddPath(Dir: string): Boolean;
