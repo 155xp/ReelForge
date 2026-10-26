@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest import mock
 
 from dashboard import config
-from studio import dashboard_config, generate, profiles
+from studio import dashboard_config, generate, profiles, signup
 from studio import paths as P
 from studio import settings as S
 from studio.bridge import Loop
@@ -203,6 +203,88 @@ class Onboarding(Scratch):
         self.assertEqual(done["open"], "Open Cool Epic Facts")
         self.assertEqual(done["back"], "Back to Night Physics")
         self.assertIn('make my first Cool Epic Facts video', json.dumps(done["steps"]))
+
+
+CHROME = signup.Private("Chrome", ("chrome.exe", "--incognito"))
+
+
+class Accounts(Scratch):
+    """A new channel's accounts: onboarding's Your accounts and the Accounts tab help make them, and while there's
+    another channel (probably logged in in your browser) their sign-up pages open in a private window. Nothing opens
+    here: the browser is a stand-in."""
+
+    def setUp(self):
+        super().setUp()
+        self.launched: list = []
+        self.opened: list = []
+        for name, value in (("private_browser", lambda: CHROME), ("launch", self.launched.append),
+                            ("open_page", self.opened.append)):
+            patch = mock.patch.object(signup, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_a_new_profiles_accounts_step(self):
+        self.onboard_main()
+        svc = Setup(Loop(out=io.StringIO()))
+        svc.start({"start": "onboard", "new": True, "embedded": True})
+        svc.onboard_start()
+        svc.answers.update(channel_name="Cool Epic Facts", about="Mind-blowing facts.")
+        step = svc.onboard_step([k for k, _ in svc.steps].index("accounts"))
+        self.assertEqual(step["gmail"]["title"], "A new channel needs its own accounts: make a Gmail for Cool Epic "
+                                                 "Facts first.")
+        self.assertIn("Each sign-up page opens in a private Chrome window, so you sign up fresh while Night Physics "
+                      "stays logged in", step["blurb"])
+        gmail = svc.signup_guide("gmail")
+        self.assertIn("like coolepicfacts@gmail.com", " ".join(gmail["steps"]))
+        self.assertIn("Keep the private window open", gmail["steps"][-1])
+        tiktok = svc.signup_guide("tiktok")
+        self.assertIn("private Chrome window", tiktok["steps"][0])
+        self.assertIn("like @coolepicfacts", tiktok["steps"][-2])
+        self.assertEqual(tiktok["steps"][-1], "Type your @handle below.")
+        self.assertEqual(svc.open_signup("tiktok"), "Opened in a private Chrome window. Come back here when you're done.")
+        self.assertEqual((self.launched, self.opened), ([["chrome.exe", "--incognito", "https://www.tiktok.com/signup"]],
+                                                        []))
+
+    def test_the_only_channel_signs_up_in_the_usual_window(self):
+        svc = Setup(Loop(out=io.StringIO()))
+        svc.start({"start": "onboard"})
+        svc.onboard_start()
+        svc.answers.update(channel_name="Night Physics", about="What-ifs.")
+        step = svc.onboard_step([k for k, _ in svc.steps].index("accounts"))
+        self.assertEqual(step["gmail"]["title"], "Starting from scratch? Make a Gmail for your channel first.")
+        self.assertNotIn("private", step["blurb"])
+        self.assertEqual(svc.signup_guide("youtube")["steps"][0], "Press Open YouTube: the page opens in your browser.")
+        self.assertIn("like Night Physics and @nightphysics", svc.signup_guide("youtube")["steps"][-2])
+        svc.open_signup("youtube")
+        self.assertEqual((self.launched, self.opened), ([], ["https://www.youtube.com/create_channel"]))
+
+    def test_a_profiles_accounts_tab(self):
+        from dashboard import db, service
+        from dashboard.platforms import build
+        from dashboard.tests.window import Window, plain
+
+        self.onboard_main()
+        made = profiles.create("Cool Epic Facts")
+        profiles.use(made)
+        db.init(config.DB_PATH)
+        cfg = config.load_config()
+        with mock.patch.object(service, "kit_update", None):  # no update check
+            w = Window(cfg, build(cfg), demo=False, tab=None)
+        self.addCleanup(w.close)
+        self.assertEqual(w.init["tab"], "accounts")  # nothing connected yet
+        accounts = w.view("accounts")
+        self.assertIn("New channel?  Make a Gmail first ", "".join(plain(p[0]) for p in accounts["hint"]))
+        tiktok = next(p for p in accounts["panels"] if p["key"] == "tiktok")
+        self.assertIn("No account yet? Sign up makes one, in a private Chrome window.", plain(tiktok["body"]))
+        guide = w.call("signup_guide", "tiktok")
+        self.assertEqual(guide["title"], "MAKE YOUR TIKTOK ACCOUNT")
+        self.assertIn("private Chrome window", guide["steps"][0])
+        self.assertIn("like @coolepicfacts", guide["steps"][-2])
+        self.assertEqual(guide["steps"][-1], "Type your @handle below and press Connect.")
+        self.assertEqual(w.call("open_signup", "gmail"),
+                         "Opened in a private Chrome window. Come back here when you're done.")
+        self.assertEqual(self.launched, [["chrome.exe", "--incognito", "https://accounts.google.com/signup"]])
+        self.assertEqual(self.opened, [])
 
 
 class Job(Scratch):

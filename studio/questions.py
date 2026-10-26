@@ -273,7 +273,7 @@ def parse_length(text: str) -> tuple[float, float]:
 def describe() -> list[dict]:
     """The interview as plain data (for an AI running the interview in chat). A handle question carries the
     platform's sign-up page and steps (signup) for someone without an account yet, and the first one also the Gmail
-    a channel starting from scratch can make first (gmail)."""
+    a channel starting from scratch can make first (gmail), with what to do for a second channel."""
     out = []
     sample = defaults_for({})
     for q in QUESTIONS:
@@ -285,11 +285,18 @@ def describe() -> list[dict]:
             item["help"] = q.help
         if q.kind == "handle":
             guide = signup.GUIDES[q.key.removeprefix("handle_")]
-            item["signup"] = {"page": guide.url, "steps": list(guide.steps)}
+            item["signup"] = {"page": guide.url, "steps": guide.steps_for()}
             if not any(i.get("gmail") for i in out):
                 item["gmail"] = {"offer": "No accounts yet? Offer to start with a new Gmail for the channel. "
                                           + signup.GMAIL.why, "page": signup.GMAIL.url,
-                                 "steps": list(signup.GMAIL.steps)}
+                                 "steps": signup.GMAIL.steps_for(),
+                                 "another_channel": "Making accounts for a second channel? They're probably logged in "
+                                                    "to the first one in their browser, and most sign-up pages skip "
+                                                    "to that account: have them open these pages in a private window "
+                                                    "(Ctrl+Shift+N in Chrome and Edge, Ctrl+Shift+P in Firefox; Cmd "
+                                                    "instead of Ctrl on a Mac) and keep it open while they make them "
+                                                    "all, so they sign up fresh and the first channel stays logged "
+                                                    "in."}
         if q.options:
             item["options"] = {v: label for v, label in q.options}
         if d not in (None, "", []):

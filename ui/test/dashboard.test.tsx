@@ -285,4 +285,28 @@ describe("profiles", () => {
       rmSync(tmp, { recursive: true, force: true })
     }
   })
+
+  test("a second channel's Sign up opens its page in a private window, so the other channel stays logged in", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "reelforge-profiles-"))
+    try {
+      open = await headless("dashboard", {}, 160, 44, {
+        REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "profiles_preload.py"),
+        REELFORGE_TEST_ROOT: tmp,
+        REELFORGE_PROFILE: "profiles/alpha",
+      })
+      const h = open
+      await h.settle(2500)
+      expect(activeTab(h)).toBe("Accounts") // nothing connected yet
+      expect(frame(h)).toContain("New channel?")
+      await clickText(h, " Sign up → ", 2) // TikTok's
+      expect(frame(h)).toContain("MAKE YOUR TIKTOK ACCOUNT")
+      expect(frame(h)).toContain("like @alpha")
+      await clickText(h, "Open TikTok sign-up →", 2)
+      expect(frame(h)).toContain("Opened in a private Chrome window.") // a stand-in: nothing opens
+    } finally {
+      await open?.close()
+      open = null
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
 })

@@ -1,12 +1,17 @@
 """For the window's profile tests (ui/test/dashboard.test.tsx): a ReelForge folder of their own in a scratch folder
 (REELFORGE_TEST_ROOT), with two profiles besides the first, Alpha and Beta, run inside the window's Python side before
-it starts (REELFORGE_BRIDGE_PRELOAD). Nothing is connected, so nothing is read, and the update check stays offline."""
+it starts (REELFORGE_BRIDGE_PRELOAD). Nothing is connected, so nothing is read, the update check stays offline, and a
+sign-up page opens nothing (its private window is Chrome's, on every computer)."""
 
 import os
 import shutil
 from pathlib import Path
 
-from studio import profiles, update
+from studio import profiles, signup, update
+
+signup.open_page = lambda url: None
+signup.launch = lambda command: None
+signup.private_browser = lambda: signup.Private("Chrome", ("chrome", "--incognito"))
 
 root = Path(os.environ["REELFORGE_TEST_ROOT"])
 profiles.ROOT = root

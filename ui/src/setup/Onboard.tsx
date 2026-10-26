@@ -324,8 +324,9 @@ function GmailOffer({ offer, onPress }: { offer: { title: string; why: string; b
 }
 
 /** How to make one account (or the channel's Gmail): the steps, a button that opens the official sign-up page in your
- * own browser, and for an account a box for the @handle you end up with. Done hands that handle back (maybe ""),
- * Back hands back null. ReelForge never makes the account or sees a password. */
+ * own browser (a private window of it for a second channel, so the other one stays logged in), and for an account a
+ * box for the @handle you end up with. Done hands that handle back (maybe ""), Back hands back null. ReelForge never
+ * makes the account or sees a password. */
 function SignupGuide({
   guide,
   handle: start,
@@ -341,7 +342,7 @@ function SignupGuide({
 }) {
   const theme = useTheme()
   const focus = useFocusManager()
-  const [opened, setOpened] = useState(false)
+  const [opened, setOpened] = useState("") // what opened, said under the button: a private window, for a second channel
   const [handle, setHandle] = useState(start)
   const [problem, setProblem] = useState("")
   useKeyboard((key: KeyEvent) => {
@@ -350,9 +351,9 @@ function SignupGuide({
       onDone(null)
     }
   })
-  const open = () => {
-    bridge.send("open_signup", guide.key)
-    setOpened(true)
+  const open = async () => {
+    const said = await bridge.call<string | null>("open_signup", guide.key)
+    setOpened(said || "Opened in your browser. Come back here when you're done.")
     setTimeout(() => focus.focus(guide.account ? "guide-handle" : "guide-done"), 30)
   }
   const done = async (typed = handle) => {
@@ -379,11 +380,11 @@ function SignupGuide({
         ))}
       </box>
       <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
-        <Button id="guide-open" label={guide.button} variant="primary" autoFocus onPress={open} />
+        <Button id="guide-open" label={guide.button} variant="primary" autoFocus onPress={() => void open()} />
       </box>
       {opened ? (
-        <text fg={theme.good} marginLeft={4} flexShrink={0}>
-          {`${check} Opened in your browser. Come back here when you're done.`}
+        <text fg={theme.good} marginLeft={4} wrapMode="word" flexShrink={0}>
+          {`${check} ${opened}`}
         </text>
       ) : null}
       {guide.account ? (

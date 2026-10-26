@@ -86,6 +86,11 @@ class Profile:
         return name or ("My channel" if self.main else self.folder.name.replace("-", " ").title())
 
     @property
+    def channel_name(self) -> str:
+        """Its name, or "" while it's a first profile not set up yet (its name is only a stand-in then)."""
+        return self.name if self.onboarded or not self.main else ""
+
+    @property
     def created(self) -> str:
         return "" if self.main else str(_toml(self.folder / MARK).get("created", ""))
 
@@ -165,6 +170,11 @@ def every() -> list[Profile]:
 
 def several() -> bool:
     return bool(extra())
+
+
+def others(*besides: Profile | None) -> list[str]:
+    """The channel names of every profile except these ("" for a first profile not set up yet)."""
+    return [p.channel_name for p in every() if p not in besides]
 
 
 def get(key: str | os.PathLike | None) -> Profile | None:

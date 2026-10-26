@@ -6,6 +6,10 @@
   asks the same short questions as your first channel did, right in the window, and opens on the new profile's
   Accounts tab. The hourly stats job reads every profile, each window can show a different one, and
   `reelforge -p "Channel name"` opens ReelForge on one. Your first channel stays exactly where it is: nothing moves.
+- **Make a new channel's accounts without logging out of your first one.** New profile helps you make them, a Gmail
+  first, then each platform's sign-up page, and with more than one profile those pages open in a private window of
+  your browser, so you sign up fresh while your other channel stays logged in. The steps suggest names made from
+  the channel's, like coolepicfacts@gmail.com and @coolepicfacts.
 - **Your AI knows every channel.** Each one you add has its own folder in `profiles`, with its own notes for your AI,
   settings, episodes and finished videos; the main `CLAUDE.md` lists them, and the video pipeline follows the rules of
   the channel an episode belongs to.
