@@ -25,12 +25,12 @@ QA FAILs: **no static or hiss** (2+ hiss-like seconds outside the glitch and rew
 ## Loudness
 
 Every mix is mastered to the channel's target (`my-studio/studio.toml` -> `[sound] target_lufs`, set in
-onboarding) by `pipeline/post/loudness.py`. QA FAILs a video louder than the target + 2 LU integrated, a loudest
+first-time setup) by `pipeline/post/loudness.py`. QA FAILs a video louder than the target + 2 LU integrated, a loudest
 3 s above the target + 8, or a true peak above the limit (-6 dBTP at the default).
 
 The default, -25.5 LUFS, is quieter than most uploads on purpose. These videos are booms, rumbles and risers with
 no voice: at -15 LUFS (a normal level for music and speech) they were reported as "insanely loud", and -25.5
-fixed it. Don't raise it for one video. If you want it louder for the whole channel, run onboarding again and pick
+fixed it. Don't raise it for one video. If you want it louder for the whole channel, run `reelforge channel` and pick
 another level.
 
 `target_rms_db` in a cue sheet only balances the mix internally; it doesn't set how loud the video is.

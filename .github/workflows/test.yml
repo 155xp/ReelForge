@@ -30,9 +30,9 @@ jobs:
       - name: Shell scripts
         if: runner.os != 'Windows'
         run: |
-          for f in setup.sh scripts/install.sh bin/reelforge reelforge.sh onboard.sh; do bash -n "$f"; done
-          if command -v shellcheck >/dev/null; then shellcheck -S warning setup.sh scripts/install.sh reelforge.sh onboard.sh; fi
-      - name: Setup and onboarding tests
+          for f in setup.sh scripts/install.sh bin/reelforge reelforge.sh channel.sh; do bash -n "$f"; done
+          if command -v shellcheck >/dev/null; then shellcheck -S warning setup.sh scripts/install.sh reelforge.sh channel.sh; fi
+      - name: Setup and first-time setup tests
         env:
           REELFORGE_BROWSER_TEST: "1"
         run: python -m unittest discover tests -v

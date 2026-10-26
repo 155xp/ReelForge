@@ -27,9 +27,9 @@ const demo = (tab: string, drawer = false) => ({ demo: true, screenshots: true, 
 
 export const SHOTS: Record<string, Shot> = {
   "first-run": { screen: "setup", options: { start: "tools" }, size: [120, 34], folder: "docs/screenshots", then: waitForItems },
-  "onboarding-format": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toFormatStep },
+  "setup-format": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toFormatStep },
   // Your accounts as a new channel sees it: the three recommended platforms, one handle typed in and two to sign up for
-  "onboarding-accounts": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toAccountsStep },
+  "setup-accounts": { screen: "setup", options: { start: "onboard" }, size: [140, 46], folder: "docs/screenshots", then: toAccountsStep },
   "first-run-ready": { screen: "setup", options: { start: "done" }, size: [130, 32], folder: "docs/screenshots" },
   "app-overview": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots" },
   "app-notifications": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots" },
@@ -41,6 +41,8 @@ export const SHOTS: Record<string, Shot> = {
   "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
   // the profile button's menu: the demo's two channels, New profile and this one's settings
   "app-profiles": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openProfiles },
+  // the same menu's Advanced settings: how hard the AI reasons, High the standard
+  "app-advanced": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openAdvanced },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },
   overview: { screen: "dashboard", options: demo("overview", true), size: GUIDE, folder: "dashboard/docs" },
@@ -83,6 +85,12 @@ async function toAccountsStep(h: Headless) {
 
 async function openProfiles(h: Headless) {
   await h.t.mockInput.pressKey("p")
+  await h.settle(800)
+}
+
+async function openAdvanced(h: Headless) {
+  await openProfiles(h)
+  await clickText(h, "Advanced settings", 2)
   await h.settle(800)
 }
 

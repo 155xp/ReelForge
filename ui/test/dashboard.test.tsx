@@ -249,6 +249,18 @@ describe("profiles", () => {
     expect(frame(h)).toContain("PROFILES")
   })
 
+  test("Advanced settings pick how hard the AI reasons: High is the standard", async () => {
+    const h = await window("overview", [180, 50])
+    await press(h, "p")
+    await clickText(h, "Advanced settings", 2)
+    expect(frame(h)).toContain("ADVANCED SETTINGS")
+    expect(frame(h)).toContain("High: the standard, great videos")
+    expect(frame(h)).toContain("Max: the best video it can make")
+    expect(frame(h)).not.toContain("ltracode")
+    await clickText(h, "Cancel", 2)
+    expect(frame(h)).not.toContain("ADVANCED SETTINGS")
+  })
+
   test("a window too narrow for the platforms' names beside the button shows TT YT IG X, and when it read them", async () => {
     for (const [w, full] of [[122, false], [160, true]] as const) {
       const h = await window("overview", [w, 30], false, { screenshots: true })

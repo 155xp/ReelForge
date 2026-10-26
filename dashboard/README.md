@@ -17,7 +17,7 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | `reelforge -p "Channel name"` | ReelForge on one of your profiles (its number in the list, or the start of its name, works too) |
 | `reelforge --demo` | a tour on made-up numbers: nothing is read or saved |
 
-ReelForge shows only the platforms you've connected: onboarding connects the ones you give it a handle for, and
+ReelForge shows only the platforms you've connected: first-time setup connects the ones you give it a handle for, and
 **Accounts (5)** connects (or disconnects) any of them later. TikTok and YouTube stats start straight away; Instagram
 and X need **Log in** once (see below). With nothing connected yet, ReelForge opens on Accounts. It looks best in
 Windows Terminal with the window maximised.
@@ -39,8 +39,9 @@ press **p**) for the menu:
 | In the menu | |
 |---|---|
 | a profile | shows it in this window, on the tab you're on (each profile's row has its connected platforms and its unread notifications) |
-| **New profile** | onboarding for a new channel, inside the window: your name, your AI and how hard it works carry over, the channel's answers start fresh, and it opens on the new profile's Accounts tab |
-| **Settings for …** | onboarding again for the profile you're on |
+| **New profile** | first-time setup for a new channel, inside the window: your name, your AI and how hard it works carry over, the channel's answers start fresh, and it opens on the new profile's Accounts tab |
+| **Settings for …** | the channel's questions again, for the profile you're on |
+| **Advanced settings** | how hard your AI reasons on this channel's videos: **High** (the standard), **Max** (the most reasoning, the best video it can make, slower and heavier on your plan) or **Fast** (quick drafts). Saving it sets Claude Code's effort for the folder and rewrites your AI's notes |
 | **Remove** | another profile's folder goes to the Recycle Bin (Trash on a Mac or Linux), from where you can put it back |
 
 A red dot on the button means another profile has unread notifications. ReelForge opens on the profile you had open
@@ -48,7 +49,7 @@ last. The first profile is the ReelForge folder's own (`my-studio/`, `dashboard/
 always); each one you add gets a folder in `profiles/`, laid out the same way: `profiles/<name>/my-studio/`,
 `profiles/<name>/dashboard/config.toml` and `profiles/<name>/dashboard/data/`, its episodes and finished videos, and its
 own `CLAUDE.md` and `AGENTS.md`. The hourly background job reads every profile, each in turn (a profile whose
-onboarding said no to background stats is read only while it's open).
+first-time setup said no to background stats is read only while it's open).
 
 ## Several windows
 
@@ -97,7 +98,7 @@ can go through them):
 
 ![A clicked notification about a video: the Videos tab on that platform's videos, with the video highlighted](docs/notification-click.png)
 
-With the hourly background job on (onboarding asks; `reelforge stats on`), ReelForge reads your stats while it's
+With the hourly background job on (first-time setup asks; `reelforge stats on`), ReelForge reads your stats while it's
 closed too, so the drawer has news waiting when you open it. Nothing is told twice, so one you deleted stays
 deleted, and the first look at a new account only takes stock: old milestones are never announced as new.
 
@@ -130,7 +131,7 @@ checks too, so the bell tells you). **Update and restart** downloads it, puts it
 - a git copy: `git pull` (only when you haven't changed files yourself).
 
 Your channel (`my-studio/`), videos (`episodes/`, `completed videos/`), stats, logins, settings and downloaded tools
-are never touched, and your `CLAUDE.md` / `AGENTS.md` are rewritten from your onboarding answers with the new
+are never touched, and your `CLAUDE.md` / `AGENTS.md` are rewritten from your channel's answers with the new
 version's instructions. If anything goes wrong, the version you have keeps working. From a terminal:
 `.venv\Scripts\python -m studio.update` (add `--apply` to install).
 
@@ -153,7 +154,7 @@ login ever stops working, **Type in stats** (on that platform's Accounts panel) 
 hand.
 
 Platforms report lifetime totals, so ReelForge saves a snapshot every time it reads them and builds the charts from
-those snapshots: they fill in the longer it runs. **Background stats** (`reelforge stats on`, or onboarding's
+those snapshots: they fill in the longer it runs. **Background stats** (`reelforge stats on`, or first-time setup's
 question) keep them filling in while ReelForge is closed: a small job wakes once an hour, reads your stats in a
 hidden browser for about a minute, and exits. `reelforge stats off` stops it. Each run adds a line to
 `dashboard/data/refresh.log`.
@@ -162,7 +163,7 @@ hidden browser for about a minute, and exits. `reelforge stats off` stops it. Ea
 
 It lists every finished video from the pipeline (`episodes/<id>/final/<id>.mp4` and `completed videos/`), plus any
 video you drop into `dashboard/videos/`. Picking one fills in the caption (the episode's `title`) and its hashtags.
-What each platform gets follows your channel's caption rules from onboarding: the caption plus hashtags on TikTok
+What each platform gets follows your channel's caption rules from first-time setup: the caption plus hashtags on TikTok
 (your first hashtag, usually #fyp, always leads) and Instagram, the caption as the YouTube title with the hashtags as
 its description, and the caption alone on X unless you allowed hashtags there.
 
@@ -191,9 +192,9 @@ video it was matters more than when it went up, so take it as a time to try rath
 | `refresh_minutes` | how often ReelForge re-reads stats while it's open (Instagram/X wait at least an hour) |
 | `videos_dir` | an extra folder of videos to post (default `dashboard/videos`) |
 
-Onboarding writes this file; run onboarding again to change your answers, or edit it and reopen ReelForge. Connecting
-or disconnecting a platform on the Accounts tab changes your onboarding answers to match, so your AI's notes cover the
-platforms you're connected to and running onboarding again keeps them.
+First-time setup writes this file; run `reelforge channel` to change your answers, or edit it and reopen ReelForge. Connecting
+or disconnecting a platform on the Accounts tab changes your channel's answers to match, so your AI's notes cover the
+platforms you're connected to and answering the questions again keeps them.
 
 ## Your data
 
@@ -213,7 +214,7 @@ upload it).
 | A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
 | A post is grouped with the wrong video | Videos tab: highlight it and press **Fix episode**. ReelForge keeps your choice. |
 | An update didn't finish | The message on the Updates tab says why; the version you have keeps working. Try again, or download the new version from the releases page. |
-| `config.toml has a typo` | Fix the line it names, or delete `dashboard/config.toml` and run onboarding again. |
+| `config.toml has a typo` | Fix the line it names, or delete `dashboard/config.toml` and run `reelforge channel`. |
 
 ## Files
 
@@ -224,6 +225,6 @@ upload it).
 | `notify.py`, `badges.py`, `besttime.py` | notifications, milestones, badges and the best time to post |
 | `switcher.py` | the profile button and its menu: each profile's connected platforms and unread notifications (`studio/profiles.py` has the profiles themselves) |
 | `refresh.pyw` | what the hourly background job runs |
-| `config.example.toml` | the settings template; your own settings are in `config.toml` (written by onboarding, not shared) |
+| `config.example.toml` | the settings template; your own settings are in `config.toml` (written by first-time setup, not shared) |
 | `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` (macOS/Linux: `.venv/bin/python`); the window's own tests are in `ui/test/` (`bun test` in `ui/`) |
 | `data/` | your stats database, backups and ReelForge's browser profile: private, never shared |

@@ -66,7 +66,7 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
 
 <p align="center">
   <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
-  <img src="docs/screenshots/onboarding-format.png" width="49%" alt="Onboarding: pick the format your channel starts with">
+  <img src="docs/screenshots/setup-format.png" width="49%" alt="First-time setup: pick the format your channel starts with">
 </p>
 
 Rather use an installer on Windows? Download it from [reelforge.tools](https://reelforge.tools) and open it. It's
@@ -77,11 +77,11 @@ finishes. Both places have a zip for the Mac and a tar.gz for Linux too, if you'
 
 ## Make your first video
 
-Onboarding turns your answers into instructions for your AI, `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex,
+First-time setup turns your answers into instructions for your AI, `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex,
 and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` on Windows and `~/ReelForge` on a Mac or Linux,
 unless you picked another). Its last screen tells you what to do next.
 
-![Onboarding's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
+![First-time setup's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
 
 1. **Open the ReelForge folder in your AI.** In the Claude desktop app, go to **Code**, click **Open folder…** and
    pick the ReelForge folder (or run `claude` in a terminal inside it). For Codex, run `codex` in a terminal inside
@@ -104,7 +104,7 @@ After that, say **make today's videos** whenever you want more.
 
 ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
 `reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **Tab** moves between
-buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window, setup's screens and onboarding are built
+buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window and its first-time setup are built
 with [OpenTUI](https://github.com/anomalyco/opentui).
 
 ### Overview
@@ -151,12 +151,12 @@ their views in their first day, and when it next comes round, once there are eno
 The platforms you post to, each connected with your @handle. ReelForge shows only the ones you've connected, so
 there's never an empty card, chart or button for one you don't use. TikTok and YouTube need just your handle;
 Instagram and X also need one log-in, in ReelForge's own browser window. There are no API keys to set up. No account
-yet? Sign up opens the platform's own sign-up page with a few steps beside it (onboarding offers the same, and a new
-Gmail for your channel first). Disconnect hides a platform again without losing its stats.
+yet? Sign up opens the platform's own sign-up page with a few steps beside it (first-time setup offers the same, and a
+new Gmail for your channel first). Disconnect hides a platform again without losing its stats.
 
 <p align="center">
   <img src="docs/screenshots/app-accounts.png" width="49%" alt="The Accounts tab: TikTok, YouTube and Instagram connected, and X with its Connect box">
-  <img src="docs/screenshots/onboarding-accounts.png" width="49%" alt="Onboarding's Your accounts step: a Gmail for your channel first, then a handle or Sign up for each platform">
+  <img src="docs/screenshots/setup-accounts.png" width="49%" alt="First-time setup's Your accounts step: a Gmail for your channel first, then a handle or Sign up for each platform">
 </p>
 
 ### Profiles
@@ -168,7 +168,7 @@ questions as your first channel did, right in the window. Your first channel sta
 each one you add gets its own folder in `profiles`, with its own notes for your AI. The hourly stats job reads every
 profile, and `reelforge -p "Channel name"` opens ReelForge on one.
 
-![The profile menu: each channel with its platforms and unread notifications, New profile, and this one's settings](docs/screenshots/app-profiles.png)
+![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
 
 ## Updates
 
@@ -251,7 +251,7 @@ each finished one goes to `completed videos`.
 
 <br>
 
-Yes, if you said yes during onboarding. Once an hour, while your computer is on, a small background job reads your
+Yes, if you said yes during first-time setup. Once an hour, while your computer is on, a small background job reads your
 stats for about a minute, then stops. Turn it off or back on with `reelforge stats off` or `reelforge stats on`.
 
 </details>
@@ -287,7 +287,7 @@ and the main `CLAUDE.md` lists them.
 <br>
 
 Make sure you opened the ReelForge folder itself, not the folder it's in: your AI reads `CLAUDE.md` (or `AGENTS.md`)
-from there. If it still seems lost, run onboarding again with `reelforge onboard`.
+from there. If it still seems lost, answer your channel's questions again with `reelforge channel`.
 
 </details>
 
@@ -296,9 +296,9 @@ from there. If it still seems lost, run onboarding again with `reelforge onboard
 
 <br>
 
-Run `reelforge onboard` (on Windows, **Change my channel answers** in the Start menu does the same). It starts from
+Run `reelforge channel` (on Windows, **Change my channel answers** in the Start menu does the same). It starts from
 your last answers, and when you finish it rewrites your AI's instructions and ReelForge's settings. For another
-channel, open the profile menu and pick its settings, or run `reelforge -p "Channel name" onboard`.
+channel, open the profile menu and pick its settings, or run `reelforge -p "Channel name" channel`.
 
 </details>
 
@@ -307,9 +307,12 @@ channel, open the profile menu and pick its settings, or run `reelforge -p "Chan
 
 <br>
 
-Use your strongest model at its highest effort. Onboarding sets Claude Code to Opus at max effort for the ReelForge
-folder. If your Claude has ultracode, start a message with it, like `ultracode: make today's videos`, and the work is
-split across a team of agents. With Codex, pick your strongest model with `/model` and the highest reasoning effort.
+Use your strongest model. First-time setup sets Claude Code to Opus at high effort for the ReelForge folder, the
+standard for every channel. For more (or less), open the profile menu and pick **Advanced settings**: **Max** reasons
+the most and makes the best video it can, and **Fast** makes quick drafts. With Codex, pick your strongest model with
+`/model`.
+
+![Advanced settings: how hard your AI reasons on each video, Max, High (the standard) or Fast](docs/screenshots/app-advanced.png)
 
 </details>
 
@@ -372,7 +375,7 @@ browser, so it never asks.
 
 - `reelforge` opens ReelForge.
 - `reelforge 1` to `reelforge 6` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates.
-- `reelforge onboard` changes your channel answers.
+- `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.

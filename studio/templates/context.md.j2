@@ -1,5 +1,5 @@
 <!-- {{ mark }} ({{ kit }} {{ version }}) on {{ date }} from {{ here }}my-studio/answers.json.
-     To change it, run onboarding again ({{ onboard_cmd }}); hand edits here last until the next run. -->
+     To change it, answer your channel's questions again ({{ onboard_cmd }}); hand edits here last until the next run. -->
 # {{ ch.name }}: the video studio
 
 You make the videos for **{{ ch.name }}**, {{ whose }} faceless short-form channel on {{ platform_list }}.
@@ -48,17 +48,9 @@ channel a video is for, ask.
 
 {% if claude %}
 - **Opus at {{ effort }} effort, always**, for every session and every subagent you start for this channel.
-  Onboarding set it for {% if extra %}the ReelForge folder{% else %}this folder{% endif %} in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
+  First-time setup set it for {% if extra %}the ReelForge folder{% else %}this folder{% endif %} in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
   say so in one line and tell {{ who }} how to switch: `/model opus` and `/effort {{ effort }}` (in the desktop app:
   the model picker under the prompt box, then Effort).
-{% if ultracode %}
-- **Ultracode for video runs.** Video runs should use ultracode when it's available: the task runs as a dynamic
-  workflow across a team of agents. Only {{ who }} can switch it on, by starting a message with the word
-  "ultracode" (e.g. "ultracode: make today's videos"), or with `/effort ultracode` for the whole session; this file
-  can't. It needs dynamic workflows switched on (on the Pro plan: `/config`, then "Dynamic workflows"). If a video
-  run starts without it, say once that typing "ultracode" turns it on, then carry on at {{ effort }} effort. Never
-  wait for it.
-{% endif %}
 {% else %}
 - **Your strongest model at your highest reasoning effort, always.** Pick the model with `/model`; set
   `model_reasoning_effort = "high"` (or higher, if your model offers it) in `~/.codex/config.toml`. The kit's

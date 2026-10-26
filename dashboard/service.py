@@ -376,6 +376,40 @@ class Dashboard(Service):
         self.update_profile()
         return True
 
+    # ---------------------------------------------------------------- advanced settings
+
+    @rpc
+    def advanced_info(self) -> dict | None:
+        """The profile menu's Advanced settings: how hard your AI reasons on each video (High is the standard)."""
+        try:
+            from studio import generate
+            from studio import settings as S
+        except Exception:
+            return None
+        current = "high" if self.demo else S.load()["ai"]["quality"]
+        channel = self.profile.name if self.profile is not None and not self.demo else "your channel"
+        return {"current": current if current in generate.QUALITY else "high", "channel": channel,
+                "options": [[key, f"{name}: {what}"] for key, name, what in generate.REASONING]}
+
+    @rpc
+    def set_reasoning(self, level: str) -> bool:
+        """Save Advanced settings' choice: your answers, Claude Code's effort for the folder and your AI's notes."""
+        if self.demo:
+            self.notify("Demo mode: nothing is saved.", timeout=4)
+            return False
+        try:
+            from studio import generate
+
+            generate.set_reasoning(level)
+        except Exception as e:
+            self.notify(f"Couldn't save it: {e}", severity="error", timeout=10)
+            return False
+        name = dict((k, n) for k, n, _ in generate.REASONING)[level]
+        self.notify(f"Your AI now works at {name} on this channel's videos. A Claude Code session that's already open "
+                    f"keeps its effort until you start a new one (or type /effort {generate.EFFORT[level]}).",
+                    title="Advanced settings saved", timeout=10)
+        return True
+
     def started(self) -> None:
         self.update_profile()
         self.show_platforms()

@@ -5,7 +5,7 @@ checked by an automatic QA gate and listed in ReelForge's Publish tab. All visua
 models): Blender builds and renders the world, Python draws the text and HUD and mixes the sound, ffmpeg encodes.
 
 Your channel's rules (video length, loudness, caption format, platforms) come from `my-studio/studio.toml`, which
-onboarding writes. Commands below use Windows paths; on macOS/Linux use `.venv/bin/python` and `/`.
+first-time setup writes. Commands below use Windows paths; on macOS/Linux use `.venv/bin/python` and `/`.
 
 A ReelForge folder can make videos for more than one channel (each is a profile: `studio/profiles.py`). The first
 channel's episodes are in `episodes/`; another channel's are in its own folder, `profiles/<name>/episodes/`, and every
@@ -76,7 +76,7 @@ The caption is **one short hook line, the spec's `title`**. The `caption` step w
 - `caption.txt`: caption, blank line, hashtags (the Publish tab reads it)
 - `caption_<platform>.txt` for every platform you post to: TikTok and Instagram get the caption + hashtags,
   YouTube gets the caption as the title and the hashtags as the description, X gets the caption (hashtags only if
-  you allowed them in onboarding)
+  you allowed them in first-time setup)
 
 It fails if the spec breaks the channel's rules (too many hashtags, no room for TikTok's first hashtag, hashtags in
 the title).

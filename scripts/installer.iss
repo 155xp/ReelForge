@@ -59,7 +59,7 @@ Source: "{#Stage}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs i
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\ReelForge"; Filename: "{app}\ReelForge.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon\reelforge.ico"
 Name: "{autoprograms}\{#MyAppName}\ReelForge setup"; Filename: "{app}\setup.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon\reelforge.ico"
-Name: "{autoprograms}\{#MyAppName}\Change my channel answers"; Filename: "{app}\onboard.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon\reelforge.ico"
+Name: "{autoprograms}\{#MyAppName}\Change my channel answers"; Filename: "{app}\channel.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon\reelforge.ico"
 Name: "{autoprograms}\{#MyAppName}\ReelForge folder"; Filename: "{app}"
 Name: "{autodesktop}\ReelForge"; Filename: "{app}\ReelForge.bat"; WorkingDir: "{app}"; IconFilename: "{app}\assets\icon\reelforge.ico"; Tasks: desktopicon
 

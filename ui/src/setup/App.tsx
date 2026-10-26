@@ -3,7 +3,7 @@
 // studio/setup_service.py.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
-import { useKeyboard } from "@opentui/react"
+import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext, useFocus, useTheme } from "../lib/focus"
@@ -160,42 +160,45 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
     } else label = "Continue without these"
   }
   return (
-    <Frame init={init} step="tools" hint=" Space ticks  ·  Enter presses  ·  Esc to leave " bigMinHeight={30}>
+    <Frame init={init} step="tools" bigMinHeight={30}>
       <box flexDirection="column" flexGrow={1}>
-        {view ? (
-          <Wrapped segs={view.intro} flexGrow={0} />
-        ) : (
-          <Line segs={[["Let's get ReelForge ready. ", "bold"], ["Checking what's already on this computer…", ""]]} />
-        )}
-        <box flexDirection="column" paddingTop={1} flexShrink={0}>
-          {(view?.items ?? []).map((i) => (
-            <box key={i.key} flexDirection="row" height={1}>
-              {!i.ready && i.can_install ? (
-                <Tick id={`cb-${i.key}`} on={Boolean(ticked[i.key])} check={init.check} onChange={(on) => setTicked((t) => ({ ...t, [i.key]: on }))} />
-              ) : (
-                <text width={6} flexShrink={0} fg={i.ready ? theme.good : theme.warn} attributes={TextAttributes.BOLD}>
-                  {i.ready ? ` ${init.check}` : " !"}
-                </text>
-              )}
-              <text width={26} flexShrink={0} attributes={TextAttributes.BOLD} wrapMode="none">
-                {i.name}
-              </text>
-              <text flexGrow={1} wrapMode="none">
-                <span fg={theme.muted}>{i.why + "  ·  "}</span>
-                <span fg={i.ready ? theme.good : !i.can_install ? theme.warn : theme.muted}>{i.detail}</span>
-              </text>
+        <Scroll flexGrow={1} scrollY>
+          <box flexDirection="column" paddingRight={1} flexShrink={0}>
+            {view ? (
+              <Wrapped segs={view.intro} flexGrow={0} />
+            ) : (
+              <Line segs={[["Let's get ReelForge ready. ", "bold"], ["Checking what's already on this computer…", ""]]} />
+            )}
+            <box flexDirection="column" paddingTop={1} flexShrink={0}>
+              {(view?.items ?? []).map((i) => (
+                <box key={i.key} flexDirection="row" flexShrink={0}>
+                  {!i.ready && i.can_install ? (
+                    <Tick id={`cb-${i.key}`} on={Boolean(ticked[i.key])} check={init.check} onChange={(on) => setTicked((t) => ({ ...t, [i.key]: on }))} />
+                  ) : (
+                    <text width={6} flexShrink={0} fg={i.ready ? theme.good : theme.warn} attributes={TextAttributes.BOLD}>
+                      {i.ready ? ` ${init.check}` : " !"}
+                    </text>
+                  )}
+                  <text width={26} flexShrink={0} attributes={TextAttributes.BOLD} wrapMode="none">
+                    {i.name}
+                  </text>
+                  <text flexGrow={1} flexShrink={1} wrapMode="word">
+                    <span fg={theme.muted}>{i.why + "  ·  "}</span>
+                    <span fg={i.ready ? theme.good : !i.can_install ? theme.warn : theme.muted}>{i.detail}</span>
+                  </text>
+                </box>
+              ))}
             </box>
-          ))}
-        </box>
-        {view ? (
-          <box paddingTop={1} flexShrink={0}>
-            <text fg={theme.muted} wrapMode="word">
-              {view.note}
-            </text>
+            {view ? (
+              <box paddingTop={1} flexShrink={0}>
+                <text fg={theme.muted} wrapMode="word">
+                  {view.note}
+                </text>
+              </box>
+            ) : null}
           </box>
-        ) : null}
-        <box flexGrow={1} />
-        <box flexDirection="row" height={3} flexShrink={0} marginBottom={1}>
+        </Scroll>
+        <box flexDirection="row" height={3} flexShrink={0} marginTop={1} marginBottom={1}>
           <Button
             id="go"
             label={label}
@@ -235,8 +238,10 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
   const tick = useTick(working || !checks?.rows, 120)
   const spin = init.fancy ? "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" : "-\\|/"
   const finished = Boolean(checks?.rows)
+  // The bars get what the window has left after the names and some room for each one's status, up to 44 cells.
+  const bar = Math.min(Math.max(useTerminalDimensions().width - 56, 10), 44)
   return (
-    <Frame init={init} step="tools" hint=" This can take a few minutes " bigMinHeight={30}>
+    <Frame init={init} step="tools" bigMinHeight={30}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {(jobs?.jobs ?? []).map((j) => {
@@ -252,8 +257,9 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
                 <text width={24} flexShrink={0} attributes={TextAttributes.BOLD} wrapMode="none">
                   {j.name}
                 </text>
-                <box width={46} flexShrink={0} flexDirection="row">
+                <box width={bar + 6} flexShrink={0} flexDirection="row">
                   <ProgressBar
+                    width={bar}
                     done={st?.state === "ok" ? 1 : (st?.done ?? 0)}
                     total={st?.state === "ok" || st?.state === "failed" ? 1 : st?.total || null}
                     color={st?.state === "failed" ? theme.bad : st?.state === "ok" ? theme.good : theme.primary}
@@ -328,7 +334,7 @@ function Done({ bridge, init, quit }: SetupProps) {
   }, [bridge])
   useEscape(() => quit(0))
   return (
-    <Frame init={init} step="ready" hint=" Enter presses  ·  Esc closes " bigMinHeight={32}>
+    <Frame init={init} step="ready" bigMinHeight={32}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {info ? (

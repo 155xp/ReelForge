@@ -1,6 +1,8 @@
 // What every first-run screen shares: one double-line box round the whole terminal, the three steps on its top edge
-// (the current one lit), a hint on its bottom edge, and the logo at the top: the full one when the window has room
-// for it, otherwise the anvil with the name beside it.
+// (the current one lit), and the logo at the top: the full one when the window has room for it, the anvil with the
+// name beside it when it's smaller, none when it's short. The box stays whole at any size: its sides are a border of
+// the box inside (so they're always as tall as it), what's inside never pushes its edges off the window, and the
+// steps on the top edge shrink to the current one when they don't fit.
 
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
@@ -30,16 +32,17 @@ export function stepTitle(init: SetupInit, current: string): Segs {
   return out
 }
 
+/** Shorter than this, the screens drop the small logo too, to keep their room for what they ask. */
+const LOGO_MIN_HEIGHT = 26
+
 export function Frame({
   init,
   step,
-  hint,
   bigMinHeight,
   children,
 }: {
   init: SetupInit
   step: string
-  hint: string
   bigMinHeight: number
   children: ReactNode
 }) {
@@ -48,10 +51,10 @@ export function Frame({
   const big = useMemo(() => logoCells(init.big), [init.big])
   const anvil = useMemo(() => logoCells(init.anvil), [init.anvil])
   const showBig = width >= widthOf(big) + 8 && height >= bigMinHeight
-  const title = stepTitle(init, step)
+  const showAnvil = !showBig && height >= LOGO_MIN_HEIGHT && width >= widthOf(anvil) + 20
+  const title = fit(stepTitle(init, step), init, step, width - 6)
   const tw = cellLen(title.map((s) => s[0]).join(""))
   const left = Math.max(Math.floor((width - 2 - tw) / 2), 0)
-  const hw = cellLen(hint)
   const red = theme.primary
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.bg}>
@@ -68,11 +71,19 @@ export function Frame({
         })}
         <span fg={red}>{"═".repeat(Math.max(width - 2 - left - tw, 0)) + "╗"}</span>
       </text>
-      <box flexDirection="row" flexGrow={1}>
-        <text fg={red} width={1} flexShrink={0}>
-          {"║\n".repeat(Math.max(height - 2, 0))}
-        </text>
-        <box flexDirection="column" flexGrow={1} paddingLeft={2} paddingRight={2}>
+      <box
+        flexDirection="column"
+        flexGrow={1}
+        flexShrink={1}
+        minHeight={0}
+        overflow="hidden"
+        border={["left", "right"]}
+        borderStyle="double"
+        borderColor={red}
+        paddingLeft={2}
+        paddingRight={2}
+      >
+        {showBig || showAnvil ? (
           <box flexDirection="row" justifyContent="center" paddingTop={1} paddingBottom={showBig ? 1 : 0} flexShrink={0}>
             {showBig ? (
               <Cells grid={big} />
@@ -85,17 +96,22 @@ export function Frame({
               </box>
             )}
           </box>
+        ) : null}
+        <box flexDirection="column" flexGrow={1} flexShrink={1} minHeight={0}>
           {children}
         </box>
-        <text fg={red} width={1} flexShrink={0}>
-          {"║\n".repeat(Math.max(height - 2, 0))}
-        </text>
       </box>
-      <text wrapMode="none" height={1} flexShrink={0}>
-        <span fg={red}>{"╚" + "═".repeat(Math.max(width - 3 - hw, 0))}</span>
-        <span fg={theme.muted}>{hint}</span>
-        <span fg={red}>{"═╝"}</span>
+      <text fg={red} wrapMode="none" height={1} flexShrink={0}>
+        {"╚" + "═".repeat(Math.max(width - 2, 0)) + "╝"}
       </text>
     </box>
   )
+}
+
+/** The steps for the top edge, in room cells: all three, else just the current one, else none. */
+function fit(full: Segs, init: SetupInit, step: string, room: number): Segs {
+  if (cellLen(full.map((s) => s[0]).join("")) <= room) return full
+  const n = init.steps.findIndex(([k]) => k === step)
+  const one: Segs = [[` ${n + 1}/${init.steps.length}  ${init.steps[n]?.[1] ?? ""} `, `bold ${WHITE}`]]
+  return cellLen(one[0]![0]) <= room ? one : []
 }

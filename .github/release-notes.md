@@ -7,6 +7,11 @@
 - **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their
   channel's rules.
 - **Tidier What's new.** This panel now shows release notes as clean, short lists at any window size.
+- **A shorter first-time setup.** It no longer asks how hard your AI should work: High is the standard. For more
+  or less, the profile menu has **Advanced settings**: Max, High and Fast. `reelforge channel` changes your
+  channel's answers.
+- **The setup box fits any window.** It stays whole in a small window or one you resize, and the hints on its bottom
+  edge are gone.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 
@@ -29,15 +34,15 @@ then shows you how each one does once you've posted it. Nothing is ever posted f
 
 Setup shows what ReelForge still needs (Blender 4.5 LTS, ffmpeg, the sound effects, the `reelforge` command,
 ReelForge's icon, and on a Mac or Linux PC a private Python or a Chromium if it hasn't got one), sets it all up inside
-the ReelForge folder once you say yes, then starts the onboarding interview. You'll need Claude Code (a paid Claude
-plan or an API account) or Codex, a Mac with Apple Silicon or a PC with a recent NVIDIA or AMD graphics card (an Intel
+the ReelForge folder once you say yes, then asks a few questions about your channel. You'll need Claude Code (a
+paid Claude plan or an API account) or Codex, a Mac with Apple Silicon or a PC with a recent NVIDIA or AMD graphics card (an Intel
 Mac works too, more slowly), and about 15 GB of free disk space. `SHA256SUMS.txt` lists every download's checksum.
 
 ## Then
 
 1. Open the ReelForge folder in Claude Code (the Claude desktop app's **Code** tab, then **Open folder…**), or run
    `codex` in it.
-2. Say **"make my first video"** (with Claude's ultracode: "ultracode: make my first video").
+2. Say **"make my first video"**.
 3. Type `reelforge 4` in a terminal (or open ReelForge's icon and go to **Publish**, tab 4) to post it.
 
 Already have ReelForge? Its **Updates** tab (`reelforge 6`) installs this version in one click.

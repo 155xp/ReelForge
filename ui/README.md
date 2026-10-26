@@ -1,7 +1,7 @@
 # ReelForge's window
 
 Everything ReelForge shows in a terminal after setup's first box (the ReelForge window, the first-run screens and
-onboarding) is this [OpenTUI](https://github.com/anomalyco/opentui) app: TypeScript with React, run by
+first-time setup) is this [OpenTUI](https://github.com/anomalyco/opentui) app: TypeScript with React, run by
 [Bun](https://bun.com). The numbers, the stats reads and every button's work stay in Python; the window starts
 `python -m studio.bridge` and talks to it in lines of JSON over stdin and stdout.
 
@@ -11,7 +11,7 @@ reelforge ──▶ studio/ui.py ──▶ bun ui/src/main.tsx dashboard '{"tab"
                          calls (JSON)   ▼   │   views (JSON): what to draw
                                python -m studio.bridge
                                  ├─ dashboard/service.py      the ReelForge window
-                                 └─ studio/setup_service.py   the first-run screens and onboarding
+                                 └─ studio/setup_service.py   the first-run screens and the channel's questions
 ```
 
 The Python side sends each piece of the window as a view (`cards`, `trends`, `videos`, `notes`, …) whenever it
@@ -28,7 +28,7 @@ checks both each time ReelForge opens. To work on the window, from this folder (
 ```
 bun install                                    the packages, dev ones included
 bun src/main.tsx dashboard '{"demo": true}'    the window on made-up stats
-bun src/main.tsx setup '{"start": "onboard"}'  onboarding (it writes your answers when you press Create)
+bun src/main.tsx setup '{"start": "onboard"}'  the channel's questions (it writes your answers when you press Create)
 bun x tsc --noEmit -p .                        the types
 bun test                                       the tests
 ```
@@ -41,10 +41,10 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 | Path | What it is |
 |---|---|
 | `src/main.tsx` | Starts the renderer and the Python side, mounts the window or the first-run screens, quits cleanly |
-| `src/root.tsx` | The window round the profiles (one per channel): switching starts a Python side on the profile picked (`REELFORGE_PROFILE`) and lets the old one finish; New profile shows onboarding inside the window |
+| `src/root.tsx` | The window round the profiles (one per channel): switching starts a Python side on the profile picked (`REELFORGE_PROFILE`) and lets the old one finish; New profile shows the channel's questions inside the window |
 | `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
 | `src/dashboard/` | The ReelForge window: `App.tsx` (header, bell, tabs, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
-| `src/setup/` | The first-run screens (`App.tsx`), onboarding (`Onboard.tsx`) and the box round them (`Frame.tsx`) |
+| `src/setup/` | The first-run screens (`App.tsx`), the channel's questions (`Onboard.tsx`) and the box round them (`Frame.tsx`) |
 | `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art |
 | `src/lib/` | Charts in cells, styled text, fitting parts to a width, number formats, keyboard focus |
 | `test/` | `bun test`: the charts and cards on their own, and the window and first-run screens drawn without a terminal, clicked through on demo data with the real Python side |

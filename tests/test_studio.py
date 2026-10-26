@@ -99,7 +99,9 @@ class Generate(unittest.TestCase):
                        cadence="1/week", hud=False)
         self.assertEqual(s["video"]["min_seconds"], 30.0)
         self.assertEqual(s["sound"]["target_lufs"], -15.0)
-        self.assertFalse(s["ai"]["ultracode"])
+        self.assertEqual(s["ai"], {"assistant": "codex", "quality": "fast"})  # picked in Advanced settings
+        a, _ = questions.validate(answers(quality="ultra"))
+        self.assertEqual(generate.settings_from(a)["ai"]["quality"], "high")  # anything else: the standard
 
 
 class JsonFormat(unittest.TestCase):

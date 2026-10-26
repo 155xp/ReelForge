@@ -38,7 +38,7 @@ WINDOWS = sys.platform == "win32"
 MAC = sys.platform == "darwin"
 
 
-RUNNABLE = ("bin/reelforge", "setup.sh", "reelforge.sh", "onboard.sh")   # and the macOS download's .command files
+RUNNABLE = ("bin/reelforge", "setup.sh", "reelforge.sh", "channel.sh")   # and the macOS download's .command files
 
 
 def keep_runnable() -> None:

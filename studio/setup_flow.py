@@ -213,12 +213,12 @@ def run(yes: bool = False, onboard: bool = True) -> int:
     if onboard and not S.onboarded():
         print()
         if yes or not sys.stdin.isatty():
-            print("Next: run onboarding (reelforge onboard, or " + ("onboard.bat" if P.WINDOWS else "./onboard.sh") +
-                  "), a short interview about your channel.")
-        elif _ask("Start onboarding now (a short interview about your channel)?", True, False):
+            print("Next: a few questions about your channel (reelforge channel, or " +
+                  ("channel.bat" if P.WINDOWS else "./channel.sh") + ").")
+        elif _ask("Answer a few questions about your channel now?", True, False):
             from .__main__ import onboard as run_onboard
             run_onboard(["--plain"])
     elif S.onboarded():
-        print(f"\nOnboarding is done ({S.load()['channel']['name']}). Run reelforge onboard to change your answers.")
+        print(f"\nYour channel is set up ({S.load()['channel']['name']}). Run reelforge channel to change your answers.")
     print("\nSetup finished." if ok else "\nSetup finished with problems (see above).")
     return 0 if ok else 1

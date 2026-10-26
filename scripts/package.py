@@ -72,7 +72,7 @@ Full guide: README.md
 
 MAC_LAUNCHERS = {
     "Set up ReelForge.command": "setup.sh",
-    "Change my channel answers.command": "onboard.sh",
+    "Change my channel answers.command": "channel.sh",
     "Open ReelForge.command": "reelforge.sh",
 }
 
