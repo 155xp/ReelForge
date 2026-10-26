@@ -1,5 +1,6 @@
-// The Overview's cards and titles never cut anything off, and the bell and a notification's × are block art in one
-// colour per cell (src/dashboard/cards.ts, src/lib/fit.ts, src/ui/Graphics.tsx).
+// The Overview's cards and titles never cut anything off, the bell and a notification's × are block art in one
+// colour per cell, and release notes' Markdown reads as clean lists (src/dashboard/cards.ts, src/lib/fit.ts,
+// src/ui/Graphics.tsx, src/ui/Panels.tsx).
 
 import { describe, expect, test } from "bun:test"
 import { cardLines, wrapLines } from "../src/dashboard/cards"
@@ -10,6 +11,7 @@ import { fmtNum, shortNum } from "../src/lib/format"
 import { plain, segsLen, type Parts } from "../src/lib/styled"
 import { BELL } from "../src/theme"
 import { bell, cross, X_WIDTH } from "../src/ui/Graphics"
+import { inline, mdBlocks } from "../src/ui/Panels"
 
 const VALUES = { followers: 12_900, views: 1_234_567, likes: 98_765 }
 const CHANGES = { followers: 1_030, views: 19_400, likes: -40 }
@@ -86,6 +88,44 @@ describe("chart titles", () => {
     expect(still).toContain("best 24 at 23 PM")
     const hovered = plain(fit(metricTitle("views", m, v, 5), 200))
     expect(hovered).toBe("VIEWS  Fri 5 PM  +6  TT 6  ")
+  })
+})
+
+describe("release notes' Markdown", () => {
+  const NOTES = [
+    "## What's new in 1.0.5",
+    "",
+    "- **A new window, built with [OpenTUI](https://github.com/anomalyco/opentui).** ReelForge's window, setup's screens",
+    "  and its questions are rebuilt on OpenTUI.",
+    "- **Macs and Linux PCs.** Everything works there too.",
+    "  - **One-line install:** paste `curl -fsSL https://x/install.sh | bash`",
+    "    into Terminal.",
+    "  - **Nothing to install first.**",
+    "",
+    "| Your computer | Download |",
+    "|---|---|",
+    "| **Windows** | `irm https://x \\| iex` |",
+  ].join("\n")
+
+  test("a wrapped bullet stays one item, nested ones go a level in, a table becomes items", () => {
+    const blocks = mdBlocks(NOTES)
+    expect(blocks.map((b) => b.kind)).toEqual(["heading", "gap", "item", "item", "item", "item", "gap", "item"])
+    const items = blocks.filter((b) => b.kind === "item")
+    expect(items.map((b) => b.depth)).toEqual([0, 0, 1, 1, 0])
+    expect(items[0]!.text.endsWith("setup's screens and its questions are rebuilt on OpenTUI.")).toBe(true)
+    expect(items[2]!.text).toBe("**One-line install:** paste `curl -fsSL https://x/install.sh | bash` into Terminal.")
+    expect(items[4]!.text).toBe("**Windows**: `irm https://x | iex`")
+  })
+
+  test("a link inside bold shows as its text, still bold", () => {
+    const segs = inline("**A window, built with [OpenTUI](https://x/y).** Rest \\*x\\*", "#fff", "#0f0")
+    expect(plain(segs)).toBe("A window, built with OpenTUI. Rest *x*")
+    expect(segs.find((s) => s[0] === "OpenTUI")![1]).toBe("underline bold #fff")
+  })
+
+  test("no gap at the start or the end, and blank lines never pile up", () => {
+    const blocks = mdBlocks("\n\n\nHello\n\n\n\n---\n\n- one\n\n")
+    expect(blocks.map((b) => b.kind)).toEqual(["para", "gap", "item"])
   })
 })
 

@@ -2078,10 +2078,10 @@ class Dashboard(Service):
                          "label": "Update and restart" + ("" if live else " (demo)")}
         view["check_disabled"] = self.updating or not live
         if newer:
-            view["notes"] = info.get("notes") or f"Release notes: {info.get('url')}"
+            view["notes"] = whats_new(info.get("notes", "")) or f"Release notes: {info.get('url')}"
         elif info.get("latest"):
             # The notes are the version you have when it's the newest (what "Updated to ..." points you to).
-            own = info["latest"] == (info.get("current") or KIT_VERSION) and info.get("notes")
+            own = info["latest"] == (info.get("current") or KIT_VERSION) and whats_new(info.get("notes", ""))
             view["notes"] = (f"You have the newest version, {info['latest']}. When a new one comes out, a notification "
                              "tells you, and this tab updates ReelForge in one click." + (f"\n\n{own}" if own else ""))
         else:
@@ -2184,6 +2184,18 @@ def slot_info(fr: trends.Frame) -> list[dict]:
         out.append({"label": _slot_label(fr, i), "when": _when(fr, i), "hour": a.hour, "day": a.day,
                     "weekday": f"{a:%a}", "clock": fmt_clock(a).replace(":00", ""), "date": f"{a:%b} {a.day}"})
     return out
+
+
+def whats_new(notes: str) -> str:
+    """A release's notes as the Updates tab shows them: what's new, without the download guide under the "---" (for
+    someone who hasn't got ReelForge) or the "Already have ReelForge?" line (you're on the tab it points to)."""
+    kept = []
+    for line in (notes or "").splitlines():
+        if line.strip() in ("---", "***", "___"):
+            break
+        if not line.startswith("Already have ReelForge?"):
+            kept.append(line)
+    return "\n".join(kept).strip()
 
 
 def _either(ps: list[Platform]) -> str:
