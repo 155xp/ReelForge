@@ -5,7 +5,7 @@
   - **New profile** asks a few questions about the channel, then opens its Accounts tab.
   - Your first channel stays exactly where it is.
 - **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their
-  channel's rules. "Make today's videos" makes every channel's.
+  channel's rules. "Make today's videos" makes every channel's, except one set to post **Only when I ask**.
 - **Tell your AI about your channel.** Drag a file about it into the chat (or paste a description) and say
   "here's my channel". Your AI keeps it as the channel's brief and plans every video from it.
 - **Tidier What's new.** This panel now shows release notes as clean, short lists at any window size.

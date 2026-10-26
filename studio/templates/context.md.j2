@@ -228,20 +228,25 @@ platform's button opens its upload page and copies exactly the text that site ne
 {% if channels %}
 "Make today's videos" is for every channel in this folder, one channel after another, each made by its own notes
 (with its own lock file and `episodes/` folder):
-- **{{ ch.name }}**: {{ per_run }} video{% if per_run != 1 %}s{% endif %}, as below
+- **{{ ch.name }}**: {% if per_run %}{{ per_run }} video{% if per_run != 1 %}s{% endif %}{% if not per_day %} unless this week's are already made ({{ per_week }} a week){% endif %}, as below{% else %}none (only when {{ who }} asks for one){% endif %}{{ "" }}
 {% for c in channels %}
-- **{{ c.name }}**: {% if c.per_run %}{{ c.per_run }} video{% if c.per_run != 1 %}s{% endif %}, by `{{ c.folder }}{{ notes_file }}`{% else %}not set up yet, so none (say so){% endif %}{{ "" }}
+- **{{ c.name }}**: {% if not c.ready %}not set up yet, so none (say so){% elif not c.per_run %}none (only when {{ who }} asks for one){% else %}{{ c.per_run }} video{% if c.per_run != 1 %}s{% endif %}{% if not c.per_day %} unless this week's are already made ({{ c.per_week }} a week){% endif %}, by `{{ c.folder }}{{ notes_file }}`{% endif %}{{ "" }}
 {% endfor %}
 
 "Make today's videos for <channel>" is that channel's only. For {{ ch.name }}:
 
 {% endif %}
+{% if per_run %}
 {{ cadence }}{% if per_day %}: each run makes {{ per_run }}{% else %}: each run makes 1{% endif %}.
 1. If `{{ here }}episodes/.run.lock` exists and is under 8 hours old, another run is going: stop. Otherwise write it (the
    current time) and delete it when you finish, also when you stop early. Check there are 10 GB free.
 2. Read the log and pick new subjects (never repeat one).
 3. Make each video as above. If only one clears the bar, ship that one and say why.
 4. Finish with a short summary: the titles, their folders, and that they are in ReelForge's Publish tab.
+{% else %}
+None: {{ who }} picked "Only when I ask" for {{ ch.name }}, so a production run makes no videos for it. Make one only
+when {{ who }} asks for it, as in "Making a video".
+{% endif %}
 
 ## Commands (run from {% if extra %}the ReelForge folder{% else %}this folder{% endif %})
 

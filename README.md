@@ -178,7 +178,8 @@ notifications, Publish list and settings. The button with your channel's name at
 questions as your first channel did, right in the window. Your first channel stays in the ReelForge folder itself, and
 each one you add gets its own folder in `profiles`, with its own notes for your AI. Tell your AI about a new channel
 the way you did the first: "here's <its name>" and a file about it. The hourly stats job reads every profile, and
-`reelforge -p "Channel name"` opens ReelForge on one. "Make today's videos" makes every channel's.
+`reelforge -p "Channel name"` opens ReelForge on one. "Make today's videos" makes every channel's, except one you set
+to post **Only when I ask** (a channel you're only trying out, say).
 
 ![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
 

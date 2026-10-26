@@ -16,7 +16,7 @@ from unittest import mock
 
 from dashboard import config
 from studio import __main__ as cli
-from studio import generate, profiles
+from studio import generate, profiles, questions
 from studio import paths as P
 from studio.bridge import Loop
 from studio.setup_service import Setup
@@ -91,6 +91,25 @@ class Brief(unittest.TestCase):
         own = self.notes(profiles.find("Cool Epic Facts").folder)
         self.assertNotIn("for every channel in this folder", own)
         self.assertIn("1 video a day: each run makes 1.", own)
+
+    def test_a_channel_that_posts_only_when_asked_is_left_out_of_todays_videos(self):
+        # "Only when I ask" (a test channel, say): no regular videos, so "make today's videos" makes none for it
+        a, problems = questions.validate({**ANSWERS, "cadence": "ask"})
+        self.assertEqual(problems, [])
+        self.assertEqual(generate.settings_from(a)["schedule"]["per_day"], 0)
+        test = self.another("Test Channel", cadence="ask")
+        self.another("Weekly Wonders", cadence="3/week")
+        notes = self.notes(self.root)
+        self.assertIn("(its notes: `profiles/test-channel/CLAUDE.md`; only when asked)", notes)
+        run = notes[notes.index('## A production run ("make today\'s videos")'):notes.index("## Commands")]
+        self.assertIn("- **Test Channel**: none (only when Sam asks for one)\n", run)
+        self.assertIn("- **Weekly Wonders**: 1 video unless this week's are already made (3 a week), by "
+                      "`profiles/weekly-wonders/CLAUDE.md`\n", run)
+        own = self.notes(test.folder)
+        run = own[own.index('## A production run ("make today\'s videos")'):own.index("## Commands")]
+        self.assertIn('None: Sam picked "Only when I ask" for Test Channel, so a production run makes no videos', run)
+        self.assertNotIn(".run.lock", run)
+        self.assertIn("| Cadence | only when asked", own)
 
     def test_one_channels_run_is_as_it_was(self):
         notes = self.notes(self.root)
