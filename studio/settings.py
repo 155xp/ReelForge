@@ -74,7 +74,7 @@ DEFAULTS: dict = {
         "background_stats": True,      # an hourly job reads your stats while ReelForge is closed
     },
     "schedule": {"per_day": 2, "per_week": 14, "post_times": "8-11 am and 5-8 pm", "timezone": ""},
-    "ai": {"assistant": "claude", "quality": "max", "ultracode": True},
+    "ai": {"assistant": "claude", "quality": "high"},  # quality: how hard your AI reasons (Advanced settings)
 }
 
 

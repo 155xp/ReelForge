@@ -1,9 +1,10 @@
 // Profiles: one for each channel (studio/profiles.py). The button at the top left shows this window's profile (with a
 // red dot when another one has unread notifications); its menu lists every profile, with the platforms each has
-// connected and its unread notifications, and offers a new profile, this one's settings, and removing another one.
+// connected and its unread notifications, and offers a new profile, this one's settings and advanced settings, and
+// removing another one.
 // Picking a profile shows it in this window: ui/src/root.tsx starts the Python side again on it.
 
-import type { KeyEvent, Renderable } from "@opentui/core"
+import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useState } from "react"
 import { useView } from "../bridge"
 import { useFocus, FocusScope } from "../lib/focus"
@@ -11,8 +12,9 @@ import { cellLen, lines, type Segs } from "../lib/styled"
 import { DASH, mix } from "../theme"
 import { Button } from "../ui/Button"
 import { Line } from "../ui/Line"
+import { RadioSet } from "../ui/Fields"
 import { Modal, Wrapped } from "../ui/Panels"
-import { useDash } from "./state"
+import { useDash, type AdvancedData } from "./state"
 import type { ProfileRow, ProfilesMenu, ProfileView } from "./types"
 
 export const MENU_WIDTH = 64
@@ -35,7 +37,7 @@ export function ProfileButton() {
   )
 }
 
-type Item = { kind: "profile"; row: ProfileRow } | { kind: "new" } | { kind: "settings" }
+type Item = { kind: "profile"; row: ProfileRow } | { kind: "new" } | { kind: "settings" } | { kind: "advanced" }
 
 /** One row of the menu, as styled text fitted to the menu's width. */
 function rowSegs(row: ProfileRow, width: number, highlighted: boolean): Segs {
@@ -73,10 +75,12 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
   const current = data.rows.find((r) => r.current)
   const items: Item[] = [...data.rows.map((row) => ({ kind: "profile", row }) as Item), { kind: "new" }]
   if (current) items.push({ kind: "settings" })
+  if (current && data.onboarded) items.push({ kind: "advanced" })
   const [index, setIndex] = useState(Math.max(data.rows.findIndex((r) => r.current), 0))
   const width = MENU_WIDTH - 4
   const run = (item: Item | undefined, remove = false) => {
     if (!item) return
+    if (item.kind === "advanced") return void s.openDialog("advanced", s.bridge.call("advanced_info")) // the demo shows it too
     if (data.demo) {
       close()
       s.bridge.emit("toast", { title: "Demo mode", body: "Profiles can't be switched, added or removed in the demo.", severity: "information", timeout: 5 })
@@ -180,6 +184,7 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       </text>
       {action(" +  New profile", data.rows.length)}
       {current ? action(` ›  ${data.onboarded ? "Settings for" : "Set up"} ${current.name}`, data.rows.length + 1) : null}
+      {current && data.onboarded ? action(" ›  Advanced settings", data.rows.length + 2) : null}
       <text fg={DASH.muted} wrapMode="none" flexShrink={0} marginTop={1}>
         {" ↑↓ pick  ·  Enter opens  ·  Esc closes"}
       </text>
@@ -204,6 +209,37 @@ export function RemoveProfile({ data, close }: { data: { key: string; name: stri
           onPress={() => {
             close()
             void s.bridge.call<boolean>("remove_profile", data.key)
+          }}
+        />
+      </box>
+    </Modal>
+  )
+}
+
+/** Advanced settings: how hard your AI reasons on each video. High is the standard; Max reasons the most (the best
+ * video it can make, slower and heavier on your plan), Fast makes quick drafts. Save writes it into the profile's
+ * answers, Claude Code's effort level for the folder and your AI's notes. */
+export function AdvancedSettings({ data, close }: { data: AdvancedData; close: () => void }) {
+  const s = useDash()
+  const [level, setLevel] = useState(data.current)
+  return (
+    <Modal name="advanced" title="ADVANCED SETTINGS" width={84}>
+      <text attributes={TextAttributes.BOLD} flexShrink={0}>
+        Your AI's reasoning
+      </text>
+      <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
+        {`How hard your AI thinks on each of ${data.channel}'s videos. High is the standard and suits almost every channel.`}
+      </text>
+      <RadioSet id="adv-reasoning" options={data.options} value={level} autoFocus onChange={setLevel} />
+      <box flexDirection="row" justifyContent="flex-end" height={3} marginTop={1} flexShrink={0} gap={1}>
+        <Button id="adv-cancel" label="Cancel" onPress={close} />
+        <Button
+          id="adv-save"
+          label="Save"
+          variant="primary"
+          onPress={() => {
+            close()
+            if (level !== data.current) void s.bridge.call<boolean>("set_reasoning", level)
           }}
         />
       </box>

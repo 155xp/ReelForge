@@ -4,7 +4,7 @@
 // each platform (and the channel's Gmail) for someone without the accounts yet.
 
 import { TextAttributes, type KeyEvent, type ScrollBoxRenderable } from "@opentui/core"
-import { useKeyboard } from "@opentui/react"
+import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import { useFocusManager, useTheme } from "../lib/focus"
 import { mix } from "../theme"
@@ -60,6 +60,8 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
   const [leaving, setLeaving] = useState(false)
   const [guide, setGuide] = useState<Guide | null>(null)
   const scroll = useRef<ScrollBoxRenderable | null>(null)
+  const { width } = useTerminalDimensions()
+  const roomy = width >= 100 // room for the list of steps beside the questions (each step's title says n/8 anyway)
 
   const show = (s: Step) => {
     setStep(s)
@@ -146,42 +148,44 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
 
   const i = step?.index ?? 0
   return (
-    <Frame init={init} step="channel" hint=" Tab moves  ·  Enter presses  ·  Esc to leave " bigMinHeight={48}>
+    <Frame init={init} step="channel" bigMinHeight={48}>
       <box flexDirection="row" flexGrow={1}>
-        <box
-          flexDirection="column"
-          width={30}
-          flexShrink={0}
-          paddingTop={1}
-          paddingRight={2}
-          border={["right"]}
-          borderStyle="single"
-          borderColor={theme.panel}
-        >
-          <text fg={theme.muted} marginBottom={1}>
-            {labels.side}
-          </text>
-          {steps.map(([key, label], n) => (
-            <text
-              key={key}
-              paddingLeft={1}
-              fg={n === i ? theme.text : n < i ? theme.good : theme.muted}
-              bg={n === i ? mix(theme.primary, theme.bg, 0.75) : undefined}
-              attributes={n === i ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
-            >
-              {(n < i ? `${init.check} ` : n === i ? "› " : "  ") + label}
+        {roomy ? (
+          <box
+            flexDirection="column"
+            width={30}
+            flexShrink={0}
+            paddingTop={1}
+            paddingRight={2}
+            border={["right"]}
+            borderStyle="single"
+            borderColor={theme.panel}
+          >
+            <text fg={theme.muted} marginBottom={1}>
+              {labels.side}
             </text>
-          ))}
-        </box>
-        <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={3}>
+            {steps.map(([key, label], n) => (
+              <text
+                key={key}
+                paddingLeft={1}
+                fg={n === i ? theme.text : n < i ? theme.good : theme.muted}
+                bg={n === i ? mix(theme.primary, theme.bg, 0.75) : undefined}
+                attributes={n === i ? TextAttributes.BOLD : undefined}
+                wrapMode="none"
+              >
+                {(n < i ? `${init.check} ` : n === i ? "› " : "  ") + label}
+              </text>
+            ))}
+          </box>
+        ) : null}
+        <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={roomy ? 3 : 0}>
           <text fg="#ffffff" attributes={TextAttributes.BOLD} flexShrink={0}>
             {step?.title ?? ""}
           </text>
-          <text fg={theme.muted} wrapMode="word" marginBottom={1} flexShrink={0}>
-            {step?.blurb ?? ""}
-          </text>
           <Scroll ref={scroll} flexGrow={1} scrollY>
+            <text fg={theme.muted} wrapMode="word" marginBottom={1} paddingRight={1} flexShrink={0}>
+              {step?.blurb ?? ""}
+            </text>
             {step?.gmail ? <GmailOffer offer={step.gmail} onPress={() => void signUp("gmail")} /> : null}
             {step?.review !== undefined ? (
               <Markdown text={step.review} heading="#ffffff" />
@@ -207,12 +211,12 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
             ) : null}
           </Scroll>
           <box flexDirection="row" height={3} flexShrink={0} marginTop={1} marginBottom={1} alignItems="center">
-            <Button id="back" label="Back" minWidth={22} marginRight={2} disabled={i === 0} onPress={() => void back()} />
+            <Button id="back" label="Back" minWidth={roomy ? 22 : 12} marginRight={2} disabled={i === 0} onPress={() => void back()} />
             <Button
               id="next"
               label={step?.key === "review" ? labels.create : "Next"}
               variant="primary"
-              minWidth={22}
+              minWidth={roomy ? 22 : 12}
               marginRight={2}
               onPress={() => void next()}
             />
@@ -232,7 +236,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
         />
       ) : null}
       {leaving ? (
-        <Modal name="quit" title="Leave onboarding?" width={60}>
+        <Modal name="quit" title="Leave without saving?" width={60}>
           <text flexShrink={0}>Your answers so far won't be saved.</text>
           <box flexDirection="row" height={3} marginTop={1} gap={2} flexShrink={0}>
             <Button id="stay" label="Keep going" variant="primary" autoFocus onPress={() => setLeaving(false)} />

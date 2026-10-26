@@ -46,7 +46,6 @@ STEPS = [
     ("accounts", "Your accounts"),
     ("look", "Look and sound"),
     ("posting", "Captions and posting"),
-    ("quality", "Quality"),
 ]
 
 
@@ -157,17 +156,10 @@ QUESTIONS: list[Q] = [
                ("1/week", "1 a week")]),
     Q("post_times", "posting", "When do you usually post?", default="8-11 am and 5-8 pm"),
     Q("timezone", "posting", "Your time zone", default=lambda a: _local_timezone()),
-
-    # ---- quality
-    Q("quality", "quality", "How hard should your AI work on each video?", "choice", default="max",
-      options=[("max", "Max: the best video it can make, as many passes as it takes (recommended)"),
-               ("high", "High: great videos, fewer extra passes"),
-               ("fast", "Fast: quick drafts (still checked)")]),
-    Q("ultracode", "quality", "Use ultracode for video runs when your Claude has it?", "yesno", default=True,
-      show=lambda a: a.get("assistant", "claude") in ("claude", "both"),
-      help="Ultracode splits the work across a team of agents. You turn it on by starting your message with "
-           "the word 'ultracode'."),
 ]
+# How hard your AI reasons on each video (the "quality" answer) isn't asked: it's High unless you pick another in
+# ReelForge's Advanced settings (studio/generate.py REASONING, set_reasoning).
+KEPT = ("quality",)  # answers set outside the questions: answering them again keeps these
 
 BY_KEY = {q.key: q for q in QUESTIONS}
 
@@ -306,7 +298,7 @@ def describe() -> list[dict]:
         if q.show is not None:
             item["only_if"] = {
                 "custom_format": "format is custom", "style_notes": "style is custom",
-                "length_custom": "length is custom", "ultracode": "assistant is claude or both",
+                "length_custom": "length is custom",
                 "tiktok_first_tag": "tiktok is in platforms", "hashtags_on_x": "x is in platforms",
             }.get(q.key, "that platform is in platforms" if q.key.startswith("handle_") else "")
         out.append(item)

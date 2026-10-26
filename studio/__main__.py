@@ -1,6 +1,6 @@
 """reelforge [what]   (the same as: python -m studio [what], from this folder)
 
-  reelforge                    open ReelForge (the first time: setup, then onboarding)
+  reelforge                    open ReelForge (the first time: first-time setup)
   reelforge 1 .. 6             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates
   reelforge videos             tabs by name work too: overview, videos, compare, publish, accounts, updates
   reelforge --demo             try ReelForge on made-up stats
@@ -11,8 +11,9 @@
   reelforge -p NAME ...        any command, for one profile: its name, the start of it, or its number in the list
                                (the window opens on the one you had open last; everything else works on the first)
 
-  reelforge setup [--yes]      set up or repair: Blender, ffmpeg, the sounds, the reelforge command, then onboarding
-  reelforge onboard            the interview that sets up your channel and writes CLAUDE.md / AGENTS.md
+  reelforge setup [--yes]      set up or repair: Blender, ffmpeg, the sounds, the reelforge command, then your channel
+  reelforge channel            your channel's questions from first-time setup, to change your answers; it
+                               writes CLAUDE.md / AGENTS.md (reelforge onboard, its old name, works too)
       --plain                  the same questions as plain prompts
       --questions              the questions as JSON (for an AI running the interview in chat)
       --answers FILE.json      write everything from saved answers, no questions
@@ -61,8 +62,7 @@ def next_steps(profile=None) -> str:
         lines.append(("  1. " if who == "codex" else "     ") + "Codex: run `codex` in a terminal in "
                      f"{'this' if profile.main else 'the ReelForge'} folder. It reads AGENTS.md by itself.")
     video = "my first video" if profile.main else f"my first {s['channel']['name']} video"
-    first = f"ultracode: make {video}" if s["ai"]["ultracode"] and who != "codex" else f"make {video}"
-    lines.append(f'  2. Say: "{first}"')
+    lines.append(f'  2. Say: "make {video}"')
     icon = ("double-click ReelForge.bat" if P.WINDOWS else "open ReelForge from Applications" if P.MAC else
             "open ReelForge from your app menu")
     lines.append(f"  3. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish (tab 4) to post "
@@ -90,7 +90,7 @@ def _interactive() -> bool:
 
 
 def onboard(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(prog="reelforge onboard")
+    ap = argparse.ArgumentParser(prog="reelforge channel")
     ap.add_argument("--plain", action="store_true")
     ap.add_argument("--answers", type=Path)
     ap.add_argument("--regenerate", action="store_true")
@@ -107,7 +107,7 @@ def onboard(argv: list[str]) -> int:
     if args.answers or args.regenerate:
         src = args.answers or P.ANSWERS
         if not src.exists():
-            print(f"{src} not found. Run onboarding first.")
+            print(f"{src} not found. Run first-time setup first: reelforge channel")
             return 1
         try:
             answers = json.loads(src.read_text(encoding="utf-8-sig"))
@@ -139,13 +139,13 @@ def onboard(argv: list[str]) -> int:
         return 0
     if args.plain or not _interactive():
         if not sys.stdin.isatty():
-            print("No interactive terminal here. Run onboarding yourself (reelforge onboard, or onboard.bat / "
-                  "./onboard.sh), or write the answers to a JSON file and use: reelforge onboard --answers FILE.json\n"
-                  "(reelforge onboard --questions lists the questions.)")
+            print("No interactive terminal here. Answer your channel's questions yourself (reelforge channel, or "
+                  "channel.bat / ./channel.sh), or write the answers to a JSON file and use: reelforge channel "
+                  "--answers FILE.json\n(reelforge channel --questions lists the questions.)")
             return 2
         if args.new:
             print("Use the full-screen interview for a new profile (reelforge profiles new), or write the answers to a "
-                  "JSON file: reelforge onboard --new --answers FILE.json")
+                  "JSON file: reelforge channel --new --answers FILE.json")
             return 2
         from . import onboard_cli
         prior = json.loads(P.ANSWERS.read_text(encoding="utf-8")) if P.ANSWERS.exists() else None
@@ -177,7 +177,7 @@ def regenerate() -> int:
         if p.main:
             _print_written(written)
     if not done:
-        print(f"{P.ANSWERS} not found. Run onboarding first.")
+        print(f"{P.ANSWERS} not found. Run first-time setup first: reelforge channel")
         return 1
     return 0
 
@@ -327,7 +327,7 @@ def open_app(argv: list[str]) -> int:
     if state == "setup":
         print("ReelForge isn't set up yet: run reelforge setup (or setup.bat / ./setup.sh).")
     elif state == "onboard":
-        print("Your channel isn't set up yet: run reelforge onboard.")
+        print("Your channel isn't set up yet: run reelforge channel.")
     return dashboard(argv)
 
 
@@ -356,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
         return dashboard(rest)
     if cmd in ("--demo", "refresh") or tab_for(cmd):
         return dashboard(argv)
-    if cmd == "onboard":
+    if cmd in ("channel", "onboard"):
         return onboard(rest)
     if cmd == "profiles":
         return list_profiles(rest)

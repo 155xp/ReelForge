@@ -55,15 +55,15 @@ describe("the tools", () => {
 describe("onboarding", () => {
   test("Next and Back walk the steps, from the answers saved last time", async () => {
     const h = await screen("onboard", [140, 46])
-    expect(frame(h)).toContain("1/9  You")
+    expect(frame(h)).toContain("1/8  You")
     await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("2/9  Your channel")
+    expect(frame(h)).toContain("2/8  Your channel")
     expect(frame(h)).toContain("Night Physics")
     await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("3/9  Your format")
+    expect(frame(h)).toContain("3/8  Your format")
     expect(frame(h)).toContain("What if X doubled every 2 seconds?")
     await clickText(h, "  Back  ", 4)
-    expect(frame(h)).toContain("2/9  Your channel")
+    expect(frame(h)).toContain("2/8  Your channel")
   })
 
   test("a different format brings its own suggestions", async () => {
@@ -81,7 +81,7 @@ describe("onboarding", () => {
   test("Your accounts: a platform's sign-up guide hands back the @handle you made", async () => {
     const h = await screen("onboard", [140, 46])
     for (let step = 0; step < 4; step++) await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("5/9  Your accounts")
+    expect(frame(h)).toContain("5/8  Your accounts")
     expect(frame(h)).toContain("Make a Gmail")
     await clickText(h, "No account? Sign up", 2) // TikTok's, the first
     expect(frame(h)).toContain("Make your TikTok account")
@@ -103,13 +103,13 @@ describe("onboarding", () => {
     const h = open
     await h.settle(2000)
     await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("2/9  Your channel")
+    expect(frame(h)).toContain("2/8  Your channel")
     await clickText(h, "Night Physics", 2) // the empty name's example
     await h.t.mockInput.typeText("Cool Epic Facts")
     await clickText(h, "Mind-bending", 2)
     await h.t.mockInput.typeText("Mind-blowing facts.")
     for (let step = 0; step < 3; step++) await clickText(h, "  Next  ", 4)
-    expect(frame(h)).toContain("5/9  Your accounts")
+    expect(frame(h)).toContain("5/8  Your accounts")
     expect(frame(h)).toContain("make a Gmail for Cool Epic Facts first")
     await clickText(h, "No account? Sign up", 2) // TikTok's
     expect(frame(h)).toContain("like @coolepicfacts")
@@ -121,13 +121,30 @@ describe("onboarding", () => {
   test("Esc asks first; Keep going stays, Leave leaves", async () => {
     const h = await screen("onboard", [140, 46])
     await press(h, "ESCAPE")
-    expect(frame(h)).toContain("Leave onboarding?")
+    expect(frame(h)).toContain("Leave without saving?")
     await clickText(h, "Keep going", 2)
-    expect(frame(h)).not.toContain("Leave onboarding?")
+    expect(frame(h)).not.toContain("Leave without saving?")
     expect(h.exits).toEqual([])
     await press(h, "ESCAPE")
     await clickText(h, "  Leave  ", 3)
     expect(h.exits).toEqual([{ code: 0, result: undefined }])
+  })
+})
+
+describe("the box", () => {
+  test("stays whole at any size: its corners, the step's buttons, and no hints on its edges", async () => {
+    for (const [w, hh] of [[60, 18], [90, 24], [120, 30], [200, 60]] as const) {
+      const h = await screen("onboard", [w, hh])
+      const lines = frame(h).split("\n").filter((l) => l.trim())
+      expect(lines.length).toBe(hh)
+      expect(lines[0]!.startsWith("╔") && lines[0]!.endsWith("╗")).toBe(true)
+      expect(lines.at(-1)).toBe("╚" + "═".repeat(w - 2) + "╝")
+      for (const l of lines.slice(1, -1)) expect(l.startsWith("║") && l.endsWith("║")).toBe(true)
+      expect(frame(h)).toContain("Next")
+      expect(frame(h)).toContain("1/8  You")
+      await open?.close()
+      open = null
+    }
   })
 })
 

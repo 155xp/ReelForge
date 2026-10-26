@@ -26,6 +26,14 @@ export type Dialog =
   | { kind: "disconnect"; data: { key: string; title: string; note: import("../lib/styled").Segs } }
   | { kind: "profiles"; data: ProfilesMenu }
   | { kind: "remove_profile"; data: { key: string; name: string; note: import("../lib/styled").Segs; bin: string } }
+  | { kind: "advanced"; data: AdvancedData }
+
+/** Advanced settings (dashboard/service.py advanced_info): how hard your AI reasons on each video, High the standard. */
+export interface AdvancedData {
+  current: string
+  channel: string
+  options: [string, string][]
+}
 
 /** Moving between profiles (one for each channel), which the window does round this one (ui/src/root.tsx): show
  * another profile (its own Python side starts, on this tab), or onboarding in the window, for a new profile or for
@@ -143,7 +151,10 @@ export class DashState {
     if (key !== this.init.profile.key) this.nav.profile(key, this.tab)
   }
 
-  async openDialog(kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile", call: Promise<any>) {
+  async openDialog(
+    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile" | "advanced",
+    call: Promise<any>,
+  ) {
     const data = await call
     if (data) this.set({ dialog: { kind, data } as Dialog })
   }

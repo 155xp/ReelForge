@@ -6,7 +6,7 @@ changes: it only swaps what ReelForge would find here for the same things on a f
     their sizes those of the real renders).
   - The first-run screens show a neutral folder (C:\\Users\\you\\ReelForge) and what a computer with nothing installed
     sees, and the last screen a new channel's (Night Physics) with nothing turned on here.
-  - Onboarding starts from a sample channel's answers, so its later steps can be shown.
+  - The channel's questions start from a sample channel's answers, so its later steps can be shown.
   - A sign-up guide's button opens nothing: no browser ever opens from a picture or a test (and a second channel's
     private window is always Chrome's).
 """
@@ -92,14 +92,14 @@ def _first_run() -> None:
     ]
     sample = copy.deepcopy(S.DEFAULTS)  # a new channel's last screen, with nothing turned on here
     sample["channel"]["name"] = "Night Physics"
-    sample["ai"].update(assistant="both", ultracode=False)
+    sample["ai"].update(assistant="both")
     sample["platforms"]["handles"] = {p: "yourchannel" for p in S.PLATFORMS}
     S.load = lambda path=None: sample
     stats_schedule.enable = lambda minutes=60: (f"Your stats will update every {minutes} minutes while this computer "
                                                 "is on, even with ReelForge closed.")
     command.status = lambda: "on"
     answers = json.loads((ROOT / "scripts" / "shots_answers.json").read_text(encoding="utf-8"))
-    if os.environ.get("REELFORGE_SHOT") == "onboarding-accounts":
+    if os.environ.get("REELFORGE_SHOT") == "setup-accounts":
         answers = ACCOUNTS_ANSWERS
     setup_service.saved_answers = lambda profile=None: dict(answers)
 

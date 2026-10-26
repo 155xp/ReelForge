@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ReelForge setup for macOS and Linux.
-#   ./setup.sh          one list of what's missing, one yes, then onboarding
+#   ./setup.sh          one list of what's missing, one yes, then a few questions about your channel
 #   ./setup.sh --yes    the same without questions (for an AI setting up for you, with your OK)
 # Everything goes inside this folder (.venv, tools/, ui/node_modules); nothing is installed system-wide. Without Python
 # 3.11 or newer it offers a private Python 3.13 in tools/python (about 25 MB, from the python-build-standalone project

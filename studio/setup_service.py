@@ -23,12 +23,12 @@ from . import KIT_NAME, command, doctor, generate, logo, profiles, setup_flow, s
 from . import paths as P
 from . import settings as S
 from .bridge import Loop, Service, rpc
-from .questions import BY_KEY, QUESTIONS, STEPS, Q, coerce, defaults_for
+from .questions import BY_KEY, KEPT, QUESTIONS, STEPS, Q, coerce, defaults_for
 
 GOOD, BAD, WARN, MUTED = "#4ade80", "#ff5a4e", "#ffc83a", "#8a94a3"
 BLURBS = {
     "you": "Welcome! Answer a few questions and your AI will know your channel inside out. It takes about five "
-           "minutes, and you can change anything later with: reelforge onboard",
+           "minutes, and you can change anything later with: reelforge channel",
     "channel": "The basics. Your AI reads these before it picks every subject.",
     "format": "Start from a format that is already pulling views. Your AI copies what works, then does it better.",
     "platforms": "Where your videos go. ReelForge shows your stats for each one, and you post from its Publish "
@@ -38,7 +38,6 @@ BLURBS = {
                 "on ReelForge's Accounts tab.",
     "look": "How your videos look and sound.",
     "posting": "How each post is written, and how often you post.",
-    "quality": "How hard your AI should push on every video.",
     "review": "Check your answers. Nothing is written until you press Create my studio.",
 }
 REVIEW = ("review", "Review")
@@ -47,7 +46,7 @@ NEW_BLURB = ("A new channel, with its own accounts, stats and settings. Answer a
              "ReelForge about you and your AI is filled in already); you can change anything later from its Settings "
              "in the profile menu.")
 # A new profile starts from these answers of the profile it's made from: about you and your AI, not the channel.
-CARRIED = ("creator", "assistant", "quality", "ultracode", "timezone", "background_stats")
+CARRIED = ("creator", "assistant", "quality", "timezone", "background_stats")
 
 
 def seg_line(*parts) -> list:
@@ -63,7 +62,7 @@ def saved_answers(profile=None) -> dict | None:
         return None
     try:
         return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
-                if k in BY_KEY or k.startswith("_")}
+                if k in BY_KEY or k in KEPT or k.startswith("_")}
     except ValueError:
         return None
 
@@ -178,8 +177,8 @@ class Setup(Service):
     def show_checks(self, report: doctor.Report) -> None:
         rows = []
         for status, what, detail in report.rows:
-            if what in ("Onboarding", "CLAUDE.md", "AGENTS.md", "Dashboard"):
-                continue                      # onboarding comes next; it writes those
+            if what in ("First-time setup", "CLAUDE.md", "AGENTS.md", "Dashboard"):
+                continue                      # the channel questions come next; they write those
             mark = {doctor.OK: (tui.CHECK, GOOD), doctor.WARN: ("!", WARN)}.get(status, (tui.CROSS, BAD))
             rows.append(seg_line((f"  {mark[0]} ", f"bold {mark[1]}"), (what, "bold"),
                                  (f"  {detail}" if status != doctor.OK else f"  {detail[:80]}",
@@ -448,8 +447,7 @@ class Setup(Service):
         if self.written:
             written = ", ".join(sorted({_top(p, here) for p in self.written}))
         video = "my first video" if here.main else f"my first {s['channel']['name']} video"
-        first = f"ultracode: make {video}" if s["ai"]["ultracode"] and s["ai"]["assistant"] != "codex" else \
-            f"make {video}"
+        first = f"make {video}"
         steps = []
         folder = "this folder" if here.main else "the ReelForge folder (the same one for every channel)"
         there = "here" if here.main else "there"

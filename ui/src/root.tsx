@@ -1,5 +1,5 @@
 // The window round the profiles (one for each channel, studio/profiles.py): it shows one profile at a time, and moves
-// between them, and to onboarding for a new profile (or this one's settings) and back, without leaving the terminal.
+// between them, and to the channel's questions (first-time setup) for a new profile (or this one's settings) and back, without leaving the terminal.
 // Each profile gets a Python side of its own (REELFORGE_PROFILE): switching starts the new one, then lets the old one
 // go, and a stats read the old one has under way finishes by itself, into its own profile.
 
@@ -82,7 +82,7 @@ export type View =
       n: number
     }
 
-/** The window: the profile it shows, or onboarding inside it. */
+/** The window: the profile it shows, or the channel's questions inside it. */
 export function Root({ sides, first, quit }: { sides: Sides; first: View; quit: (code?: number, result?: object) => void }) {
   const [view, setView] = useState<View>(first)
   const nav: Nav = useMemo(
@@ -105,7 +105,7 @@ export function Root({ sides, first, quit }: { sides: Sides; first: View; quit: 
           sides.adopt(next.bridge)
           setView((v) => ({ kind: "setup", bridge: next.bridge, init: next.init, options: opts, back: { key: here, tab }, n: v.n + 1 }))
         } catch (e) {
-          toasts.add({ title: "Couldn't start onboarding", body: String((e as Error)?.message ?? e), severity: "error", timeout: 10 })
+          toasts.add({ title: "Couldn't open the channel's questions", body: String((e as Error)?.message ?? e), severity: "error", timeout: 10 })
         }
       },
     }),

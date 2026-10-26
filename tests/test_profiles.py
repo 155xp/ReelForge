@@ -179,13 +179,13 @@ class Onboarding(Scratch):
         self.assertEqual((self.root / "CLAUDE.md").read_text(encoding="utf-8"), before)
 
     def test_the_interview_makes_a_new_profile_from_your_answers_about_you(self):
-        self.onboard_main(quality="high")
+        self.onboard_main(quality="max")
         svc = Setup(Loop(out=io.StringIO()))
         init = svc.start({"start": "onboard", "new": True, "embedded": True})
         self.assertTrue(init["new"])
         start = svc.onboard_start()
         self.assertEqual((start["side"], start["create"]), ("Set up a new channel", "Create the profile"))
-        self.assertEqual((svc.answers["creator"], svc.answers["quality"]), ("Sam", "high"))  # about you: carried
+        self.assertEqual((svc.answers["creator"], svc.answers["quality"]), ("Sam", "max"))  # about you: carried
         self.assertNotIn("channel_name", svc.answers)                                       # the channel: not
         svc.onboard_step(1)
         bad = svc.onboard_next({"channel_name": "night physics", "about": "Facts."})
@@ -203,6 +203,24 @@ class Onboarding(Scratch):
         self.assertEqual(done["open"], "Open Cool Epic Facts")
         self.assertEqual(done["back"], "Back to Night Physics")
         self.assertIn('make my first Cool Epic Facts video', json.dumps(done["steps"]))
+
+    def test_advanced_settings_pick_how_hard_the_ai_reasons_and_answering_again_keeps_it(self):
+        self.onboard_main(ultracode=True)  # an older channel's answers
+        self.assertEqual(S.load()["ai"], {"assistant": "claude", "quality": "high"})  # the standard
+        local = self.root / ".claude" / "settings.local.json"
+        self.assertEqual(json.loads(local.read_text(encoding="utf-8"))["effortLevel"], "high")
+        with redirect_stdout(io.StringIO()):
+            generate.set_reasoning("max")
+        self.assertEqual(S.load()["ai"]["quality"], "max")
+        self.assertEqual(json.loads(local.read_text(encoding="utf-8"))["env"]["CLAUDE_CODE_EFFORT_LEVEL"], "max")
+        self.assertIn("Opus at max effort", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertNotIn("ultracode", (self.root / "CLAUDE.md").read_text(encoding="utf-8").lower())
+        svc = Setup(Loop(out=io.StringIO()))
+        svc.start({"start": "onboard", "preview": True})
+        svc.onboard_start()
+        self.assertEqual(svc.answers["quality"], "max")  # the channel's questions again: still Max
+        with self.assertRaises(ValueError):
+            generate.set_reasoning("ultracode")
 
 
 CHROME = signup.Private("Chrome", ("chrome.exe", "--incognito"))

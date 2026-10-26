@@ -27,9 +27,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from studio import ui  # noqa: E402
 
-NAMES = ["first-run", "onboarding-format", "onboarding-accounts", "first-run-ready", "app-overview",
-         "app-notifications", "app-videos", "app-compare", "app-publish", "app-accounts", "app-profiles", "app-updates",
-         "app-notification-click", "overview", "notification-click", "updates"]
+NAMES = ["first-run", "setup-format", "setup-accounts", "first-run-ready", "app-overview",
+         "app-notifications", "app-videos", "app-compare", "app-publish", "app-accounts", "app-profiles", "app-advanced",
+         "app-updates", "app-notification-click", "overview", "notification-click", "updates"]
 
 
 def draw(names: list[str], work: Path) -> list[tuple[str, Path, Path]]:

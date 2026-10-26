@@ -365,7 +365,7 @@ def _after(root: Path, requirements_before: str, progress: Progress, log: Callab
         res = subprocess.run([py, "-m", "studio", "onboard", "--regenerate"], capture_output=True, text=True,
                              cwd=root, env={**env, "PYTHONUTF8": "1"})
         if res.returncode != 0:
-            log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run onboarding with --regenerate.")
+            log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run: reelforge channel --regenerate")
 
 
 def _marker(root: Path) -> Path:
