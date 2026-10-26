@@ -173,5 +173,26 @@ class GitPullTest(unittest.TestCase):
         self.assertEqual((self.copy / "README.md").read_text(encoding="utf-8"), "edited\n")
 
 
+class WhatsNewTest(unittest.TestCase):
+    NOTES = Path(__file__).resolve().parents[2] / ".github" / "release-notes.md"
+
+    def test_the_updates_tab_shows_only_whats_new(self):
+        from dashboard.service import whats_new
+
+        shown = whats_new(self.NOTES.read_text(encoding="utf-8"))
+        self.assertTrue(shown.startswith("## What's new in "))
+        for gone in ("## Download", "| Your computer", "Already have ReelForge?", "---"):
+            self.assertNotIn(gone, shown)
+        self.assertEqual(whats_new("- one\r\n\r\nAlready have ReelForge? Update.\r\n---\r\nguide"), "- one")
+        self.assertEqual(whats_new(""), "")
+
+    def test_whats_new_is_short_and_says_first_time_setup(self):
+        shown = self.NOTES.read_text(encoding="utf-8").split("\n---")[0]
+        for word in ("onboarding", "ultracode"):
+            self.assertNotIn(word, shown.lower())
+        for line in shown.splitlines():
+            self.assertLessEqual(len(line), 120, line)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,14 +1,12 @@
 ## What's new in 1.0.6
 
-- **Profiles: more than one channel in one ReelForge.** Each channel is a profile, with its own accounts, logins,
-  stats, notifications, Publish list and settings. The button with your channel's name at the top left switches
-  between them (or press **p**), and a red dot on it means another profile has something unread. **New profile**
-  asks the same short questions as your first channel did, right in the window, and opens on the new profile's
-  Accounts tab. The hourly stats job reads every profile, each window can show a different one, and
-  `reelforge -p "Channel name"` opens ReelForge on one. Your first channel stays exactly where it is: nothing moves.
-- **Your AI knows every channel.** Each one you add has its own folder in `profiles`, with its own notes for your AI,
-  settings, episodes and finished videos; the main `CLAUDE.md` lists them, and the video pipeline follows the rules of
-  the channel an episode belongs to.
+- **Run more than one channel.** Each channel is a profile with its own accounts, stats, notifications and videos.
+  - Switch with the channel button at the top left, or press **p**. A red dot means another one has news.
+  - **New profile** asks a few questions about the channel, then opens its Accounts tab.
+  - Your first channel stays exactly where it is.
+- **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their
+  channel's rules.
+- **Tidier What's new.** This panel now shows release notes as clean, short lists at any window size.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

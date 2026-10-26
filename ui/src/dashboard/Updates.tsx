@@ -52,7 +52,7 @@ export function Updates() {
           WHAT'S NEW
         </text>
         <Scroll flexGrow={1} scrollY>
-          <Markdown text={u?.notes ?? ""} />
+          <Markdown text={u?.notes ?? ""} spaced />
         </Scroll>
       </Panel>
       {u?.how?.length ? (
