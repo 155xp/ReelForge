@@ -102,6 +102,22 @@ function useEscape(fn: () => void) {
   })
 }
 
+/** A line that starts with its indent and mark ("  1. ", "  ✓"): what follows wraps under its own first word, not
+ * under the mark. Any other line wraps as it is. */
+function Hanging({ segs }: { segs: Segs }) {
+  const [head, first, ...rest] = segs
+  if (!head || !first || head[0].trim().length > 2) return <Wrapped segs={segs} flexGrow={0} />
+  const lead = first[0].match(/^ */)![0] // the text's own leading spaces join the margin
+  return (
+    <box flexDirection="row" flexShrink={0}>
+      <box width={cellLen(head[0]) + lead.length} flexShrink={0}>
+        <Wrapped segs={[head]} flexGrow={0} />
+      </box>
+      <Wrapped segs={[[first[0].slice(lead.length), first[1]], ...rest]} />
+    </box>
+  )
+}
+
 interface Item {
   key: string
   name: string
@@ -317,7 +333,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
             <box flexDirection="column" paddingTop={1} flexShrink={0}>
               <text attributes={TextAttributes.BOLD}>Health check</text>
               {checks.rows.map((r, i) => (
-                <Wrapped key={i} segs={r} flexGrow={0} />
+                <Hanging key={i} segs={r} />
               ))}
               {checks.warning ? (
                 <box marginTop={1}>
@@ -379,14 +395,14 @@ function Done({ bridge, init, quit }: SetupProps) {
               ) : null}
               <box flexDirection="column" marginTop={1} flexShrink={0}>
                 {(system?.rows ?? [[["  Setting up your background stats…", theme.muted]]]).map((l, i) => (
-                  <Wrapped key={i} segs={l} flexGrow={0} />
+                  <Hanging key={i} segs={l} />
                 ))}
               </box>
               <text attributes={TextAttributes.BOLD} marginTop={1}>
                 What's next
               </text>
               {info.steps.map((l, i) => (
-                <Wrapped key={i} segs={l} flexGrow={0} />
+                <Hanging key={i} segs={l} />
               ))}
               {info.login ? (
                 <box marginTop={1}>
