@@ -7,6 +7,12 @@ models): Blender builds and renders the world, Python draws the text and HUD and
 Your channel's rules (video length, loudness, caption format, platforms) come from `my-studio/studio.toml`, which
 onboarding writes. Commands below use Windows paths; on macOS/Linux use `.venv/bin/python` and `/`.
 
+A ReelForge folder can make videos for more than one channel (each is a profile: `studio/profiles.py`). The first
+channel's episodes are in `episodes/`; another channel's are in its own folder, `profiles/<name>/episodes/`, and every
+step follows the rules of the channel whose folder the episode is in (its `my-studio/studio.toml`), shipping to its own
+`completed videos/`. Start one with `python -m studio -p <name> new-episode <slug>`, and run every command from the
+ReelForge folder.
+
 ## Tools
 
 | Tool | Where it comes from | Override |

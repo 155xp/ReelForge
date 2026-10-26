@@ -2,6 +2,10 @@
 
   python -m studio onboard --answers my-studio/answers.json     (what the AI-led interview runs)
   python -m studio onboard --regenerate                         (rebuild everything from the saved answers)
+
+Each profile (each channel, see studio/profiles.py) gets its own: the first profile's go where they always have, a
+new profile's into its folder in profiles/. The first profile's CLAUDE.md and AGENTS.md also list the other channels,
+so your AI knows where each one's notes are.
 """
 
 from __future__ import annotations
@@ -10,8 +14,9 @@ import datetime as dt
 import json
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
-from . import KIT_NAME, KIT_VERSION
+from . import KIT_NAME, KIT_VERSION, profiles
 from . import paths as P
 from . import settings as S
 from .formats import ENDINGS, FORMATS, STYLES
@@ -152,7 +157,10 @@ SETTINGS_COMMENTS = {
 
 # ---------------------------------------------------------------- the context the templates see
 
-def context(a: dict, s: dict, assistant: str) -> dict:
+def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
+    """What the templates see. profile: the one the notes are for (the first one, by default): another channel's
+    paths start at its folder (here), and the first one's notes list the other channels."""
+    profile = profile or profiles.main()
     fmt = dict(FORMATS[s["format"]["template"]])
     creator = s["channel"]["creator"]
     who = creator or "the creator"
@@ -185,6 +193,9 @@ def context(a: dict, s: dict, assistant: str) -> dict:
     typical = min(hi_s, lo_s + 6.0) if hi_s > lo_s else lo_s           # 67 s for a 61-75 s channel
     stills = sorted({1, *(round(typical * k / 9) for k in range(1, 9)), int(typical) - 1})
     preview = [2, round(typical * 0.3), round(typical * 0.7), int(typical) - 3]
+    here = "" if profile.main else f"profiles/{profile.folder.name}/"
+    channels = [] if not profile.main else [{"name": p.name, "folder": f"profiles/{p.folder.name}/"}
+                                            for p in profiles.extra()]
     return {
         "kit": KIT_NAME, "version": KIT_VERSION, "date": dt.date.today().isoformat(),
         "mark": GENERATED_MARK,
@@ -224,8 +235,14 @@ def context(a: dict, s: dict, assistant: str) -> dict:
         "ultracode": s["ai"]["ultracode"] and assistant == "claude",
         "py": P.venv_python(), "sep": sep, "win": win,
         "app_cmd": "reelforge",
-        "onboard_cmd": "reelforge onboard, or " + ("onboard.bat" if win else "./onboard.sh"),
+        "onboard_cmd": ("reelforge onboard, or " + ("onboard.bat" if win else "./onboard.sh")) if profile.main else
+                       f"reelforge -p {profile.folder.name} onboard, or its Settings in ReelForge's profile menu",
         "dims": "1080×1920",
+        # another channel's notes: its files are in its folder (here), and every command runs from the ReelForge folder
+        "extra": not profile.main, "here": here, "here_cmd": here.replace("/", sep), "main_name": profiles.main().name,
+        "pflag": "" if profile.main else f" -p {profile.folder.name}",
+        "channels": channels,   # the first channel's notes: the others in this folder
+        "notes_file": "AGENTS.md" if assistant == "codex" else "CLAUDE.md",
     }
 
 
@@ -245,70 +262,113 @@ def render(template: str, ctx: dict) -> str:
     return text
 
 
-def _backup_if_foreign(path: Path) -> Path | None:
+def _backup_if_foreign(path: Path, backups: Path | None = None) -> Path | None:
     """Before overwriting CLAUDE.md / AGENTS.md: keep a copy if it isn't ours (someone wrote their own)."""
     if not path.exists():
         return None
     head = path.read_text(encoding="utf-8", errors="replace")[:600]
     if GENERATED_MARK in head or BOOTSTRAP_MARK in head:
         return None
-    P.BACKUPS.mkdir(parents=True, exist_ok=True)
-    dst = P.BACKUPS / f"{path.name}.{dt.datetime.now():%Y%m%d-%H%M%S}.bak"
+    backups = backups or P.BACKUPS
+    backups.mkdir(parents=True, exist_ok=True)
+    dst = backups / f"{path.name}.{dt.datetime.now():%Y%m%d-%H%M%S}.bak"
     shutil.copy2(path, dst)
     return dst
 
 
-def write_all(answers: dict) -> list[Path]:
-    """Validate the answers and write every file. Returns the paths written. Raises ValueError on bad answers."""
+def _where(profile=None) -> SimpleNamespace:
+    """The files onboarding writes for a profile: the one this process works on (studio.paths, which the tests point
+    at a scratch folder), or another one (a profile being made, say)."""
+    if profile is None or profile == P.PROFILE:
+        here = P.PROFILE
+        return SimpleNamespace(profile=here, root=P.ROOT if here.main else here.folder, my_studio=P.MY_STUDIO,
+                               answers=P.ANSWERS, settings=P.SETTINGS, bible=P.BIBLE, backups=P.BACKUPS,
+                               completed=P.COMPLETED)
+    return SimpleNamespace(profile=profile, root=profile.folder, my_studio=profile.my_studio, answers=profile.answers,
+                           settings=profile.settings, bible=profile.bible, backups=profile.backups,
+                           completed=profile.completed)
+
+
+def _guides(a: dict, s: dict, w: SimpleNamespace, out) -> None:
+    for name, who in (("CLAUDE.md", "claude"), ("AGENTS.md", "codex")):
+        target = w.root / name
+        _backup_if_foreign(target, w.backups)
+        text = render("context.md.j2", context(a, s, who, w.profile))
+        if who == "codex" and len(text.encode("utf-8")) > 30_000:
+            raise RuntimeError(f"AGENTS.md came out at {len(text.encode()) // 1024} KiB; Codex reads only 32 KiB")
+        out(target, text)
+
+
+def write_all(answers: dict, profile=None) -> list[Path]:
+    """Validate the answers and write every file, for a profile (the one this process works on, by default). Returns
+    the paths written. Raises ValueError on bad answers."""
+    w = _where(profile)
     a, problems = validate(answers)
     if problems:
         raise ValueError("some answers need fixing:\n  " + "\n  ".join(problems))
-    if not a.get("_created") and P.ANSWERS.exists():   # keep the original creation date across re-runs
+    if not a.get("_created") and w.answers.exists():   # keep the original creation date across re-runs
         try:
-            a["_created"] = json.loads(P.ANSWERS.read_text(encoding="utf-8")).get("_created")
+            a["_created"] = json.loads(w.answers.read_text(encoding="utf-8")).get("_created")
         except ValueError:
             pass
     # The answers file is often the one being read (my-studio/answers.json), with no date yet: today, then.
     a["_created"] = a.get("_created") or dt.date.today().isoformat()
     s = settings_from(a)
     written: list[Path] = []
-    P.MY_STUDIO.mkdir(parents=True, exist_ok=True)
+    w.my_studio.mkdir(parents=True, exist_ok=True)
 
     def out(path: Path, text: str):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8", newline="\n")
         written.append(path)
 
-    out(P.ANSWERS, json.dumps({k: v for k, v in a.items()}, indent=2, ensure_ascii=False) + "\n")
-    out(P.SETTINGS, "# Your studio's settings, written by onboarding. The pipeline and the dashboard read this file.\n" +
+    out(w.answers, json.dumps({k: v for k, v in a.items()}, indent=2, ensure_ascii=False) + "\n")
+    out(w.settings, "# Your studio's settings, written by onboarding. The pipeline and the dashboard read this file.\n" +
         S.dump_toml(s, SETTINGS_COMMENTS))
-    bible = render("channel-bible.md.j2", context(a, s, "claude"))
-    if P.BIBLE.exists():
+    bible = render("channel-bible.md.j2", context(a, s, "claude", w.profile))
+    if w.bible.exists():
         # keep the research notes your AI added, and a copy of the old bible
-        old = P.BIBLE.read_text(encoding="utf-8", errors="replace")
-        P.BACKUPS.mkdir(parents=True, exist_ok=True)
-        (P.BACKUPS / f"channel-bible.{dt.datetime.now():%Y%m%d-%H%M%S}.md").write_text(old, encoding="utf-8")
+        old = w.bible.read_text(encoding="utf-8", errors="replace")
+        w.backups.mkdir(parents=True, exist_ok=True)
+        (w.backups / f"channel-bible.{dt.datetime.now():%Y%m%d-%H%M%S}.md").write_text(old, encoding="utf-8")
         head = "## Research notes"
         if head in old and head in bible:
             notes = old[old.index(head) + len(head):].strip()
             if notes:
                 bible = bible[:bible.index(head) + len(head)] + "\n\n" + notes + "\n"
-    out(P.BIBLE, bible)
-    for name, who in (("CLAUDE.md", "claude"), ("AGENTS.md", "codex")):
-        target = P.ROOT / name
-        _backup_if_foreign(target)
-        text = render("context.md.j2", context(a, s, who))
-        if who == "codex" and len(text.encode("utf-8")) > 30_000:
-            raise RuntimeError(f"AGENTS.md came out at {len(text.encode()) // 1024} KiB; Codex reads only 32 KiB")
-        out(target, text)
-    log = P.COMPLETED / "production-log.md"
+    out(w.bible, bible)
+    _guides(a, s, w, out)
+    log = w.completed / "production-log.md"
     if not log.exists():
-        out(log, render("production-log.md.j2", context(a, s, "claude")))
-    cs = write_claude_settings(s)
-    if cs:
-        written.append(cs)
+        out(log, render("production-log.md.j2", context(a, s, "claude", w.profile)))
+    if w.profile.main:  # Claude Code's settings for the ReelForge folder, where your AI works on every channel
+        cs = write_claude_settings(s)
+        if cs:
+            written.append(cs)
     from . import dashboard_config
-    written += dashboard_config.write(s)
+    written += dashboard_config.write(s, w.profile)
+    if not w.profile.main:
+        written += write_guides(profiles.main())  # the first channel's notes list this one
+    return written
+
+
+def write_guides(profile=None) -> list[Path]:
+    """A profile's CLAUDE.md and AGENTS.md again from its saved answers, nothing else: the first profile's list the
+    other channels, so they follow when a channel is added or removed. Nothing for a profile not set up yet."""
+    w = _where(profile)
+    try:
+        a, problems = validate(json.loads(w.answers.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return []
+    if problems:
+        return []
+    written: list[Path] = []
+
+    def out(path: Path, text: str):
+        path.write_text(text, encoding="utf-8", newline="\n")
+        written.append(path)
+
+    _guides(a, settings_from(a), w, out)
     return written
 
 

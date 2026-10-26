@@ -31,7 +31,9 @@ last_errors: dict[str, tuple[str, str]] = {}
 # Between ReelForges, ReadLock does the same.
 _running = threading.Lock()
 STATE = "sync"  # the meta key of the state every ReelForge shares (see shared)
-WAIT = 600      # seconds a read you asked for waits while another ReelForge reads
+# seconds a read you asked for waits while another ReelForge reads (the hourly job gives each profile its share of
+# its time: REELFORGE_REFRESH_WAIT)
+WAIT = int(os.environ.get("REELFORGE_REFRESH_WAIT") or 600)
 ME = f"{os.getpid()}-{time.time_ns()}"  # this ReelForge, in the shared state
 WHO = {"window": "another ReelForge window", "job": "the hourly stats job"}  # who's reading, for messages
 _stale: str | None = None  # a read under way whose ReelForge closed before it finished (see reading_elsewhere)

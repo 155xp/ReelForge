@@ -1,4 +1,5 @@
-"""Writes the dashboard's settings (dashboard/config.toml) from your studio settings: your handles, platforms, hashtags and folders.
+"""Writes the dashboard's settings (dashboard/config.toml, or another profile's own: see studio/profiles.py) from your
+studio settings: your handles, platforms, hashtags and folders.
 
 It starts from dashboard/config.example.toml (so its comments stay) and only changes the keys it knows about. Values
 you set by hand in dashboard/config.toml that onboarding doesn't manage are kept.
@@ -102,9 +103,16 @@ def wanted(s: dict) -> dict[str, dict]:
     return v
 
 
-def write(s: dict) -> list[Path]:
+def config_toml(profile=None) -> Path:
+    """A profile's dashboard settings (the one this process works on, by default): the first profile's are
+    dashboard/config.toml, the others' are in their own folders (see studio/profiles.py)."""
+    profile = profile or P.PROFILE
+    return P.DASHBOARD / "config.toml" if profile.main else profile.config
+
+
+def write(s: dict, profile=None) -> list[Path]:
     example = P.DASHBOARD / "config.example.toml"
-    target = P.DASHBOARD / "config.toml"
+    target = config_toml(profile)
     if not example.exists() and not target.exists():
         return []
     base = target.read_text(encoding="utf-8") if target.exists() else example.read_text(encoding="utf-8")
@@ -114,14 +122,15 @@ def write(s: dict) -> list[Path]:
         values = {sec: {k: v for k, v in kv.items() if k in known.get(sec, set())} for sec, kv in values.items()}
     text = set_keys(base, values)
     tomllib.loads(text)            # never write a config the dashboard can't read
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8", newline="\n")
     return [target]
 
 
-def handles() -> dict[str, str] | None:
-    """Each platform's handle in the dashboard's settings now ("" for none), or None if they can't be read.
+def handles(profile=None) -> dict[str, str] | None:
+    """Each platform's handle in a profile's dashboard settings now ("" for none), or None if they can't be read.
     Connecting a platform on ReelForge's Accounts tab sets one there, disconnecting it clears it."""
-    target = P.DASHBOARD / "config.toml"
+    target = config_toml(profile)
     try:
         data = tomllib.loads(target.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -131,10 +140,10 @@ def handles() -> dict[str, str] | None:
 
 
 def set_handle(platform: str, handle: str, target: Path | None = None) -> list[Path]:
-    """Set one platform's handle (or with "", clear it) in the dashboard's settings (or another config.toml), keeping
-    everything else in the file as it is."""
+    """Set one platform's handle (or with "", clear it) in this profile's dashboard settings (or another config.toml),
+    keeping everything else in the file as it is."""
     example = P.DASHBOARD / "config.example.toml"
-    target = target or P.DASHBOARD / "config.toml"
+    target = target or config_toml()
     if not example.exists() and not target.exists():
         return []
     base = target.read_text(encoding="utf-8") if target.exists() else example.read_text(encoding="utf-8")

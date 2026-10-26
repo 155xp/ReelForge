@@ -1,5 +1,5 @@
 <!-- {{ mark }} on {{ date }}. Your AI keeps the slate and the research notes up to date. Re-running onboarding
-     rewrites this file but keeps the research notes (and a copy of the old one in my-studio/backups/). -->
+     rewrites this file but keeps the research notes (and a copy of the old one in {{ here }}my-studio/backups/). -->
 # {{ ch.name }}: channel bible
 
 - **About:** {{ ch.about }}
@@ -62,7 +62,7 @@ the first frame should feel they can't scroll away before the payoff.
 {% endif %}
 ## Slate (ideas, in order)
 
-Mark each one used in `completed videos/production-log.md`. Don't run the same subject back to back with small
+Mark each one used in `{{ here }}completed videos/production-log.md`. Don't run the same subject back to back with small
 changes: repeats lose most of their reach.
 
 {% for x in subjects %}

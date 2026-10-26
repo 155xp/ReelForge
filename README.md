@@ -159,6 +159,17 @@ Gmail for your channel first). Disconnect hides a platform again without losing 
   <img src="docs/screenshots/onboarding-accounts.png" width="49%" alt="Onboarding's Your accounts step: a Gmail for your channel first, then a handle or Sign up for each platform">
 </p>
 
+### Profiles
+
+Run more than one channel from one ReelForge. Each channel is a profile, with its own accounts, logins, stats,
+notifications, Publish list and settings. The button with your channel's name at the top left switches between them
+(or press **p**), and a red dot on it means another profile has something unread. **New profile** asks the same short
+questions as your first channel did, right in the window. Your first channel stays in the ReelForge folder itself, and
+each one you add gets its own folder in `profiles`, with its own notes for your AI. The hourly stats job reads every
+profile, and `reelforge -p "Channel name"` opens ReelForge on one.
+
+![The profile menu: each channel with its platforms and unread notifications, New profile, and this one's settings](docs/screenshots/app-profiles.png)
+
 ## Updates
 
 When a new version is out, the bell gets a red dot and the **Updates** tab (`reelforge 6`) shows what's new. Click
@@ -250,9 +261,23 @@ stats for about a minute, then stops. Turn it off or back on with `reelforge sta
 
 <br>
 
-Yes, as many as you like, say one on the Overview and one on Publish. They take turns reading your stats, and as
-soon as one of them has read them, every window shows the new numbers and notifications, so they always agree and
-your accounts are read only once. The hourly background job's reads show up in them too.
+Yes, as many as you like, say one on the Overview and one on Publish, or one for each of your channels. Windows on
+the same channel take turns reading its stats, and as soon as one of them has read them, every window shows the new
+numbers and notifications, so they always agree and your accounts are read only once. The hourly background job's
+reads show up in them too.
+
+</details>
+
+<details>
+<summary><b>Can I run more than one channel?</b></summary>
+
+<br>
+
+Yes. Add a profile for each one: click the button with your channel's name at the top left, then **New profile** (or
+run `reelforge profiles new`). It asks the same questions as your first channel did, and its accounts, logins, stats,
+notifications and settings are its own. Your AI works on all of them from the ReelForge folder: say which channel a
+video is for, like "make a video for Cool Epic Facts". Each channel's notes are in its folder (`profiles/<name>/CLAUDE.md`),
+and the main `CLAUDE.md` lists them.
 
 </details>
 
@@ -272,7 +297,8 @@ from there. If it still seems lost, run onboarding again with `reelforge onboard
 <br>
 
 Run `reelforge onboard` (on Windows, **Change my channel answers** in the Start menu does the same). It starts from
-your last answers, and when you finish it rewrites your AI's instructions and ReelForge's settings.
+your last answers, and when you finish it rewrites your AI's instructions and ReelForge's settings. For another
+channel, open the profile menu and pick its settings, or run `reelforge -p "Channel name" onboard`.
 
 </details>
 
@@ -347,6 +373,8 @@ browser, so it never asks.
 - `reelforge` opens ReelForge.
 - `reelforge 1` to `reelforge 6` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates.
 - `reelforge onboard` changes your channel answers.
+- `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
+- `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.
 - `reelforge doctor` checks everything.
 - `reelforge stats on` and `reelforge stats off` turn the hourly stats on and off.

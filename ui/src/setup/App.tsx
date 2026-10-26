@@ -29,6 +29,10 @@ export interface SetupInit {
   cross: string
   fancy: boolean
   onboarded: boolean
+  new?: boolean // making a new profile (one for each channel)
+  embedded?: boolean // inside the ReelForge window: the last screen goes back to it
+  profile?: string // the profile it's for (or, for a new one, opened from)
+  several?: boolean
 }
 
 type Screen = "tools" | "work" | "onboard" | "done"
@@ -315,6 +319,8 @@ function Done({ bridge, init, quit }: SetupProps) {
     login: string
     open: string
     tab: string
+    profile?: string
+    back?: string
   } | null>(null)
   const system = useView<{ rows: Segs[] }>(bridge, "system")
   useEffect(() => {
@@ -361,10 +367,10 @@ function Done({ bridge, init, quit }: SetupProps) {
             variant="primary"
             minWidth={20}
             autoFocus={Boolean(info)}
-            onPress={() => quit(0, { open: "dashboard", tab: info?.tab ?? "overview" })}
+            onPress={() => quit(0, { open: "dashboard", tab: info?.tab ?? "overview", ...(info?.profile ? { profile: info.profile } : {}) })}
           />
-          <Button id="folder" label="Show this folder" minWidth={20} onPress={() => bridge.send("show_folder")} />
-          <Button id="close" label="Close" minWidth={20} onPress={() => quit(0)} />
+          <Button id="folder" label={init.new ? "Show its folder" : "Show this folder"} minWidth={20} onPress={() => bridge.send("show_folder")} />
+          <Button id="close" label={info?.back || "Close"} minWidth={20} onPress={() => quit(0)} />
         </box>
       </box>
     </Frame>

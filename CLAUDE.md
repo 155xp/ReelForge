@@ -34,6 +34,9 @@ their answers (their channel, format, platforms, style, caption rules and qualit
      what to fix.
 3. **Read the new CLAUDE.md** that onboarding wrote, and follow it from then on.
 4. `.venv\Scripts\python -m studio doctor` checks everything at any time; `--render-test` also renders a frame.
+5. **More channels later?** Each one is a profile with its own folder in `profiles/`: `reelforge profiles new` runs the
+   same interview for it (or, interviewing them in chat, `--new --answers FILE.json`). The CLAUDE.md onboarding
+   writes then lists every channel and where its notes are.
 
 ## Always
 

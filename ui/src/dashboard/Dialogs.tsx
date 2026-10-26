@@ -1,5 +1,5 @@
 // Dialogs over the window: how ReelForge works, typing in stats, removing a video, which video a post is, making an
-// account (or the channel's Gmail), and disconnecting one.
+// account (or the channel's Gmail), disconnecting one, and the profile button's menu (Profiles.tsx).
 
 import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
@@ -10,6 +10,7 @@ import { RadioSet, TextField } from "../ui/Fields"
 import { OptionList } from "../ui/Lists"
 import { Modal, Scroll, Wrapped } from "../ui/Panels"
 import { useFocusManager } from "../lib/focus"
+import { ProfileMenu, RemoveProfile } from "./Profiles"
 import { useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
@@ -22,6 +23,8 @@ export function Dialogs() {
   if (d.kind === "remove") return <Remove data={d.data} close={close} />
   if (d.kind === "signup") return <SignUp data={d.data} close={close} />
   if (d.kind === "disconnect") return <Disconnect data={d.data} close={close} />
+  if (d.kind === "profiles") return <ProfileMenu data={d.data} close={close} />
+  if (d.kind === "remove_profile") return <RemoveProfile data={d.data} close={close} />
   return <EpisodePicker data={d.data} close={close} />
 }
 

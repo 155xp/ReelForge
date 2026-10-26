@@ -51,6 +51,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
   const theme = useTheme()
   const focus = useFocusManager()
   const [steps, setSteps] = useState<[string, string][]>([])
+  const [labels, setLabels] = useState({ side: "Set up your channel", create: "Create my studio" })
   const [step, setStep] = useState<Step | null>(null)
   const [raws, setRaws] = useState<Record<string, unknown>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -74,8 +75,9 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
 
   useEffect(() => {
     void (async () => {
-      const start = await bridge.call<{ steps: [string, string][] }>("onboard_start")
+      const start = await bridge.call<{ steps: [string, string][]; side?: string; create?: string }>("onboard_start")
       setSteps(start.steps)
+      setLabels((l) => ({ side: start.side ?? l.side, create: start.create ?? l.create }))
       show(await bridge.call<Step>("onboard_step", 0))
     })()
   }, [bridge])
@@ -157,7 +159,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
           borderColor={theme.panel}
         >
           <text fg={theme.muted} marginBottom={1}>
-            Set up your channel
+            {labels.side}
           </text>
           {steps.map(([key, label], n) => (
             <text
@@ -208,7 +210,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
             <Button id="back" label="Back" minWidth={22} marginRight={2} disabled={i === 0} onPress={() => void back()} />
             <Button
               id="next"
-              label={step?.key === "review" ? "Create my studio" : "Next"}
+              label={step?.key === "review" ? labels.create : "Next"}
               variant="primary"
               minWidth={22}
               marginRight={2}

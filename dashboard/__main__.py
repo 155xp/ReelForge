@@ -4,8 +4,10 @@
   reelforge 4              straight to a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates
   reelforge publish        the same, by name
   reelforge notifications  with the notifications drawer open
-  reelforge refresh        read every platform's stats once, save them and exit (the hourly background job)
+  reelforge refresh        read every profile's stats once, save them and exit (the hourly background job)
   reelforge --demo         try it on made-up data; nothing is read or saved
+
+The window opens on the profile (the channel) you had open last; reelforge -p NAME picks one (see studio/profiles.py).
 
 Exit codes: 0 fine, 2 a word it doesn't know, 3 the kit's Python packages are missing (run setup), 75 ReelForge
 updated itself and the launcher should start it again.
@@ -14,9 +16,13 @@ updated itself and the launcher should start it again.
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
 import threading
+import time
 from datetime import datetime
+from pathlib import Path
 
 try:
     import httpx  # noqa: F401
@@ -24,23 +30,7 @@ except ImportError:
     sys.exit(3)  # the launchers take exit code 3 to mean "repair the environment"
 
 from . import config, db, notify, sync  # noqa: E402
-
-TAB_IDS = ("overview", "videos", "compare", "publish", "accounts", "updates")
-TABS: dict[str, str] = {
-    **{str(i): tab for i, tab in enumerate(TAB_IDS, 1)},
-    **{tab: tab for tab in TAB_IDS},
-    "home": "overview", "video": "videos", "post": "publish", "posts": "publish",
-    "upload": "publish", "uploads": "publish", "account": "accounts", "login": "accounts", "logins": "accounts",
-    "update": "updates", "notifications": "overview", "notification": "overview", "alerts": "overview",
-}
-DRAWER_WORDS = {"notifications", "notification", "alerts"}
-USAGE = ("reelforge [1-6 | overview | videos | compare | publish | accounts | updates | notifications | refresh] "
-         "[--demo]")
-
-
-def tab_for(word: str) -> str | None:
-    """The tab a word opens ("4", "publish", "post" -> "publish"), or None if it isn't one."""
-    return TABS.get((word or "").strip().lower())
+from .tabs import DRAWER_WORDS, TAB_IDS, TABS, USAGE, tab_for  # noqa: E402,F401
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -62,13 +52,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if word == "refresh":  # only the connected platforms are read (Platform.connected)
-        from .platforms import connected
+        return refresh_profiles(args.demo)
 
-        cfg, every = load_platforms(args.demo)
-        return refresh(connected(every, db.stored_platforms()), cfg, demo=args.demo)
+    # The window is the OpenTUI app in ui/; it runs dashboard/service.py through studio/bridge.py, on the profile asked
+    # for (reelforge -p NAME), else the one you had open last.
+    from studio import profiles, tui, ui
 
-    # The window is the OpenTUI app in ui/; it runs dashboard/service.py through studio/bridge.py.
-    from studio import tui, ui
+    if not profiles.get(os.environ.get(profiles.ENV)):
+        profiles.use(profiles.last())
 
     tui.set_title("ReelForge TEST" if (config.APP_DIR.parent / "TEST-COPY.txt").exists() else "ReelForge")
     if sys.platform == "win32":
@@ -115,6 +106,43 @@ def _terminal_profile() -> None:
         terminal_profile.ensure()
     except Exception:
         pass
+
+
+JOB_BUDGET = 15 * 60  # seconds the hourly job spends on every profile together: the scheduler stops it at 20 minutes
+
+
+def refresh_profiles(demo: bool = False) -> int:
+    """`reelforge refresh`: one stats read of every profile (or just the one asked for: reelforge -p NAME refresh).
+    Each profile is read in a process of its own, one after the other, as though each had its own job; a profile whose
+    settings turn background stats off is left out. With one profile it's read here, as it always was."""
+    from studio import profiles
+    from studio import settings as S
+
+    asked = profiles.get(os.environ.get(profiles.ENV))
+    if demo or asked is not None or not profiles.several():
+        from .platforms import connected
+
+        cfg, every = load_platforms(demo)
+        return refresh(connected(every, db.stored_platforms()), cfg, demo=demo)
+    root = Path(__file__).resolve().parent.parent
+    end = time.monotonic() + JOB_BUDGET
+    code = 0
+    for p in profiles.every():
+        if p.onboarded and not S.load(p.settings)["platforms"].get("background_stats", True):
+            continue
+        left = int(end - time.monotonic())
+        if left < 30:
+            print(f"{p.name}: left for the next run (this one ran out of time)")
+            code = max(code, 1)
+            continue
+        print(f"{p.name}:", flush=True)
+        env = {**os.environ, profiles.ENV: p.key, "REELFORGE_REFRESH_WAIT": str(min(sync.WAIT, max(left - 60, 0)))}
+        try:
+            code = max(code, subprocess.call([sys.executable, "-m", "dashboard", "refresh"], cwd=root, env=env,
+                                             timeout=left))
+        except subprocess.TimeoutExpired:
+            code = max(code, 1)
+    return code
 
 
 def refresh(platforms: dict, cfg: dict, demo: bool = False) -> int:

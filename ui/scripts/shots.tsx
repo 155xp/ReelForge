@@ -39,6 +39,8 @@ export const SHOTS: Record<string, Shot> = {
   "app-publish": { screen: "dashboard", options: demo("publish"), size: GUIDE, folder: "docs/screenshots", then: pickFirstVideo },
   // X left unconnected, so Accounts shows its Connect box
   "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
+  // the profile button's menu: the demo's two channels, New profile and this one's settings
+  "app-profiles": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openProfiles },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },
   overview: { screen: "dashboard", options: demo("overview", true), size: GUIDE, folder: "dashboard/docs" },
@@ -76,6 +78,11 @@ async function toFormatStep(h: Headless) {
 async function toAccountsStep(h: Headless) {
   await h.settle(800)
   for (let step = 0; step < 4; step++) await clickText(h, "  Next  ", 4)
+  await h.settle(800)
+}
+
+async function openProfiles(h: Headless) {
+  await h.t.mockInput.pressKey("p")
   await h.settle(800)
 }
 

@@ -1,7 +1,8 @@
 """Your studio's settings: my-studio/studio.toml (written by onboarding) laid over the defaults below.
 
 The pipeline (captions, QA, loudness, video length) and the dashboard both read these, so one interview configures
-everything. Edit studio.toml by hand if you like, or run onboarding again.
+everything. Edit studio.toml by hand if you like, or run onboarding again. Each profile (each channel) has its own:
+these are the profile's this process works on (see studio/profiles.py).
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import re
 import tomllib
 from pathlib import Path
 
-from .paths import SETTINGS
+from . import paths
 
 PLATFORMS = ("tiktok", "youtube", "instagram", "x")
 PLATFORM_NAMES = {"tiktok": "TikTok", "youtube": "YouTube Shorts", "instagram": "Instagram Reels", "x": "X"}
@@ -89,7 +90,7 @@ def _merge(base: dict, over: dict) -> dict:
 
 def load(path: Path | None = None) -> dict:
     """Settings as a plain dict: the defaults with studio.toml laid over them (missing file = defaults)."""
-    path = path or SETTINGS
+    path = path or paths.SETTINGS
     data: dict = {}
     if path.exists():
         with path.open("rb") as f:
@@ -102,7 +103,7 @@ def load(path: Path | None = None) -> dict:
 
 
 def onboarded(path: Path | None = None) -> bool:
-    return (path or SETTINGS).exists()
+    return (path or paths.SETTINGS).exists()
 
 
 # ---------------------------------------------------------------- caption rules (shared by the pipeline and the dashboard)

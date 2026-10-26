@@ -4,14 +4,16 @@
 import "./quiet"
 import { createTestRenderer, type TestRendererSetup } from "@opentui/core/testing"
 import { createRoot } from "@opentui/react"
-import { Bridge } from "../src/bridge"
-import { DashboardApp } from "../src/dashboard/App"
+import type { Bridge } from "../src/bridge"
 import type { Init } from "../src/dashboard/types"
+import { Root, Sides } from "../src/root"
 import { SetupApp, type SetupInit } from "../src/setup/App"
 
 export interface Headless {
   t: TestRendererSetup
+  /** The Python side the window started with (after switching profiles: sides.active). */
   bridge: Bridge
+  sides: Sides
   /** Let the window take in what the Python side sent: a few frames, a pause, a few more. */
   settle: (ms?: number) => Promise<void>
   exits: { code: number; result?: object }[]
@@ -25,14 +27,16 @@ export async function headless(
   height: number,
   env: Record<string, string> = {},
 ): Promise<Headless> {
-  const bridge = new Bridge({ env: { STUDIO_DRY_SYSTEM: "1", ...env }, log: "" })
-  const init = await bridge.start(screen, options)
+  const sides = new Sides({ STUDIO_DRY_SYSTEM: "1", ...env }, "")
+  const opened = await sides.open<Init | SetupInit>(screen, options)
+  const bridge = opened.bridge
+  sides.adopt(bridge)
   const t = await createTestRenderer({ width, height })
   const exits: { code: number; result?: object }[] = []
   const quit = (code = 0, result?: object) => void exits.push({ code, result })
   const root = createRoot(t.renderer)
-  if (screen === "setup") root.render(<SetupApp bridge={bridge} init={init as SetupInit} quit={quit} options={options} />)
-  else root.render(<DashboardApp bridge={bridge} init={init as Init} quit={quit} />)
+  if (screen === "setup") root.render(<SetupApp bridge={bridge} init={opened.init as SetupInit} quit={quit} options={options} />)
+  else root.render(<Root sides={sides} first={{ kind: "dashboard", bridge, init: opened.init as Init, n: 0 }} quit={quit} />)
   const settle = async (ms = 400) => {
     for (let i = 0; i < 3; i++) await t.renderOnce()
     await Bun.sleep(ms)
@@ -41,11 +45,13 @@ export async function headless(
   return {
     t,
     bridge,
+    sides,
     settle,
     exits,
     close: async () => {
-      await bridge.stop()
-      await Promise.race([bridge.exited, Bun.sleep(5000)])
+      const { done } = await sides.stop()
+      await Promise.race([done, Bun.sleep(5000)])
+      sides.active?.kill()
       bridge.kill()
       root.unmount()
       t.renderer.destroy()

@@ -1,26 +1,54 @@
-<!-- {{ mark }} ({{ kit }} {{ version }}) on {{ date }} from my-studio/answers.json.
+<!-- {{ mark }} ({{ kit }} {{ version }}) on {{ date }} from {{ here }}my-studio/answers.json.
      To change it, run onboarding again ({{ onboard_cmd }}); hand edits here last until the next run. -->
 # {{ ch.name }}: the video studio
 
 You make the videos for **{{ ch.name }}**, {{ whose }} faceless short-form channel on {{ platform_list }}.
-Everything happens in this folder: Blender builds and renders each scene, Python draws the text and the counter
+Everything happens in {% if extra %}the ReelForge folder{% else %}this folder{% endif %}: Blender builds and renders each scene, Python draws the text and the counter
 and mixes the sound, ffmpeg encodes, an automatic QA gate checks the finished file, and the **ReelForge** window
 (type `{{ app_cmd }}` in a terminal) is where {{ who }} posts from. **You never post, upload or send anything.**
+{% if extra %}
+
+**This is one of several channels in this ReelForge folder** (the first is {{ main_name }}, whose notes are the
+ReelForge folder's own {{ notes_file }}). This channel's files are all in `{{ here }}`, laid out like the
+ReelForge folder's:
+- its settings and channel bible: `{{ here }}my-studio/`
+- its episodes: `{{ here }}episodes/`
+- its finished videos: `{{ here }}completed videos/`
+
+Every path in these notes starts at the ReelForge folder (two folders up from this file), and every command runs from
+there. For this channel's videos, follow these notes, not another channel's.
+{% endif %}
 
 Read before making or changing a video:
-- `my-studio/channel-bible.md`: the channel, the format, the slate of ideas, posting
+- `{{ here }}my-studio/channel-bible.md`: the channel, the format, the slate of ideas, posting
 - `docs/QUALITY.md`: the quality bar and the faults that get a video rejected
 - `docs/PIPELINE.md`: pipeline commands, every `episode.json` key, and how to add a new scene
 - `docs/SOUND.md`: the sound rules (no static, the loudness target)
-- `completed videos/production-log.md`: what has been made, so no subject is repeated
+- `{{ here }}completed videos/production-log.md`: what has been made, so no subject is repeated
 
 Where another doc disagrees with this file, this file wins.
+{% if channels %}
+
+## Other channels in this folder
+
+This ReelForge folder makes videos for more than one channel. Everything in this file is **{{ ch.name }}**'s. Each
+other channel has its own folder in `profiles/`, laid out like this one, with its own notes (its format, rules and
+captions), settings, episodes and finished videos:
+
+{% for c in channels %}
+- **{{ c.name }}**: `{{ c.folder }}` (its notes: `{{ c.folder }}{{ notes_file }}`)
+{% endfor %}
+
+When {{ who }} asks for a video for one of them, read that channel's {{ notes_file }} first and follow it instead of this
+file's channel rules. Its episodes go in its own `episodes/` folder, never in this one's. If it isn't clear which
+channel a video is for, ask.
+{% endif %}
 
 ## How {{ who }} works with you
 
 {% if claude %}
 - **Opus at {{ effort }} effort, always**, for every session and every subagent you start for this channel.
-  Onboarding set it for this folder in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
+  Onboarding set it for {% if extra %}the ReelForge folder{% else %}this folder{% endif %} in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
   say so in one line and tell {{ who }} how to switch: `/model opus` and `/effort {{ effort }}` (in the desktop app:
   the model picker under the prompt box, then Effort).
 {% if ultracode %}
@@ -104,7 +132,7 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
 
 - 9:16, {{ dims }}, 30 fps, **{{ min }}-{{ max }} s** (`duration`{% if over_minute %}; over 60 s so TikTok's Creator Rewards counts it{% endif %}).
 - **No voiceover.** Short second-person story lines, one at a time (`lines`). Each line must be **true and visible
-  on screen** at that moment. Every claim and the second it becomes true go in `episodes/<id>/facts.md` with a
+  on screen** at that moment. Every claim and the second it becomes true go in `{{ here }}episodes/<id>/facts.md` with a
   source.
 - **Hook in seconds 0-2.** Something new every 2-3 s. The framing changes at least every ~8 s. Escalation speeds
   up, and the last 20 s are the most spectacular. Nothing winds down in the back half.
@@ -122,7 +150,7 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
   `docs/QUALITY.md` lists the banned faults.
 - **Loudness: {{ lufs }} LUFS integrated.** Both mixers master to it automatically, and QA fails a video louder
   than {{ lufs_fail }} LUFS, with a loudest 3 s above {{ short_fail }} LUFS, or a true peak above {{ tp_fail }} dBTP.
-  Never raise it for one video; ask {{ who }} before changing it (`my-studio/studio.toml`).
+  Never raise it for one video; ask {{ who }} before changing it (`{{ here }}my-studio/studio.toml`).
 - **No static, ever.** Beds and long effects come from recordings only; QA fails hiss, loudness blasts and piled-up
   samples (`docs/SOUND.md`).
 
@@ -138,17 +166,17 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
 
 ## Making a video
 
-1. **Pick the subject.** Never repeat one from `completed videos/production-log.md`. Take the next unused idea in
+1. **Pick the subject.** Never repeat one from `{{ here }}completed videos/production-log.md`. Take the next unused idea in
    the bible's slate, or research a new one (`docs/RESEARCH.md`).
-2. **Start the episode:** `{{ py }} -m studio new-episode <slug>` makes `episodes/epNN_<slug>/` with an
+2. **Start the episode:** `{{ py }} -m studio{{ pflag }} new-episode <slug>` makes `{{ here }}episodes/epNN_<slug>/` with an
    `episode.json` and a `facts.md` to fill in.
 3. **Script and facts:** `title`, `lines`, `hud`, `cta`, `hashtags`, the sound cue sheet. Check every number;
    write it with its source and the second it becomes true in `facts.md`. No line appears before its fact is true.
-4. **Build the scene:** `{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps build,stills --stills {{ stills }}`
+4. **Build the scene:** `{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills --stills {{ stills }}`
    and **look at every still** in `build/stills/`. Fix and repeat until each one clears `docs/QUALITY.md`. New
    scenes go in new modules (`pipeline/blender/worlds/<name>.py`, `effects/<name>.py`); never change a module
    another episode uses in a way that changes that episode.
-5. **Check the text** without a full render: `{{ py }} pipeline{{ sep }}post{{ sep }}compose.py episodes{{ sep }}<id> --preview {{ preview }}`.
+5. **Check the text** without a full render: `{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview {{ preview }}`.
 6. **Render:** `--steps render` (20-40 min on a good GPU; run it in the background). It resumes and **skips frames
    that already exist**, so delete `build/frames` after changing the scene.{% if codex %} If your shell stops a long
    command, run it again: it carries on where it stopped.{% endif %}
@@ -159,41 +187,41 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
    at every line and big moment; read both loudness lines in the report; re-check `facts.md`. Write
    `build/qa/review.md` (picture, sound, facts) ending with `APPROVED` or `REJECTED: why`. If you're not sure it's
    right, it isn't done.
-9. **Ship:** `--steps ship` copies the video to `completed videos/<id> - <title>/` (only if QA passed on this exact
+9. **Ship:** `--steps ship` copies the video to `{{ here }}completed videos/<id> - <title>/` (only if QA passed on this exact
    file and your review says APPROVED), deletes the render frames, and **checks that ReelForge's Publish tab lists it**
    with the right caption and hashtags. A video is done only when that check says READY.
-10. **Log it:** add a row to `completed videos/production-log.md`.
+10. **Log it:** add a row to `{{ here }}completed videos/production-log.md`.
 11. **Tell {{ who }}** it's ready in ReelForge -> **Publish (tab 4)**: the title, the length, anything to know.
 
 ## Delivering to ReelForge (tab 4, Publish)
 
-ReelForge's Publish tab (`reelforge 4`) lists every `episodes/<id>/final/<id>.mp4`, newest first, with the post pre-filled from
+ReelForge's Publish tab (`reelforge{{ pflag }} 4`) lists every `{{ here }}episodes/<id>/final/<id>.mp4`, newest first, with the post pre-filled from
 `episode.json`'s `title` and the hashtag line of `final/caption.txt`. {{ Who }} uploads from there by hand: each
 platform's button opens its upload page and copies exactly the text that site needs.
-- Keep that layout: `episodes/<id>/episode.json`, `final/<id>.mp4`, `final/caption.txt`, `final/cover.jpg`.
-- `{{ py }} -m studio publish-check episodes{{ sep }}<id>` runs the same check as `ship` at any time and prints
+- Keep that layout: `{{ here }}episodes/<id>/episode.json`, `final/<id>.mp4`, `final/caption.txt`, `final/cover.jpg`.
+- `{{ py }} -m studio publish-check {{ here_cmd }}episodes{{ sep }}<id>` runs the same check as `ship` at any time and prints
   each platform's post.
 - Never upload or post yourself, and never open the platforms' upload pages.
 
 ## A production run ("make today's videos")
 
 {{ cadence }}{% if per_day %}: each run makes {{ per_run }}{% else %}: each run makes 1{% endif %}.
-1. If `episodes/.run.lock` exists and is under 8 hours old, another run is going: stop. Otherwise write it (the
+1. If `{{ here }}episodes/.run.lock` exists and is under 8 hours old, another run is going: stop. Otherwise write it (the
    current time) and delete it when you finish, also when you stop early. Check there are 10 GB free.
 2. Read the log and pick new subjects (never repeat one).
 3. Make each video as above. If only one clears the bar, ship that one and say why.
 4. Finish with a short summary: the titles, their folders, and that they are in ReelForge's Publish tab.
 
-## Commands (run from this folder)
+## Commands (run from {% if extra %}the ReelForge folder{% else %}this folder{% endif %})
 
 ```
-{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps build,stills --stills 1,15,31
-{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps render
-{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps post
-{{ py }} pipeline{{ sep }}make_episode.py episodes{{ sep }}<id> --steps ship
-{{ py }} pipeline{{ sep }}post{{ sep }}compose.py episodes{{ sep }}<id> --preview {{ preview }}
-{{ py }} -m studio new-episode <slug>        a new episode folder from the template
-{{ py }} -m studio publish-check episodes{{ sep }}<id>
+{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills --stills 1,15,31
+{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps render
+{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps post
+{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps ship
+{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview {{ preview }}
+{{ py }} -m studio{{ pflag }} new-episode <slug>        a new episode folder from the template
+{{ py }} -m studio publish-check {{ here_cmd }}episodes{{ sep }}<id>
 {{ py }} -m studio doctor                    checks Blender, ffmpeg, sounds, fonts, disk space
 ```
 
@@ -203,7 +231,7 @@ platform's button opens its upload page and copies exactly the text that site ne
 - Delete `build/frames` after changing the world or effect, or the render keeps the old frames.
 - Run anything that reads downloaded files (e.g. `assets/sfx/`) with `python -I`. Every new sound needs a licence
   entry in `assets/sfx/manifest.json`; Mixkit and Kenney (CC0) are the approved free sources.
-- `episodes/` grows by about 0.6 GB per video until `ship` cleans the frames. Keep 10 GB free before a render.
+- `{{ here }}episodes/` grows by about 0.6 GB per video until `ship` cleans the frames. Keep 10 GB free before a render.
 {% if win %}
 - Paths can contain spaces or apostrophes: quote them with double quotes, never single quotes.
 {% endif %}

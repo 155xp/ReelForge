@@ -14,7 +14,9 @@ import re
 from pathlib import Path
 
 from . import settings as S
-from .paths import COMPLETED, EPISODES, ROOT
+from . import paths as P
+from . import profiles
+from .paths import ROOT
 
 # The latest of these is the verdict. "NOT APPROVED" has to be tried before "APPROVED", and the words have to be
 # whole, so a review that says DISAPPROVED or "not approved" is not an approval.
@@ -47,8 +49,10 @@ def _dashboard_listing():
 def check(ep_dir: Path) -> tuple[bool, str]:
     ep_dir = Path(ep_dir)
     if not ep_dir.is_absolute() and not ep_dir.exists():
-        ep_dir = EPISODES / ep_dir.name
+        ep_dir = P.EPISODES / ep_dir.name
     ep_dir = ep_dir.resolve()
+    here = profiles.of(ep_dir)  # the channel it belongs to: its settings, and its own ReelForge profile
+    profiles.use(here)
     lines: list[str] = []
     ok = True
 
@@ -83,7 +87,7 @@ def check(ep_dir: Path) -> tuple[bool, str]:
         parts = [p.strip() for p in cap.read_text(encoding="utf-8").split("\n\n") if p.strip()]
         if len(parts) > 1 and all(w.startswith("#") for w in parts[-1].split()):
             tags_line = parts[-1]
-    s = S.load()
+    s = S.load(here.settings)
     listing = _dashboard_listing()
     if listing and video.exists():
         find, meta, cfg = listing
@@ -107,7 +111,8 @@ def check(ep_dir: Path) -> tuple[bool, str]:
     for p, text in posts.items():
         shown = text.strip().replace("\n\n", "  |  description: ")
         lines.append(f"    {S.PLATFORM_NAMES[p]:<16} {shown}")
-    done = [d for d in COMPLETED.glob(f"{spec['id']} - *") if (d / video.name).exists()] if COMPLETED.exists() else []
+    done = ([d for d in here.completed.glob(f"{spec['id']} - *") if (d / video.name).exists()]
+            if here.completed.exists() else [])
     lines.append("")
     lines.append(f"  Copy in completed videos: {'yes' if done else 'no (run --steps deliver)'}")
     head = "READY in ReelForge -> Publish (tab 4)" if ok else "NOT READY for ReelForge's Publish tab"

@@ -34,6 +34,10 @@ try:  # the sign-up guides and how a typed handle is read (the ReelForge folder'
     from studio import signup
 except Exception:
     signup = None
+try:  # the channels this ReelForge folder has (each its own profile)
+    from studio import profiles
+except Exception:
+    profiles = None
 
 # A test copy (a second ReelForge folder for trying changes, marked by TEST-COPY.txt; see studio/paths.py) says TEST
 # in the header and the window title, so it's never mistaken for the real one.
@@ -55,6 +59,9 @@ HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days)
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
 WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
+# Demo mode's profiles (and the README's picture of the menu): (name, connected platforms, unread notifications).
+DEMO_PROFILES = [("Night Physics", ("tiktok", "youtube", "instagram", "x"), 0),
+                 ("Tiny Worlds", ("tiktok", "youtube"), 3)]
 COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
           "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
 NOTHING_CONNECTED = "Connect an account on the Accounts tab (5) to see your stats here."
@@ -91,14 +98,19 @@ HELP = [
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
                       "all deletes them all. The hourly background job (reelforge stats on) adds them while "
                       "ReelForge is closed."),
-    ("Several windows", "Open ReelForge as many times as you like (one on the Overview and one on Publish, say). "
-                        "They take turns reading your stats, and as soon as one of them (or the hourly job) has read "
-                        "them, every window shows the new numbers, notifications and errors. r in a window while "
-                        "another one is reading waits for that read instead of starting another."),
+    ("Profiles", "One profile for each channel you run, each with its own accounts, log-ins, stats, notifications, "
+                 "Publish list and settings. The button with your channel's name at the top left switches between "
+                 "them (a red dot on it: another profile has unread notifications), adds a new one (the same short "
+                 "interview as the first) or changes this one's settings. The hourly job reads every profile."),
+    ("Several windows", "Open ReelForge as many times as you like (one on the Overview and one on Publish, say, or one "
+                        "for each profile). Windows on the same profile take turns reading its stats, and as soon as "
+                        "one of them (or the hourly job) has read them, every window shows the new numbers, "
+                        "notifications and errors. r in a window while another one is reading waits for that read "
+                        "instead of starting another."),
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]
-KEYS = [("1-6", "switch tabs"), ("r / R", "refresh / force refresh"),
+KEYS = [("1-6", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
         ("Tab", "move between buttons, lists and fields (Enter presses, the arrows move through a list)"),
         ("Esc", "close the drawer or a dialog, or leave a text field"), ("Ctrl+Q", "quit")]
 
@@ -200,6 +212,8 @@ class Dashboard(Service):
         self.reading = Running()  # this window's own reads: each reloads the window itself when it's done
         self.catching_up = False  # a reload for what another window read is being worked out
         self.last_seen = None
+        self.profile = profiles.current() if profiles else None  # the channel this window shows
+        self.elsewhere_unread = 0  # unread notifications in the other profiles (the dot on the profile button)
 
     # --- starting ---------------------------------------------------------------------------
 
@@ -229,6 +243,8 @@ class Dashboard(Service):
         self.note_seen = self._safe(notify.newest_id, 0)  # what's already there shows in the drawer, not as pop-ups
         self.last_seen = db.get_meta("last_seen")  # totals when ReelForge was last open, for "since you last looked"
         self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
+        if profiles and not self.demo:
+            profiles.remember(self.profile)  # ReelForge opens on it next time
         self.loop.call_soon(self.started)
         return self.init_view(options)
 
@@ -252,13 +268,113 @@ class Dashboard(Service):
             "badges_how": badges.HOW, "ranges": {k: v[0] for k, v in trends.RANGES.items()},
             "fit_steps": {k: [s.total_seconds() / 3600 for s in v] for k, v in trends.FIT_STEPS.items()},
             "videos_dir": str(config.videos_dir(self.cfg)),
+            "profile": self.profile_view(),
         }
 
     def platform_info(self) -> list[dict]:
         return [{"key": p.key, "name": p.name, "color": p.color, "short": SHORT.get(p.key, p.key)}
                 for p in self.platforms.values()]
 
+    # --- profiles: one for each channel ------------------------------------------------------------
+
+    def profile_view(self) -> dict:
+        """The header's profile button: this window's profile, and whether another profile has unread notifications
+        (a red dot). The window switches by starting its Python side again on the one you pick (see ui/src/root.tsx)."""
+        if self.demo:
+            return {"key": ".", "name": DEMO_PROFILES[0][0], "main": True, "several": True,
+                    "elsewhere": 0 if self.screenshots else DEMO_PROFILES[1][2]}
+        if profiles is None:
+            return {"key": ".", "name": "ReelForge", "main": True, "several": False, "elsewhere": 0}
+        p = self.profile
+        return {"key": p.key, "name": p.name, "main": p.main, "several": profiles.several(),
+                "elsewhere": self.elsewhere_unread}
+
+    def update_profile(self) -> None:
+        """Every half minute: the other profiles' unread notifications, for the dot on the profile button."""
+        if profiles is not None and not self.demo and profiles.several():
+            from . import switcher
+
+            try:
+                self.elsewhere_unread = switcher.unread_elsewhere(self.profile, profiles.every())
+            except Exception:
+                pass  # an extra: a profile being made or removed right now
+        self.emit("profile", self.profile_view())
+
+    @rpc
+    def profiles_menu(self) -> dict:
+        """The profile button's menu: every profile (this one first is marked), each with its connected platforms and
+        unread notifications, then what can be done: a new profile, this one's settings, removing another one."""
+        from . import switcher
+
+        rows = []
+        if self.demo:
+            for i, (name, keys, unread) in enumerate(DEMO_PROFILES):
+                rows.append({"key": "." if i == 0 else f"demo-{i}", "number": i + 1, "name": name, "current": i == 0,
+                             "main": i == 0, "unread": 0 if i == 0 else unread, "where": "",
+                             "platforms": [self._tag(k) for k in keys]})
+            return {"rows": rows, "current": ".", "demo": True, "onboarded": True}
+        for i, p in enumerate(profiles.every() if profiles else [], 1):
+            here = p == self.profile
+            if here:
+                keys = list(self.platforms)
+                unread = sum(1 for n in self._safe(notify.recent, []) if not n["read"] and self.shows_note(n))
+            else:
+                info = switcher.summary(p)
+                keys, unread = info["platforms"], info["unread"]
+            rows.append({"key": p.key, "number": i, "name": p.name, "current": here, "main": p.main,
+                         "unread": unread, "where": "" if p.main else p.describe(),
+                         "platforms": [self._tag(k) for k in keys]})
+        return {"rows": rows, "current": self.profile.key if self.profile else ".", "demo": False,
+                "onboarded": bool(self.profile and self.profile.onboarded)}
+
+    @staticmethod
+    def _tag(key: str) -> dict:
+        from .platforms import ORDER
+
+        cls = next(c for c in ORDER if c.key == key)
+        return {"key": key, "short": SHORT.get(key, key), "name": cls.name, "color": cls.color}
+
+    @rpc
+    def remove_profile_info(self, key: str) -> dict | None:
+        """The dialog before removing a profile: which, and what goes with it."""
+        p = profiles.get(key) if profiles else None
+        if self.demo:
+            self.notify("Demo mode: nothing is removed.", timeout=4)
+            return None
+        if p is None or p.main or p == self.profile:
+            return None
+        note = Text()
+        note.append(p.name, "bold")
+        note.append(f"\n{p.folder}\n\n", MUTED)
+        note.append(f"Moves its folder to the {desktop.BIN}", "bold")
+        note.append(": its stats, notifications, log-ins, settings and videos in the making. You can put it back from "
+                    f"the {desktop.BIN}. Close any other ReelForge window that's showing it first.", MUTED)
+        return {"key": p.key, "name": p.name, "note": note.json(), "bin": desktop.BIN}
+
+    @rpc
+    def remove_profile(self, key: str) -> bool:
+        """Remove another profile: its folder goes to the Recycle Bin (or the Trash). False when it didn't."""
+        p = profiles.get(key) if profiles else None
+        if self.demo or p is None or p.main or p == self.profile:
+            return False
+        name = p.name
+        if not desktop.recycle(p.folder) or p.folder.exists():
+            self.notify(f"Couldn't move {name} to the {desktop.BIN}: close any ReelForge window showing it (and wait "
+                        "for its stats read to finish), then try again.", severity="error", timeout=12)
+            return False
+        try:
+            from studio import generate
+
+            generate.write_guides(profiles.main())  # your AI's notes no longer list it
+        except Exception:
+            pass
+        self.notify(f"{name} is in the {desktop.BIN}. Restore it from there to bring it back.",
+                    title="Profile removed", timeout=10)
+        self.update_profile()
+        return True
+
     def started(self) -> None:
+        self.update_profile()
         self.show_platforms()
         self.reload()
         self.scan_files()
@@ -357,8 +473,10 @@ class Dashboard(Service):
             self.changes = changes
 
     def tick(self) -> None:
-        """Every half minute: the "updated" time, and the charts once a new hour (or day) starts."""
+        """Every half minute: the "updated" time, the other profiles' news, and the charts once a new hour (or day)
+        starts."""
         self.update_header()
+        self.update_profile()
         if self.trend_frame is not None and analytics.now() >= self.trend_frame.ends[-1]:
             self.update_trends()
             self.update_cards()
@@ -529,30 +647,38 @@ class Dashboard(Service):
         self.update_header()
 
     def update_header(self) -> None:
+        """The top bar's line: each platform (red when its last read failed), when the stats were read, and any read
+        under way. short: the same with TT / YT / IG / X, for a window too narrow for the names beside the profile
+        button."""
+        self.emit("header", {"line": self.header_line(False).json(), "short": self.header_line(True).json()})
+
+    def header_line(self, short: bool) -> Text:
         t = Text()
+        gap, after_badge = ("  ", "  ") if short else ("    ", "   ")
         if TEST_COPY:
             t.append(" TEST ", "bold #ffffff on #e8213a")
-            t.append("   ")
+            t.append(after_badge)
         if self.demo and not self.screenshots:
             t.append(" DEMO ", "bold #0a0c0f on #ffcc33")
-            t.append("   ")
+            t.append(after_badge)
         for p in self.platforms.values():
             live = p.has_stats or p.key in self.latest  # typed-in stats count too
             failed = p.key in sync.last_errors
             color = BAD if failed else p.color if live else "#4a515c"
             t.append("● " if live else "○ ", color, act("tab", "accounts"))
-            t.append(p.name, f"bold {color}" if live else color, act("tab", "accounts"))
-            t.append("    ")
+            t.append(SHORT.get(p.key, p.key) if short else p.name, f"bold {color}" if live else color,
+                     act("tab", "accounts"))
+            t.append(gap)
         if not self.platforms:
             t.append("No accounts connected yet  ", MUTED)
             t.append_text(chip("Connect one", act("tab", "accounts")))
-            t.append("    ")
+            t.append(gap)
         stamps = [r["ts"] for r in self.latest.values()]
         t.append(f"updated {fmt_ago(max(stamps) if stamps else None)}", MUTED)
         status = self.status or self.elsewhere  # this window's read, or another one's (see keep_in_step)
         if status:
-            t.append(f"    {status}", "#ffcc33")
-        self.emit("header", {"line": t.json()})
+            t.append(f"{gap}{status}", "#ffcc33")
+        return t
 
     # --- overview -------------------------------------------------------------------------
 

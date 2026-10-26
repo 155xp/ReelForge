@@ -4,7 +4,7 @@
 import { createContext, useContext, useSyncExternalStore } from "react"
 import type { Bridge } from "../bridge"
 import type { Action } from "../lib/styled"
-import type { Init } from "./types"
+import type { Init, ProfilesMenu } from "./types"
 
 export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates"] as const
 export type Tab = (typeof TABS)[number]
@@ -24,6 +24,18 @@ export type Dialog =
   | { kind: "episode"; data: EpisodeData }
   | { kind: "signup"; data: SignupData }
   | { kind: "disconnect"; data: { key: string; title: string; note: import("../lib/styled").Segs } }
+  | { kind: "profiles"; data: ProfilesMenu }
+  | { kind: "remove_profile"; data: { key: string; name: string; note: import("../lib/styled").Segs; bin: string } }
+
+/** Moving between profiles (one for each channel), which the window does round this one (ui/src/root.tsx): show
+ * another profile (its own Python side starts, on this tab), or onboarding in the window, for a new profile or for
+ * this one's settings. */
+export interface Nav {
+  profile: (key: string, tab?: string) => void
+  onboard: (mode: "new" | "settings", tab?: string) => void
+}
+
+const NO_NAV: Nav = { profile: () => {}, onboard: () => {} }
 
 /** A sign-up guide (dashboard/service.py signup_guide): its steps, the button that opens the platform's own sign-up
  * page, and for an account (not the Gmail) a box for the @handle you end up with. */
@@ -72,6 +84,7 @@ export class DashState {
     readonly bridge: Bridge,
     readonly init: Init,
     readonly quit: (code?: number) => void,
+    readonly nav: Nav = NO_NAV,
   ) {
     this.tab = (TABS as readonly string[]).includes(init.tab) ? (init.tab as Tab) : "overview"
     this.drawer = init.drawer
@@ -119,7 +132,18 @@ export class DashState {
     return this.tab === "overview" ? this.top : this.tab === "videos" ? this.video : this.tab === "compare" ? this.compareRow : null
   }
 
-  async openDialog(kind: "log" | "remove" | "episode" | "signup" | "disconnect", call: Promise<any>) {
+  /** The profile button's menu: every profile, with what you can do from there. */
+  openProfiles() {
+    void this.openDialog("profiles", this.bridge.call("profiles_menu"))
+  }
+
+  /** Show another profile (the menu's rows), on the tab that's open now. */
+  showProfile(key: string) {
+    this.set({ dialog: null })
+    if (key !== this.init.profile.key) this.nav.profile(key, this.tab)
+  }
+
+  async openDialog(kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile", call: Promise<any>) {
     const data = await call
     if (data) this.set({ dialog: { kind, data } as Dialog })
   }
@@ -147,6 +171,8 @@ export class DashState {
         return b.send("refresh", false)
       case "help":
         return this.set({ dialog: { kind: "help" } })
+      case "profiles":
+        return this.openProfiles()
       case "quit":
         return this.quit(0)
       default:

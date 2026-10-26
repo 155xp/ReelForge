@@ -1,4 +1,9 @@
-"""Paths, config.toml and the local login store (which platforms you've logged in to in ReelForge's browser)."""
+"""Paths, config.toml and the local login store (which platforms you've logged in to in ReelForge's browser).
+
+Each profile (each channel, see studio/profiles.py) has its own settings and data: HOME is the profile's dashboard
+folder, with its config.toml (CONFIG_PATH) and data/ (DATA_DIR: DB_PATH, the stats, and TOKENS_PATH, its log-ins).
+They're the profile's this process works on, looked up each time; the first profile's are this folder's own, as
+they always were."""
 
 from __future__ import annotations
 
@@ -8,15 +13,60 @@ import threading
 import tomllib
 from pathlib import Path
 
-APP_DIR = Path(__file__).resolve().parent     # the dashboard folder: its settings, data/ and videos/
-DATA_DIR = APP_DIR / "data"
-CONFIG_PATH = APP_DIR / "config.toml"
-DB_PATH = DATA_DIR / "stats.db"
-TOKENS_PATH = DATA_DIR / "tokens.json"
+APP_DIR = Path(__file__).resolve().parent     # the dashboard's code, and the first profile's settings, data/, videos/
 
 PLATFORM_KEYS = ("tiktok", "youtube", "instagram", "x")
 
 _tokens_lock = threading.Lock()
+
+
+def profile():
+    """The profile this process works on (studio/profiles.py), or None for a dashboard run outside a ReelForge
+    folder."""
+    try:
+        from studio import profiles
+    except ImportError:
+        return None
+    return profiles.current()
+
+
+def _set(name: str) -> Path | None:
+    """A path set on this module by hand (the tests point them at scratch folders)."""
+    return globals().get(name)
+
+
+def home() -> Path:
+    """The profile's dashboard folder: its config.toml and data/, and where relative paths in config.toml start."""
+    if _set("HOME"):
+        return _set("HOME")
+    p = profile()
+    return APP_DIR if p is None or p.main else p.dashboard
+
+
+def config_path() -> Path:
+    return _set("CONFIG_PATH") or home() / "config.toml"
+
+
+def data_dir() -> Path:
+    return _set("DATA_DIR") or home() / "data"
+
+
+def db_path() -> Path:
+    return _set("DB_PATH") or data_dir() / "stats.db"
+
+
+def tokens_path() -> Path:
+    return _set("TOKENS_PATH") or data_dir() / "tokens.json"
+
+
+_PATHS = {"HOME": home, "CONFIG_PATH": config_path, "DATA_DIR": data_dir, "DB_PATH": db_path,
+          "TOKENS_PATH": tokens_path}
+
+
+def __getattr__(name: str):
+    if name in _PATHS:
+        return _PATHS[name]()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class ConfigError(Exception):
@@ -24,13 +74,15 @@ class ConfigError(Exception):
 
 
 def load_config() -> dict:
-    if not CONFIG_PATH.exists():
-        shutil.copy(APP_DIR / "config.example.toml", CONFIG_PATH)
+    path = config_path()
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(APP_DIR / "config.example.toml", path)
     try:
-        with CONFIG_PATH.open("rb") as f:
+        with path.open("rb") as f:
             cfg = tomllib.load(f)
     except tomllib.TOMLDecodeError as e:
-        raise ConfigError(f"{CONFIG_PATH.name} has a typo ({e}). Fix it in a text editor, or delete the file "
+        raise ConfigError(f"{path.name} has a typo ({e}). Fix it in a text editor, or delete the file "
                           "and ReelForge makes a fresh one from config.example.toml.") from e
     for key in PLATFORM_KEYS:
         if not isinstance(cfg.get(key), dict):
@@ -44,18 +96,18 @@ def save_handle(platform: str, handle: str) -> None:
     connected to and running onboarding again keeps them."""
     load_config()  # config.toml from the example, if there isn't one yet
     from studio import dashboard_config, generate
-    from studio import paths
 
-    if CONFIG_PATH.resolve() == (paths.DASHBOARD / "config.toml").resolve():
+    path = config_path()
+    if path.resolve() == dashboard_config.config_toml().resolve():  # this profile's own
         generate.set_account(platform, handle)
     else:  # a config.toml somewhere else (the tests): only its handle
-        dashboard_config.set_handle(platform, handle, CONFIG_PATH)
+        dashboard_config.set_handle(platform, handle, path)
 
 
 def resolve(path: str) -> Path:
-    """Resolve a config path relative to the dashboard folder."""
+    """Resolve a config path relative to the profile's dashboard folder (for the first profile, this folder)."""
     p = Path(path).expanduser()
-    return p if p.is_absolute() else (APP_DIR / p).resolve()
+    return p if p.is_absolute() else (home() / p).resolve()
 
 
 def videos_dir(cfg: dict) -> Path:
@@ -74,9 +126,10 @@ def completed_dir(cfg: dict) -> Path:
 
 
 def _read_tokens() -> dict:
-    if TOKENS_PATH.exists():
+    path = tokens_path()
+    if path.exists():
         try:
-            data = json.loads(TOKENS_PATH.read_text("utf-8"))
+            data = json.loads(path.read_text("utf-8"))
         except (ValueError, OSError):
             return {}  # unreadable: treat as not logged in rather than crash
         return data if isinstance(data, dict) else {}
@@ -96,7 +149,8 @@ def set_token(platform: str, data: dict | None) -> None:
             tokens.pop(platform, None)
         else:
             tokens[platform] = data
-        DATA_DIR.mkdir(exist_ok=True)
-        tmp = TOKENS_PATH.with_suffix(".tmp")
+        path = tokens_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(tokens, indent=2), "utf-8")
-        tmp.replace(TOKENS_PATH)
+        tmp.replace(path)

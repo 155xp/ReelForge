@@ -100,7 +100,7 @@ def _first_run() -> None:
     answers = json.loads((ROOT / "scripts" / "shots_answers.json").read_text(encoding="utf-8"))
     if os.environ.get("REELFORGE_SHOT") == "onboarding-accounts":
         answers = ACCOUNTS_ANSWERS
-    setup_service.saved_answers = lambda: dict(answers)
+    setup_service.saved_answers = lambda profile=None: dict(answers)
 
 
 def _list_modules() -> None:

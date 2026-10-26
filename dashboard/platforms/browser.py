@@ -1,7 +1,8 @@
 """Stats read through ReelForge's own browser.
 
 ReelForge drives a browser already on your computer (Edge on Windows, Chrome on macOS and Linux: studio/browsers.py
-has the order) with a profile of its own in data/browser, separate from your normal browsing. You log in to
+has the order) with a profile of its own in data/browser, separate from your normal browsing (and each ReelForge
+profile, each channel, has its own: their log-ins never mix). You log in to
 Instagram and X there once, from the Accounts tab; after that ReelForge opens your profile in the
 background about once an hour and reads the numbers the page loads, the same ones you'd
 see. TikTok works without logging in. Nothing is posted, liked or followed.
@@ -21,18 +22,26 @@ from studio import browsers
 from .. import config
 from .base import Account, PlatformError, Post, first_line
 
-PROFILE = config.DATA_DIR / "browser"
-CHOSEN = PROFILE / "reelforge-browser.txt"   # the browser this profile belongs to (studio.browsers.key)
 LOGIN_URLS = {"instagram": "https://www.instagram.com/accounts/login/", "x": "https://x.com/i/flow/login"}
 SESSION_COOKIES = {"instagram": ("instagram.com", "sessionid"), "x": ("x.com", "auth_token")}
 
 _lock = threading.Lock()  # a browser profile can only be open once at a time
 
 
+def profile_dir():
+    """The browser profile this ReelForge profile reads with: its data/browser."""
+    return config.DATA_DIR / "browser"
+
+
+def chosen_file():
+    """Which browser that profile belongs to (studio.browsers.key)."""
+    return profile_dir() / "reelforge-browser.txt"
+
+
 def chosen() -> browsers.Browser | None:
     """The browser ReelForge reads stats with: the one its profile was made with while that's still installed."""
     try:
-        remembered = CHOSEN.read_text(encoding="utf-8").strip()
+        remembered = chosen_file().read_text(encoding="utf-8").strip()
     except OSError:
         remembered = ""
     return browsers.find(remembered)
@@ -74,7 +83,7 @@ def _browser(headless: bool = True):
         for attempt in range(8):
             try:
                 ctx = pw.chromium.launch_persistent_context(
-                    str(PROFILE), executable_path=str(b.exe) if b.exe else None,
+                    str(profile_dir()), executable_path=str(b.exe) if b.exe else None,
                     channel=None if b.exe else "chromium", headless=headless,
                     user_agent=browsers.user_agent(b) if headless else None,
                     args=["--disable-blink-features=AutomationControlled"],
@@ -92,7 +101,7 @@ def _browser(headless: bool = True):
                                         "refresh.") from e
                 raise PlatformError(f"Couldn't start {b.describe()}: {str(e).splitlines()[0]}") from e
         try:
-            CHOSEN.write_text(browsers.key(b), encoding="utf-8")
+            chosen_file().write_text(browsers.key(b), encoding="utf-8")
         except OSError:
             pass
         try:

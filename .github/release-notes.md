@@ -1,40 +1,14 @@
-## What's new in 1.0.5
+## What's new in 1.0.6
 
-- **A new window, built with [OpenTUI](https://github.com/anomalyco/opentui).** ReelForge's window, setup's screens
-  and onboarding are rebuilt on OpenTUI: the same six tabs, charts, notifications and buttons, drawn faster, and
-  every button, list and field reachable with Tab and Enter as well as the mouse. Bun runs it: setup downloads it into
-  the ReelForge folder (about 60 MB with the window's packages), and a ReelForge you update gets it the first time it
-  opens.
-- **Macs and Linux PCs get the full ReelForge.** They're no longer experimental: everything ReelForge does on
-  Windows, it now does on a Mac (Apple Silicon or Intel) and on Linux, and every change is tested on all three before
-  it ships.
-  - **One-line install:** paste `curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | bash`
-    into Terminal. It downloads straight from GitHub, so macOS doesn't stop it.
-  - **Nothing to install first.** Setup now downloads ffmpeg on a Mac and on Linux too, and a private Python inside
-    the ReelForge folder when yours is older than 3.11, so you don't need Homebrew or a package manager.
-  - **ReelForge's icon:** in your Applications folder on a Mac (Launchpad, Spotlight and the Dock), in your app menu
-    on Linux.
-  - **Stats with the browser you have:** Chrome or Edge, or a Chromium setup downloads if you have neither (it used
-    to need Microsoft Edge).
-  - **Publish works all the way:** the copy buttons fill the clipboard, the video shows in Finder or your file
-    manager, and Remove moves it to the Trash.
-  - **The hourly stats job** is a launchd agent on a Mac and a systemd timer on Linux (or a cron job without systemd).
-  - **Fixed:** an update on a Mac could leave ReelForge's launchers unable to run, and setup's colours were wrong in
-    macOS's Terminal before macOS 26.
-- **Only the platforms you use.** Onboarding asks where you post, with TikTok, YouTube Shorts and Instagram Reels
-  ticked to start, and helps you make any account you don't have yet, starting with a new Gmail for your channel.
-  ReelForge then shows only the platforms you've connected, with no empty cards, charts or buttons for the others,
-  and the Accounts tab connects or disconnects one any time.
-- **Views 12h.** The Videos tab and Top performers show each video's views 12 hours after it went up, so a video from
-  this morning and one from last week compare fairly (until then it says when the number comes in). Export CSV has
-  them too, between the 6 and 24 hour columns.
-- **Delete notifications.** Each notification has a big × on its right that deletes it, and **Clear all** deletes
-  every one.
-- **A bigger bell** in the window's top-right corner, well away from Quit.
-- **Every open ReelForge window shows the same stats.** Windows (and the hourly job) take turns reading, and each
-  shows what any of them read, with its notifications.
-- **Fixed:** hashtags typed together (`#fyp#whatif`) no longer stay in the caption, a custom video length can be
-  written as a range like 20-30 seconds, and a review that says "not approved" no longer counts as an approval.
+- **Profiles: more than one channel in one ReelForge.** Each channel is a profile, with its own accounts, logins,
+  stats, notifications, Publish list and settings. The button with your channel's name at the top left switches
+  between them (or press **p**), and a red dot on it means another profile has something unread. **New profile**
+  asks the same short questions as your first channel did, right in the window, and opens on the new profile's
+  Accounts tab. The hourly stats job reads every profile, each window can show a different one, and
+  `reelforge -p "Channel name"` opens ReelForge on one. Your first channel stays exactly where it is: nothing moves.
+- **Your AI knows every channel.** Each one you add has its own folder in `profiles`, with its own notes for your AI,
+  settings, episodes and finished videos; the main `CLAUDE.md` lists them, and the video pipeline follows the rules of
+  the channel an episode belongs to.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

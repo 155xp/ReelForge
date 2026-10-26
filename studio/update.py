@@ -10,8 +10,9 @@ How the new version goes in depends on how this copy got here:
   zip        anything else: the new version's download is unpacked and copied over this folder
 
 Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the window's
-packages (ui/node_modules: the update installs what the new version's window needs), the downloaded sounds, the dashboard's data, settings and videos, and CLAUDE.md / AGENTS.md (onboarding rewrites those
-from your answers, so they get the new version's instructions). After an update the dashboard exits with code 75,
+packages (ui/node_modules: the update installs what the new version's window needs), the downloaded sounds, the
+dashboard's data, settings and videos, your other channels' profiles (profiles/), and CLAUDE.md / AGENTS.md
+(onboarding rewrites those from your answers, every profile's, so they get the new version's instructions). After an update the dashboard exits with code 75,
 which tells the reelforge launcher to start it again.
 """
 
@@ -44,7 +45,7 @@ RESTART = 75  # the exit code that asks the reelforge launcher to start ReelForg
 # Never overwritten by an update: the person's own channel, videos, tools, data and generated instructions.
 KEEP = ("my-studio/", "episodes/", "completed videos/", "research/", "tools/", ".venv/", "ui/node_modules/", ".git/",
         ".claude/", "assets/sfx/mixkit/", "assets/sfx/_cache/", "dashboard/data/", "dashboard/videos/",
-        "dashboard/config.toml", "CLAUDE.md", "AGENTS.md")
+        "dashboard/config.toml", "CLAUDE.md", "AGENTS.md", "profiles/")
 
 Progress = Callable[[str, int, int], None]  # (what's happening, done, total); total 0 = no idea how long
 
@@ -358,10 +359,11 @@ def _after(root: Path, requirements_before: str, progress: Progress, log: Callab
                          env={**os.environ, "PYTHONUTF8": "1"}, stdin=subprocess.DEVNULL)
     if res.returncode != 0:
         log("Updated, but the window's packages didn't install; ReelForge tries again when it opens.")
-    if (root / "my-studio" / "studio.toml").exists():
+    if (root / "my-studio" / "studio.toml").exists() or any((root / "profiles").glob("*/my-studio/studio.toml")):
         progress("Rewriting CLAUDE.md and AGENTS.md", 0, 0)
+        env = {k: v for k, v in os.environ.items() if k != "REELFORGE_PROFILE"}  # every profile's, not just this one's
         res = subprocess.run([py, "-m", "studio", "onboard", "--regenerate"], capture_output=True, text=True,
-                             cwd=root, env={**os.environ, "PYTHONUTF8": "1"})
+                             cwd=root, env={**env, "PYTHONUTF8": "1"})
         if res.returncode != 0:
             log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run onboarding with --regenerate.")
 

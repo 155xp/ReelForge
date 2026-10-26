@@ -1,12 +1,13 @@
-// ReelForge's window: the header (logo, platforms, Refresh / Help / Quit), the bell in the corner, six tabs, the
-// notifications drawer on the right, dialogs, and pop-ups. Keys: 1-6 switch tabs, r / R refresh, Esc closes the
-// drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
+// ReelForge's window: the header (logo, the profile button, platforms, Refresh / Help / Quit), the bell in the corner,
+// six tabs, the notifications drawer on the right, dialogs, and pop-ups. Keys: 1-6 switch tabs, r / R refresh, p the
+// profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useKeyboard, useRenderer } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext } from "../lib/focus"
+import { segsLen } from "../lib/styled"
 import { DASH, mix } from "../theme"
 import { Cells } from "../ui/Cells"
 import { bell, logoCells } from "../ui/Graphics"
@@ -17,14 +18,15 @@ import { Compare } from "./Compare"
 import { Dialogs } from "./Dialogs"
 import { Drawer } from "./Drawer"
 import { Overview } from "./Overview"
+import { ProfileButton } from "./Profiles"
 import { Publish } from "./Publish"
-import { DashContext, DashState, TAB_NAMES, TABS, useDash } from "./state"
+import { DashContext, DashState, TAB_NAMES, TABS, useDash, type Nav } from "./state"
 import type { Init, NotesView, UpdateView } from "./types"
 import { Updates } from "./Updates"
 import { Videos } from "./Videos"
 
-export function DashboardApp({ bridge, init, quit }: { bridge: Bridge; init: Init; quit: (code?: number) => void }) {
-  const state = useMemo(() => new DashState(bridge, init, quit), [bridge, init, quit])
+export function DashboardApp({ bridge, init, quit, nav }: { bridge: Bridge; init: Init; quit: (code?: number) => void; nav?: Nav }) {
+  const state = useMemo(() => new DashState(bridge, init, quit, nav), [bridge, init, quit, nav])
   const focus = useMemo(() => new FocusManager(), [])
   useEffect(() => {
     const offs = [
@@ -69,6 +71,7 @@ function Window({ focus }: { focus: FocusManager }) {
     if (s.dialog || focus.typing || key.ctrl || key.meta) return
     if (/^[1-6]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
+    if (key.name === "p") return s.openProfiles()
   })
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={DASH.bg}>
@@ -91,10 +94,14 @@ function Window({ focus }: { focus: FocusManager }) {
   )
 }
 
-/** The header's grey bar (the anvil, each platform, when the stats were read, Refresh / Help / Quit), then the bell. */
+/** The header's grey bar (the anvil, the profile button, each platform, when the stats were read, Refresh / Help /
+ * Quit), then the bell. */
 function Top() {
   const s = useDash()
-  const header = useView<{ line: import("../lib/styled").Segs }>(s.bridge, "header")
+  const header = useView<{ line: import("../lib/styled").Segs; short?: import("../lib/styled").Segs }>(s.bridge, "header")
+  const [room, setRoom] = useState(0)
+  // TT YT IG X beside the profile button when the names don't fit
+  const line = header && room && header.short && segsLen(header.line) > room ? header.short : header?.line
   const notes = useView<NotesView>(s.bridge, "notes")
   const [hover, setHover] = useState(false)
   const anvil = useMemo(() => logoCells(s.init.anvil), [s.init.anvil])
@@ -109,9 +116,20 @@ function Top() {
     <box flexDirection="row" height={3} flexShrink={0}>
       <box flexDirection="row" flexGrow={1} flexShrink={1} height={3} backgroundColor={DASH.panel}>
         <Cells grid={anvil} marginLeft={1} marginRight={1} />
+        <ProfileButton />
         {/* the platforms and status give way in a narrow window, so the bell keeps its corner */}
-        <box flexGrow={1} flexShrink={1} flexBasis={0} paddingLeft={3} justifyContent="center" overflow="hidden">
-          <Line segs={header?.line} />
+        <box
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          paddingLeft={3}
+          justifyContent="center"
+          overflow="hidden"
+          onSizeChange={function (this: import("@opentui/core").Renderable) {
+            setRoom(Math.max(this.width - 3, 0))
+          }}
+        >
+          <Line segs={line} />
         </box>
         <box paddingLeft={1} paddingRight={1} justifyContent="center" flexShrink={0}>
           <Line segs={actions} />

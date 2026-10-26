@@ -14,6 +14,7 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | `reelforge 1` … `reelforge 6` | straight to a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates |
 | `reelforge videos`, `reelforge publish`, … | the same, by the tab's name (`post` and `upload` work for Publish, `login` for Accounts) |
 | `reelforge notifications` | the Overview with the notifications drawer open |
+| `reelforge -p "Channel name"` | ReelForge on one of your profiles (its number in the list, or the start of its name, works too) |
 | `reelforge --demo` | a tour on made-up numbers: nothing is read or saved |
 
 ReelForge shows only the platforms you've connected: onboarding connects the ones you give it a handle for, and
@@ -21,18 +22,42 @@ ReelForge shows only the platforms you've connected: onboarding connects the one
 and X need **Log in** once (see below). With nothing connected yet, ReelForge opens on Accounts. It looks best in
 Windows Terminal with the window maximised.
 Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**6** switch tabs, **r** / **R**
-refresh / force a refresh, **Tab** moves between buttons, lists and fields (**Enter** presses, the arrows move through
-a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q** quits.
+refresh / force a refresh, **p** opens the profile menu, **Tab** moves between buttons, lists and fields (**Enter**
+presses, the arrows move through a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q**
+quits.
 
 The window is an [OpenTUI](https://github.com/anomalyco/opentui) app (`ui/` in the ReelForge folder), run by Bun; setup
 puts Bun in `tools/bun` and the window's packages in `ui/node_modules`, and ReelForge gets them again by itself if
 they're ever missing (an update that needs new ones, say).
 
+## Profiles
+
+A profile is one channel, with its own accounts, logins (its own browser profile), stats, notifications, Publish list
+and settings. The button with the channel's name next to the anvil shows which one the window has open; click it (or
+press **p**) for the menu:
+
+| In the menu | |
+|---|---|
+| a profile | shows it in this window, on the tab you're on (each profile's row has its connected platforms and its unread notifications) |
+| **New profile** | onboarding for a new channel, inside the window: your name, your AI and how hard it works carry over, the channel's answers start fresh, and it opens on the new profile's Accounts tab |
+| **Settings for …** | onboarding again for the profile you're on |
+| **Remove** | another profile's folder goes to the Recycle Bin (Trash on a Mac or Linux), from where you can put it back |
+
+A red dot on the button means another profile has unread notifications. ReelForge opens on the profile you had open
+last. The first profile is the ReelForge folder's own (`my-studio/`, `dashboard/config.toml`, `dashboard/data/`, as
+always); each one you add gets a folder in `profiles/`, laid out the same way: `profiles/<name>/my-studio/`,
+`profiles/<name>/dashboard/config.toml` and `profiles/<name>/dashboard/data/`, its episodes and finished videos, and its
+own `CLAUDE.md` and `AGENTS.md`. The hourly background job reads every profile, each in turn (a profile whose
+onboarding said no to background stats is read only while it's open).
+
+## Several windows
+
 You can have ReelForge open in several windows at once, each on its own tab (the Overview in one, Publish in
-another). They share one set of stats: one window reads them at a time, with **refreshing …** in every window's top
-bar meanwhile, and as soon as it's done every window shows the new numbers, notifications and errors. The hourly
-background job's reads show up the same way. **r** in a window while another one is reading waits for that read
-instead of reading everything again.
+another), or each on its own profile. Windows on the same profile share one set of stats: one window reads them at a
+time, with **refreshing …** in every window's top bar meanwhile, and as soon as it's done every window shows the new
+numbers, notifications and errors. The hourly background job's reads show up the same way. **r** in a window while
+another one is reading waits for that read instead of reading everything again. Switching a window to another
+profile lets a read it has under way finish first, in the background, into its own profile.
 
 On Windows, ReelForge also adds itself to Windows Terminal: opened from the desktop shortcut or the Start menu, its
 tab is called ReelForge and shows the anvil, and **ReelForge** is in Terminal's **+** menu. Terminal picks this up the
@@ -157,7 +182,7 @@ more; until then it says there aren't enough videos yet, or that no time is clea
 far. A video's first day counts when ReelForge was reading around then (the computer was on). With few videos, which
 video it was matters more than when it went up, so take it as a time to try rather than a rule.
 
-## Settings (`dashboard/config.toml`)
+## Settings (`dashboard/config.toml`, or `profiles/<name>/dashboard/config.toml`)
 
 | Setting | |
 |---|---|
@@ -172,9 +197,10 @@ platforms you're connected to and running onboarding again keeps them.
 
 ## Your data
 
-Everything stays on this computer in `dashboard/data/`: `stats.db` (snapshots, posts, the upload log and your
-notifications), a dated backup of it in `dashboard/data/backups/` once a day, and `dashboard/data/browser/`
-(ReelForge's browser profile with your Instagram/X logins: keep it private, never share or upload it).
+Everything stays on this computer in `dashboard/data/` (another profile's in `profiles/<name>/dashboard/data/`):
+`stats.db` (snapshots, posts, the upload log and your notifications), a dated backup of it in `data/backups/` once a
+day, and `data/browser/` (ReelForge's browser profile with your Instagram/X logins: keep it private, never share or
+upload it).
 
 ## Troubleshooting
 
@@ -196,6 +222,7 @@ notifications), a dated backup of it in `dashboard/data/backups/` once a day, an
 | `service.py`, `view.py` | what the window shows and what its buttons do; the window itself is the OpenTUI app in `ui/` (`ui/README.md`), which runs this through `studio/bridge.py` |
 | `__main__.py`, `sync.py`, `analytics.py`, `trends.py`, … | opening it, reading stats (httpx, and Playwright with an installed browser), and the numbers behind every chart |
 | `notify.py`, `badges.py`, `besttime.py` | notifications, milestones, badges and the best time to post |
+| `switcher.py` | the profile button and its menu: each profile's connected platforms and unread notifications (`studio/profiles.py` has the profiles themselves) |
 | `refresh.pyw` | what the hourly background job runs |
 | `config.example.toml` | the settings template; your own settings are in `config.toml` (written by onboarding, not shared) |
 | `tests/` | from the ReelForge folder: `.venv\Scripts\python -m unittest discover -s dashboard/tests -t .` (macOS/Linux: `.venv/bin/python`); the window's own tests are in `ui/test/` (`bun test` in `ui/`) |

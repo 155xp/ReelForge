@@ -37,6 +37,36 @@ export interface Init {
   badges_how: string
   ranges: Record<string, string>
   videos_dir: string
+  profile: ProfileView
+}
+
+/** The profile this window shows (one profile for each channel: studio/profiles.py), for the button at the top left.
+ * elsewhere: the other profiles' unread notifications (a red dot on the button). */
+export interface ProfileView {
+  key: string
+  name: string
+  main: boolean
+  several: boolean
+  elsewhere: number
+}
+
+/** One profile in the profile button's menu. */
+export interface ProfileRow {
+  key: string
+  number: number
+  name: string
+  current: boolean
+  main: boolean
+  unread: number
+  where: string // its folder (profiles/<name>), or "" for the ReelForge folder's own
+  platforms: { key: string; short: string; name: string; color: string }[]
+}
+
+export interface ProfilesMenu {
+  rows: ProfileRow[]
+  current: string
+  demo: boolean
+  onboarded: boolean
 }
 
 export interface CardView {

@@ -4,6 +4,11 @@ run this through studio/bridge.py.
 
 setup.bat / ./setup.sh open it at the tools; `reelforge onboard` opens it at onboarding. When it closes the window
 either opens ReelForge (on the tab the last screen picked) or exits.
+
+Onboarding also makes new profiles (one for each channel, see studio/profiles.py): `reelforge profiles new`, or New
+profile in the window's profile menu, which shows these screens inside the window (embedded) and goes back to the
+window when they close. Its answers start from the profile it was opened from: who you are and how your AI works, not
+the channel.
 """
 
 from __future__ import annotations
@@ -12,8 +17,9 @@ import json
 import os
 import subprocess
 import traceback
+from pathlib import Path
 
-from . import KIT_NAME, command, doctor, generate, logo, setup_flow, signup, stats_schedule, tools, tui
+from . import KIT_NAME, command, doctor, generate, logo, profiles, setup_flow, signup, stats_schedule, tools, tui
 from . import paths as P
 from . import settings as S
 from .bridge import Loop, Service, rpc
@@ -36,6 +42,12 @@ BLURBS = {
     "review": "Check your answers. Nothing is written until you press Create my studio.",
 }
 REVIEW = ("review", "Review")
+# A new profile's first step (a new channel, from the window's profile menu or reelforge profiles new).
+NEW_BLURB = ("A new channel, with its own accounts, stats and settings. Answer a few questions about it (what you told "
+             "ReelForge about you and your AI is filled in already); you can change anything later from its Settings "
+             "in the profile menu.")
+# A new profile starts from these answers of the profile it's made from: about you and your AI, not the channel.
+CARRIED = ("creator", "assistant", "quality", "ultracode", "timezone", "background_stats")
 
 
 def seg_line(*parts) -> list:
@@ -43,12 +55,14 @@ def seg_line(*parts) -> list:
     return [[t, s] if isinstance(t, str) else t for t, s in parts]
 
 
-def saved_answers() -> dict | None:
-    """The answers from the last onboarding (to start from), or None."""
-    if not P.ANSWERS.exists():
+def saved_answers(profile=None) -> dict | None:
+    """The answers from a profile's last onboarding (to start from), or None. profile: the one this process works on,
+    by default."""
+    path = profile.answers if profile is not None else P.ANSWERS
+    if not path.exists():
         return None
     try:
-        return {k: v for k, v in json.loads(P.ANSWERS.read_text(encoding="utf-8")).items()
+        return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
                 if k in BY_KEY or k.startswith("_")}
     except ValueError:
         return None
@@ -65,17 +79,31 @@ class Setup(Service):
         self.steps = STEPS + [REVIEW]
         self.preview = False
         self.written: list = []
+        self.profile = profiles.current()  # the profile onboarding is for, or (new) the one it was opened from
+        self.new = False                   # making a new profile: it's made when you press Create
+        self.made: profiles.Profile | None = None
+        self.embedded = False              # inside the ReelForge window, which it goes back to
+        self.create_label = "Create my studio"
 
     def start(self, options: dict) -> dict:
-        """options: start ("tools", "onboard" or "done"), preview (tests: Create writes nothing)."""
+        """options: start ("tools", "onboard" or "done"), preview (tests: Create writes nothing), new (onboarding
+        makes a new profile), embedded (inside the ReelForge window: its last screen goes back there)."""
         self.preview = bool(options.get("preview"))
+        self.new = bool(options.get("new"))
+        self.embedded = bool(options.get("embedded"))
         start = options.get("start") or "tools"
         return {
             "start": start, "kit": KIT_NAME, "test": P.test_copy(), "root": str(P.ROOT),
             "big": logo.cells(logo.big()), "anvil": logo.cells(logo.anvil()), "quadrants": logo.quadrants(),
             "steps": [list(s) for s in tui.STEPS], "check": tui.CHECK, "cross": tui.CROSS, "fancy": tui.FANCY,
-            "onboarded": S.onboarded(),
+            "onboarded": False if self.new else S.onboarded(self.profile.settings),
+            "new": self.new, "embedded": self.embedded, "profile": self.profile.name,
+            "several": profiles.several(),
         }
+
+    def target(self) -> profiles.Profile:
+        """The profile onboarding writes: the new one once it's made, else the one it was opened for."""
+        return self.made or self.profile
 
     # ---------------------------------------------------------------- step 1: the tools
 
@@ -165,16 +193,24 @@ class Setup(Service):
     @rpc
     def after_tools(self) -> str:
         """Where the Next button goes: onboarding, or straight to the last screen once it's done."""
-        return "done" if S.onboarded() else "onboard"
+        return "done" if S.onboarded(self.target().settings) else "onboard"
 
     # ---------------------------------------------------------------- step 2: onboarding
 
     @rpc
     def onboard_start(self) -> dict:
-        start = saved_answers()
+        start = saved_answers()  # the profile it was opened for (or, for a new one, from)
+        if self.new:  # a new channel: only what's about you and your AI carries over
+            start = {k: v for k, v in (start or {}).items() if k in CARRIED}
         self.answers = defaults_for(dict(start or {}))
         self.touched = set(start or {})
-        return {"steps": [list(s) for s in self.steps], "blurbs": BLURBS}
+        if self.new:
+            side = "Set up a new channel"
+            self.create_label = "Create the profile"
+        else:
+            side = f"{self.profile.name}" if profiles.several() else "Set up your channel"
+            self.create_label = "Create my studio"
+        return {"steps": [list(s) for s in self.steps], "blurbs": BLURBS, "side": side, "create": self.create_label}
 
     def step_questions(self, key: str) -> list[Q]:
         return [q for q in QUESTIONS if q.step == key]
@@ -197,7 +233,10 @@ class Setup(Service):
         """Step i: its title and blurb, and its questions (or, on the last step, the review)."""
         self.index = i
         key, label = self.steps[i]
-        out = {"index": i, "key": key, "title": f"{i + 1}/{len(self.steps)}  {label}", "blurb": BLURBS.get(key, "")}
+        blurb = NEW_BLURB if self.new and key == "you" else BLURBS.get(key, "")
+        if key == "review":
+            blurb = blurb.replace("Create my studio", self.create_label)
+        out = {"index": i, "key": key, "title": f"{i + 1}/{len(self.steps)}  {label}", "blurb": blurb}
         if key == "review":
             out["review"] = self.summary()
         else:
@@ -293,6 +332,11 @@ class Setup(Service):
                     errors[q.key] = "Write it as min-max seconds, e.g. 20-30"
                     first_bad = first_bad or q.key
                     continue
+            if q.key == "channel_name" and (other := profiles.taken(str(value), None if self.new else self.profile)):
+                errors[q.key] = (f"You already have a profile called {other.name}. Give this channel its own name."
+                                 if self.new else f"Another profile is called {other.name}.")
+                first_bad = first_bad or q.key
+                continue
             self.answers[q.key] = value
         if errors:
             return {"ok": False, "errors": errors, "first": first_bad,
@@ -335,8 +379,14 @@ class Setup(Service):
             lines.append("")
         if problems:
             lines += ["### Needs fixing", *[f"- {p}" for p in problems]]
-        lines += ["", "Pressing **Create my studio** writes `CLAUDE.md` and `AGENTS.md` (your AI's instructions), "
-                      "`my-studio/` (your settings and channel bible) and the dashboard's settings."]
+        if self.new:
+            where = f"profiles{os.sep}{profiles.slug_for(str(a.get('channel_name') or ''))}"
+            lines += ["", f"Pressing **Create the profile** makes this channel's own folder, `{where}`, with your AI's "
+                          "notes on it (`CLAUDE.md` and `AGENTS.md`), its settings and channel bible (`my-studio/`) "
+                          "and its ReelForge settings. Its stats, log-ins and notifications are its own."]
+        else:
+            lines += ["", "Pressing **Create my studio** writes `CLAUDE.md` and `AGENTS.md` (your AI's instructions), "
+                          "`my-studio/` (your settings and channel bible) and the dashboard's settings."]
         return "\n".join(lines)
 
     @rpc
@@ -346,7 +396,14 @@ class Setup(Service):
             self.written = []
             return {"ok": True}
         try:
-            self.written = generate.write_all(self.answers)
+            if self.new and self.made is None:
+                from .questions import validate
+
+                a, problems = validate(self.answers)
+                if problems:  # said below, before a folder is made
+                    raise ValueError("some answers need fixing:\n  " + "\n  ".join(problems))
+                self.made = profiles.create(a["channel_name"])
+            self.written = generate.write_all(self.answers, self.target())
         except ValueError as e:
             return {"ok": False, "status": str(e).splitlines()[0],
                     "review": self.summary() + "\n\n```\n" + str(e) + "\n```"}
@@ -358,35 +415,39 @@ class Setup(Service):
     # ---------------------------------------------------------------- step 3: ready
 
     def needs_login(self) -> list[str]:
-        s = S.load()
+        s = S.load(self.target().settings)
         return [S.PLATFORM_NAMES[p] for p in ("instagram", "x")
                 if p in s["platforms"]["enabled"] and s["platforms"]["handles"].get(p)]
 
     def to_connect(self) -> list[str]:
         """The platforms you post to without a handle yet (no account yet): you connect them on the Accounts tab."""
-        s = S.load()
+        s = S.load(self.target().settings)
         return [S.PLATFORM_NAMES[p] for p in s["platforms"]["enabled"] if not s["platforms"]["handles"].get(p)]
 
     @rpc
     def done_info(self) -> dict:
         """The last screen: what was made, what to do next; the background stats follow as "system"."""
         self.loop.run_worker(self._apply_system, group="system", exclusive=True)
-        s = S.load()
+        here = self.target()
+        s = S.load(here.settings)
         who = s["channel"]["creator"]
         lines = [seg_line((f"You're all set{', ' + who if who else ''}!", "bold"),
                           (f"  {s['channel']['name']} is ready to make videos.", ""))]
         written = ""
         if self.written:
-            written = ", ".join(sorted({P.rel(p).split(os.sep)[0] for p in self.written}))
-        first = "ultracode: make my first video" if s["ai"]["ultracode"] and s["ai"]["assistant"] != "codex" else \
-            "make my first video"
+            written = ", ".join(sorted({_top(p, here) for p in self.written}))
+        video = "my first video" if here.main else f"my first {s['channel']['name']} video"
+        first = f"ultracode: make {video}" if s["ai"]["ultracode"] and s["ai"]["assistant"] != "codex" else \
+            f"make {video}"
         steps = []
+        folder = "this folder" if here.main else "the ReelForge folder (the same one for every channel)"
+        there = "here" if here.main else "there"
         if s["ai"]["assistant"] in ("claude", "both"):
-            steps.append(seg_line(("  1. ", "bold"), ("Open this folder in Claude Code: the Claude desktop app → Code "
-                                                      "→ Open folder… (or run claude in a terminal here).", "")))
+            steps.append(seg_line(("  1. ", "bold"), (f"Open {folder} in Claude Code: the Claude desktop app → Code "
+                                                      f"→ Open folder… (or run claude in a terminal {there}).", "")))
         if s["ai"]["assistant"] in ("codex", "both"):
             steps.append(seg_line(("  1. " if s["ai"]["assistant"] == "codex" else "     ", "bold"),
-                                  ("Codex: run codex in a terminal in this folder.", "")))
+                                  (f"Codex: run codex in a terminal in {folder}.", "")))
         steps.append(seg_line(("  2. ", "bold"), ("Say: ", ""), (f'"{first}"', "bold #ffffff")))
         steps.append(seg_line(("  3. ", "bold"),
                               ("When it's done, it's waiting in ReelForge → Publish (tab 4), ready for you to post.",
@@ -402,15 +463,18 @@ class Setup(Service):
             login.append(f"When you've made your {names} {'account' if one else 'accounts'}, connect "
                          f"{'it' if one else 'them'} on ReelForge's Accounts tab: until then ReelForge leaves "
                          f"{'it' if one else 'them'} out.")
+        name = s["channel"]["name"] if self.new else "ReelForge"
         return {"head": lines, "written": written, "steps": steps, "login": "\n".join(login),
-                "open": "Open ReelForge to log in" if logins else "Open ReelForge",
-                "tab": "accounts" if logins or missing else "overview"}
+                "open": f"Open {name} to log in" if logins else f"Open {name}",
+                "tab": "accounts" if logins or missing else "overview",
+                "profile": here.key if self.new else "",  # the window opens the new profile next
+                "back": f"Back to {self.profile.name}" if self.embedded and self.new else ""}
 
     def _apply_system(self) -> None:
-        s = S.load()
         lines = []
         try:
-            if s["platforms"].get("background_stats", True):
+            # One hourly job reads every profile that keeps its stats read in the background (most do).
+            if any(S.load(p.settings)["platforms"].get("background_stats", True) for p in profiles.every()):
                 msg = stats_schedule.enable()
                 if msg.startswith(stats_schedule.TEST_COPY):       # a test copy leaves the job alone
                     lines.append((None, msg))
@@ -442,10 +506,20 @@ class Setup(Service):
 
     @rpc
     def show_folder(self) -> None:
+        folder = P.ROOT if self.target().main else self.target().folder
         try:
             if P.WINDOWS:
-                os.startfile(str(P.ROOT))  # noqa: S606 (opens Explorer)
+                os.startfile(str(folder))  # noqa: S606 (opens Explorer)
             else:
-                subprocess.Popen(["open" if P.MAC else "xdg-open", str(P.ROOT)])
+                subprocess.Popen(["open" if P.MAC else "xdg-open", str(folder)])
         except OSError:
-            self.notify(str(P.ROOT))
+            self.notify(str(folder))
+
+
+def _top(path, profile) -> str:
+    """What onboarding wrote, as the last screen lists it: the top folder or file, from the profile's folder."""
+    root = P.ROOT if profile.main else profile.folder
+    try:
+        return Path(path).resolve().relative_to(Path(root).resolve()).parts[0]
+    except (ValueError, IndexError):
+        return P.rel(path).split(os.sep)[0]

@@ -170,6 +170,14 @@ def checks(render_test: bool = False, quiet: bool = False) -> Report:
     if P.DASHBOARD.exists():
         r.add(OK if dash_cfg.exists() else WARN, "Dashboard", "configured" if dash_cfg.exists() else
               "not configured yet (onboarding writes dashboard/config.toml)")
+    from . import profiles
+
+    more = profiles.extra()
+    if more:  # the other channels, each set up in its own folder (studio/profiles.py)
+        unset = [p.name for p in more if not p.onboarded]
+        r.add(WARN if unset else OK, "Profiles", f"{len(more) + 1} channels: " +
+              ", ".join(p.name for p in profiles.every()) +
+              (f" ({', '.join(unset)} not set up yet: its Settings in the profile menu)" if unset else ""))
 
     if render_test and not r.failed:
         render_check(r)

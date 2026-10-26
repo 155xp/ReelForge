@@ -1,8 +1,11 @@
 """Paths, tools and the channel's rules for the post-production scripts (run with the kit's .venv Python).
 
 The rules (video length, loudness, caption format, platforms) come from my-studio/studio.toml, which onboarding
-writes; without it the defaults in studio/settings.py apply.
+writes; without it the defaults in studio/settings.py apply. They're the rules of the channel the episode belongs to:
+an episode in another profile's folder (profiles/<name>/episodes/<id>, see studio/profiles.py) follows that
+channel's settings, and ships to its own completed videos/.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -11,12 +14,34 @@ PIPELINE = ROOT / "pipeline"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from studio import profiles as _profiles  # noqa: E402
+
+
+def _episode_profile():
+    """The profile of the episode this script was given (every pipeline script takes the episode's folder), or None."""
+    for arg in sys.argv[1:]:
+        if arg.startswith("-"):
+            continue
+        try:
+            if (Path(arg) / "episode.json").is_file():
+                return _profiles.of(arg)
+        except OSError:
+            continue
+    return None
+
+
+if not _profiles.get(os.environ.get(_profiles.ENV)):
+    _here = _episode_profile()
+    if _here is not None:
+        _profiles.use(_here)  # the scripts this one starts (the mixers, compose, QA) follow it too
+
 from studio import settings as _settings  # noqa: E402
 from studio import tools as _tools  # noqa: E402
 
-SETTINGS = _settings.load()
-EPISODES = ROOT / "episodes"
-COMPLETED = ROOT / "completed videos"   # one subfolder per finished video: mp4 + cover + captions
+PROFILE = _profiles.current()
+SETTINGS = _settings.load(PROFILE.settings)
+EPISODES = PROFILE.episodes
+COMPLETED = PROFILE.completed   # one subfolder per finished video: mp4 + cover + captions
 CHANNEL_NAME = SETTINGS["channel"]["name"]
 PLATFORMS = SETTINGS["platforms"]["enabled"]
 

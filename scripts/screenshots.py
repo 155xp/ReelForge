@@ -1,5 +1,5 @@
 """Retake the README's screenshots (docs/screenshots/*.png) and the dashboard guide's (dashboard/docs/*.png): the
-first-run screens, every tab of the ReelForge window on its demo data and a clicked notification.
+first-run screens, every tab of the ReelForge window on its demo data, the profile menu and a clicked notification.
 
   .venv\\Scripts\\python scripts\\screenshots.py            all of them
   .venv\\Scripts\\python scripts\\screenshots.py app-publish first-run      just these
@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT))
 from studio import ui  # noqa: E402
 
 NAMES = ["first-run", "onboarding-format", "onboarding-accounts", "first-run-ready", "app-overview",
-         "app-notifications", "app-videos", "app-compare", "app-publish", "app-accounts", "app-updates",
+         "app-notifications", "app-videos", "app-compare", "app-publish", "app-accounts", "app-profiles", "app-updates",
          "app-notification-click", "overview", "notification-click", "updates"]
 
 

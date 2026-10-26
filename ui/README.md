@@ -41,8 +41,9 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 | Path | What it is |
 |---|---|
 | `src/main.tsx` | Starts the renderer and the Python side, mounts the window or the first-run screens, quits cleanly |
+| `src/root.tsx` | The window round the profiles (one per channel): switching starts a Python side on the profile picked (`REELFORGE_PROFILE`) and lets the old one finish; New profile shows onboarding inside the window |
 | `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
-| `src/dashboard/` | The ReelForge window: `App.tsx` (header, bell, tabs, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx` |
+| `src/dashboard/` | The ReelForge window: `App.tsx` (header, bell, tabs, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
 | `src/setup/` | The first-run screens (`App.tsx`), onboarding (`Onboard.tsx`) and the box round them (`Frame.tsx`) |
 | `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art |
 | `src/lib/` | Charts in cells, styled text, fitting parts to a width, number formats, keyboard focus |
@@ -55,4 +56,5 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
 keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
 click on the highlighted row) opens it. In the ReelForge window 1-6 switch tabs and r / R refresh, except while a
-text field has the keyboard; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q quits.
+text field has the keyboard, and p opens the profile menu; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q
+quits.

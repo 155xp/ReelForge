@@ -3,6 +3,8 @@
 // does when they're pressed is tested in dashboard/tests/.)
 
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
 import { clickText, find } from "../scripts/shots"
@@ -228,5 +230,58 @@ describe("dialogs", () => {
     expect(frame(h)).toContain("Not one of my videos")
     await press(h, "escape")
     expect(frame(h)).not.toContain("WHICH VIDEO IS THIS?")
+  })
+})
+
+describe("profiles", () => {
+  test("the profile button names the profile; p opens its menu, which lists every profile, and Esc closes it", async () => {
+    const h = await window("overview", [180, 50])
+    expect(rows(h)[1]).toContain("Night Physics ▾")
+    await press(h, "p")
+    expect(frame(h)).toContain("PROFILES")
+    expect(frame(h)).toContain("Tiny Worlds")
+    expect(frame(h)).toContain("3 new")
+    expect(frame(h)).toContain("New profile")
+    expect(frame(h)).toContain("Settings for Night Physics")
+    await press(h, "escape")
+    expect(frame(h)).not.toContain("PROFILES")
+    await clickText(h, "Night Physics ▾", 2)
+    expect(frame(h)).toContain("PROFILES")
+  })
+
+  test("a window too narrow for the platforms' names beside the button shows TT YT IG X, and when it read them", async () => {
+    for (const [w, full] of [[122, false], [160, true]] as const) {
+      const h = await window("overview", [w, 30], false, { screenshots: true })
+      expect(rows(h)[1]).toContain(full ? "● TikTok" : "● TT  ● YT  ● IG  ● X")
+      expect(rows(h)[1]).toContain("updated")
+      await open?.close()
+      open = null
+    }
+  })
+
+  test("picking another profile shows it in the same window, on its own Python side", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "reelforge-profiles-"))
+    try {
+      open = await headless("dashboard", { tab: "accounts" }, 160, 40, {
+        REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "profiles_preload.py"),
+        REELFORGE_TEST_ROOT: tmp,
+        REELFORGE_PROFILE: "profiles/alpha",
+      })
+      const h = open
+      await h.settle(2500)
+      expect(rows(h)[1]).toContain("Alpha ▾")
+      await press(h, "p")
+      expect(frame(h)).toContain("Beta")
+      await press(h, "3") // 1 the ReelForge folder's own, 2 Alpha, 3 Beta
+      for (let i = 0; i < 30 && !rows(h)[1]!.includes("Beta ▾"); i++) await h.settle(200)
+      expect(rows(h)[1]).toContain("Beta ▾")
+      expect(h.sides.active).not.toBe(h.bridge)
+      expect(await Promise.race([h.bridge.exited.then(() => "exited"), Bun.sleep(8000).then(() => "running")])).toBe("exited")
+      expect(readFileSync(join(tmp, "profiles", "last-opened.txt"), "utf-8").trim()).toBe("profiles/beta")
+    } finally {
+      await open?.close()
+      open = null
+      rmSync(tmp, { recursive: true, force: true })
+    }
   })
 })

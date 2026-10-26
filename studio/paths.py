@@ -1,4 +1,8 @@
-"""Where everything lives. All paths are relative to the kit folder, so it can sit anywhere."""
+"""Where everything lives. All paths are relative to the kit folder, so it can sit anywhere.
+
+A channel's own files are the profile's this process works on (studio/profiles.py), looked up each time they're used:
+PROFILE, and its MY_STUDIO (your answers and settings, never part of the download), ANSWERS, SETTINGS, BIBLE,
+BACKUPS, EPISODES and COMPLETED. For the first profile they're the ReelForge folder's own, as they always were."""
 
 from __future__ import annotations
 
@@ -6,14 +10,21 @@ import os
 import sys
 from pathlib import Path
 
+from . import profiles
+
 ROOT = Path(__file__).resolve().parent.parent
-MY_STUDIO = ROOT / "my-studio"            # your answers and settings (never part of the download)
-ANSWERS = MY_STUDIO / "answers.json"
-SETTINGS = MY_STUDIO / "studio.toml"
-BIBLE = MY_STUDIO / "channel-bible.md"
-BACKUPS = MY_STUDIO / "backups"
-EPISODES = ROOT / "episodes"
-COMPLETED = ROOT / "completed videos"
+_CHANNEL = {"MY_STUDIO": "my_studio", "ANSWERS": "answers", "SETTINGS": "settings", "BIBLE": "bible",
+            "BACKUPS": "backups", "EPISODES": "episodes", "COMPLETED": "completed"}
+
+
+def __getattr__(name: str):
+    if name == "PROFILE":
+        return profiles.current()
+    if name in _CHANNEL:
+        return getattr(profiles.current(), _CHANNEL[name])
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 RESEARCH = ROOT / "research"
 TOOLS = ROOT / "tools"                    # Blender and ffmpeg downloaded by setup
 SFX = ROOT / "assets" / "sfx"
