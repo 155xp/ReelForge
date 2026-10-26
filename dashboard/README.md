@@ -55,7 +55,7 @@ first-time setup said no to background stats is read only while it's open).
 
 You can have ReelForge open in several windows at once, each on its own tab (the Overview in one, Publish in
 another), or each on its own profile. Windows on the same profile share one set of stats: one window reads them at a
-time, with **refreshing …** in every window's top bar meanwhile, and as soon as it's done every window shows the new
+time, with **refreshing …** in every window's status bar meanwhile, and as soon as it's done every window shows the new
 numbers, notifications and errors. The hourly background job's reads show up the same way. **r** in a window while
 another one is reading waits for that read instead of reading everything again. Switching a window to another
 profile lets a read it has under way finish first, in the background, into its own profile.
@@ -68,7 +68,7 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 
 | Tab | What's on it |
 |---|---|
-| **1 Overview** | A card per platform (and all of them added up): followers, views, likes, the change over 24 hours and views per hour. Under the cards, today's **badges** (below). Then **views**, **followers** and **likes** gained over time, stacked by platform: each bar is the shortest stretch the window has room for (an hour on 24H when it's wide enough, a few hours or a day on the longer ranges), with yellow ▼ marks where each video went up, your **top performers** (with their views 12 hours in) and how your **latest video** is doing. |
+| **1 Overview** | A tile per platform (and all of them added up): followers in big numbers, views, likes, the change over 24 hours and views per hour (on All platforms, each platform's share). Under the tiles, today's **badges** (below). Then **views**, **followers** and **likes** gained over time, stacked by platform: each bar is the shortest stretch the window has room for (an hour on 24H when it's wide enough, a few hours or a day on the longer ranges), with yellow ▼ marks where each video went up, your **top performers** (with their views 12 hours in) and how your **latest video** is doing. |
 | **2 Videos** | Every video on every platform: views, **views 12 hours in** (so new and old videos compare fairly; "in 5h" until a video is that old, — when the computer was off then), likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet, with when each post went up (date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in. |
 | **3 Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. |
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
@@ -82,8 +82,8 @@ sign a video is spreading.
 ## Notifications
 
 The **bell** in the top-right corner opens the drawer on the right; the bell, **Close** or Esc
-closes it. A **red dot** on the bell means something's unread (the drawer says how many); **Mark all read** clears
-it. The big **×** on a notification's right deletes it (Delete does the same for the highlighted one), and **Clear
+closes it. The number on the bell's shoulder is how many are unread; **Mark all read** clears
+it. The **×** beside a notification deletes it (Delete does the same for the highlighted one), and **Clear
 all** deletes every one. Click a notification to see what it's about, from any tab (the drawer stays open, so you
 can go through them):
 
@@ -91,9 +91,9 @@ can go through them):
 |---|---|
 | a video **taking off** (3× your typical one in its first 12 hours), passing 1K, 10K, 100K, 1M … **views**, or moving up to a better **badge** | the **Videos** tab with that platform's videos, the video highlighted (scrolled to if it's far down) and its chart underneath |
 | a **finished video** that's ready to post | the **Publish** tab with that video picked, its caption and hashtags filled in |
-| a platform passing 100, 500, 1K, 5K, 10K, 25K, 50K, 100K … **followers** | that platform's panel on **Accounts**, framed in yellow for a few seconds |
+| a platform passing 100, 500, 1K, 5K, 10K, 25K, 50K, 100K … **followers** | that platform's panel on **Accounts**, lit along its left edge for a few seconds |
 | Instagram or X **logging ReelForge out** | that platform's panel on **Accounts**, with **Log in again** ready to press |
-| **today's badge** on a platform, or your **views across every platform** passing 1K, 10K, 100K, 1M … | that platform's card (or **All platforms**) on the **Overview**, framed in yellow |
+| **today's badge** on a platform, or your **views across every platform** passing 1K, 10K, 100K, 1M … | that platform's tile (or **All platforms**) on the **Overview**, lit along its left edge |
 | a **new version** of ReelForge (once per version), or ReelForge having **updated** | the **Updates** tab, with what's new |
 
 ![A clicked notification about a video: the Videos tab on that platform's videos, with the video highlighted](docs/notification-click.png)
@@ -209,7 +209,7 @@ upload it).
 |---|---|
 | ReelForge says it needs its Python environment | Run setup again (`setup.bat`, or `./setup.sh`). |
 | "ReelForge's window couldn't run" | It says why, and the details are in `dashboard/data/window-log.txt`. `reelforge doctor` checks Bun and the window's packages; `reelforge setup` puts them right. |
-| A platform's name is red in the top bar | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
+| A platform's name is red in the status bar at the foot of the window | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
 | Instagram "wants to check it's you" | Press **Log in again** and follow Instagram's steps in the window that opens. |
 | A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
 | A post is grouped with the wrong video | Videos tab: highlight it and press **Fix episode**. ReelForge keeps your choice. |

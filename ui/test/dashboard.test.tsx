@@ -124,6 +124,15 @@ describe("keys", () => {
     expect(activeTab(h)).toBe("Compare")
   })
 
+  test("? opens the help, Esc closes it", async () => {
+    const h = await window()
+    await h.t.mockInput.typeText("?")
+    await h.settle(300)
+    expect(frame(h)).toContain("HOW REELFORGE WORKS")
+    await press(h, "escape")
+    expect(frame(h)).not.toContain("HOW REELFORGE WORKS")
+  })
+
   test("Tab moves between buttons, and Enter presses one", async () => {
     const h = await window("updates")
     expect(frame(h)).not.toContain("HOW REELFORGE WORKS")

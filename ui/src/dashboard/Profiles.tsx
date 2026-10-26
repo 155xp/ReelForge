@@ -239,9 +239,12 @@ export function AdvancedSettings({ data, close }: { data: AdvancedData; close: (
       <text attributes={TextAttributes.BOLD} flexShrink={0}>
         Your AI's reasoning
       </text>
-      <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
-        {`How hard your AI thinks on each of ${data.channel}'s videos. High is the standard and suits almost every channel.`}
-      </text>
+      {/* in a row, so the sentence wraps to the dialog's width before the choices are placed under it */}
+      <box flexDirection="row" flexShrink={0} marginBottom={1}>
+        <text fg={DASH.muted} wrapMode="word" flexGrow={1} flexShrink={1}>
+          {`How hard your AI thinks on each of ${data.channel}'s videos. High is the standard and suits almost every channel.`}
+        </text>
+      </box>
       <RadioSet id="adv-reasoning" options={data.options} value={level} autoFocus onChange={setLevel} />
       <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
         <Button id="adv-cancel" label="Cancel" onPress={close} />
