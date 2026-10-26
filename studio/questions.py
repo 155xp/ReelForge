@@ -161,6 +161,7 @@ QUESTIONS: list[Q] = [
 # How hard your AI reasons on each video (the "quality" answer) isn't asked: it's High unless you pick another in
 # ReelForge's Advanced settings (studio/generate.py REASONING, set_reasoning).
 KEPT = ("quality",)  # answers set outside the questions: answering them again keeps these
+RETIRED = ("ultracode",)  # answers older versions asked for that nothing reads now: saving the answers drops them
 
 BY_KEY = {q.key: q for q in QUESTIONS}
 

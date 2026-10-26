@@ -1,7 +1,8 @@
 # Runs ReelForge's tests on Windows, macOS (Apple Silicon and Intel) and Linux (x64 and ARM) on every push, then
 # installs it on macOS and Linux the way a person would: the one-line install from the downloads served like a
 # release, a private Python, setup with every download, the health check, a test render, the reelforge command, the
-# icon, the hourly job, and an update to a newer version.
+# icon, the hourly job, and an update to a newer version. On Windows it runs the one-line install in Windows
+# PowerShell, and over a copy the old Windows installer made, which it has to update in place.
 name: Test
 
 on:
@@ -144,7 +145,7 @@ jobs:
           cd ~/ReelForge
           .venv/bin/python - <<'EOF'
           from studio import update
-          name = update.asset_name("9.9.9", update.install_kind())
+          name = update.asset_name("9.9.9")
           base = "http://127.0.0.1:8766/"
           rel = update.Release("9.9.9", "v9.9.9", assets={name: (base + name, 0), "SHA256SUMS.txt": (base + "SHA256SUMS.txt", 0)})
           print(update.apply(rel))
@@ -158,3 +159,54 @@ jobs:
         run: |
           cat "$RUNNER_TEMP"/http*.log 2>/dev/null | tail -n 40 || true
           cat ~/ReelForge/.venv/setup-log.txt 2>/dev/null | tail -n 60 || true
+
+  install-windows:
+    name: Install on Windows
+    runs-on: windows-latest
+    env:
+      RELEASE: http://127.0.0.1:8765
+      REELFORGE_RELEASE: http://127.0.0.1:8765
+      STUDIO_DRY_SYSTEM: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the downloads and serve them like a release
+        shell: pwsh
+        run: |
+          python scripts/package.py --out dist --allow-old-screenshots
+          Copy-Item scripts/install.ps1 dist/
+          Start-Process python -ArgumentList "-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "dist" -WindowStyle Hidden
+          foreach ($i in 1..30) { try { Invoke-WebRequest "$env:RELEASE/SHA256SUMS.txt" -UseBasicParsing | Out-Null; break } catch { Start-Sleep 1 } }
+          Get-Content dist/SHA256SUMS.txt
+      - name: The one-line install, in Windows PowerShell
+        shell: powershell
+        env:
+          REELFORGE_NO_SETUP: "1"
+        run: |
+          $env:REELFORGE_DIR = Join-Path $env:RUNNER_TEMP "fresh\ReelForge"
+          irm "$env:RELEASE/install.ps1" | iex
+          if (-not (Test-Path (Join-Path $env:REELFORGE_DIR "studio\__init__.py"))) { throw "ReelForge wasn't installed" }
+          irm "$env:RELEASE/install.ps1" | iex     # a second time it leaves the copy alone
+      - name: A copy the old Windows installer made is found and updated in place
+        shell: powershell
+        run: |
+          $old = Join-Path $env:RUNNER_TEMP "old\ReelForge"
+          New-Item -ItemType Directory -Force (Split-Path $old) | Out-Null
+          Copy-Item -Recurse (Join-Path $env:RUNNER_TEMP "fresh\ReelForge") $old
+          $init = Join-Path $old "studio\__init__.py"
+          (Get-Content $init) -replace 'KIT_VERSION = "[^"]*"', 'KIT_VERSION = "0.9.0"' | Set-Content $init
+          Set-Content (Join-Path $old "unins000.exe") "stub"
+          New-Item -ItemType Directory -Force (Join-Path $old "dashboard\data") | Out-Null
+          Set-Content (Join-Path $old "dashboard\data\stats.db") "my stats"
+          python -m venv (Join-Path $old ".venv")
+          # Its entry in Windows' list of apps is how the install line finds it
+          $key = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{39D29FF3-A243-4140-8CD2-E69CC877A496}_is1"
+          New-Item -Force $key | Out-Null
+          Set-ItemProperty $key InstallLocation "$old\"
+          irm "$env:RELEASE/install.ps1" | iex
+          if ((Get-Content $init -Raw) -match 'KIT_VERSION = "0\.9\.0"') { throw "the old copy wasn't updated" }
+          if ((Get-Content (Join-Path $old "dashboard\data\stats.db")) -ne "my stats") { throw "the update touched the stats" }
+          if (-not (Test-Path (Join-Path $old "unins000.exe"))) { throw "the update removed the uninstaller" }
+          Get-Content (Join-Path $old "dashboard\data\updated.json")

@@ -76,7 +76,7 @@ file is for, ask.
 
 {% if claude %}
 - **Opus at {{ effort }} effort, always**, for every session and every subagent you start for this channel.
-  First-time setup set it for {% if extra %}the ReelForge folder{% else %}this folder{% endif %} in `.claude/settings.local.json`. If you are not on Opus at {{ effort }} effort,
+  {% if extra %}The ReelForge folder's `.claude/settings.local.json` holds {{ main_name }}'s effort, which can be another one.{% else %}First-time setup set it for this folder in `.claude/settings.local.json`.{% endif %} If you are not on Opus at {{ effort }} effort,
   say so in one line and tell {{ who }} how to switch: `/model opus` and `/effort {{ effort }}` (in the desktop app:
   the model picker under the prompt box, then Effort).
 {% else %}

@@ -8,7 +8,7 @@ Windows: a Task Scheduler task ("ReelForge stats") runs dashboard/refresh.pyw wi
 while you're signed in. macOS: a launchd agent (~/Library/LaunchAgents/com.reelforge.stats.plist), while you're
 signed in. Linux: a systemd user timer (reelforge-stats.timer) while you're signed in, or a crontab line where there's
 no systemd. Your computer has to be on; hours it was off or asleep stay empty on the charts, and what was gained
-meanwhile still counts in the totals. Uninstalling ReelForge (or reelforge stats off) removes the job.
+meanwhile still counts in the totals. reelforge stats off removes the job.
 
 A computer has one such job, and it belongs to the ReelForge folder whose refresh.pyw it runs. Another copy (a test
 install, say) never takes it over or turns it off while that folder is still there; once the folder is gone (moved

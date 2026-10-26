@@ -195,32 +195,35 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
             {step?.title ?? ""}
           </text>
           <Scroll ref={scroll} flexGrow={1} scrollY>
-            <text fg={theme.muted} wrapMode="word" marginBottom={1} paddingRight={1} flexShrink={0}>
-              {step?.blurb ?? ""}
-            </text>
-            {step?.gmail ? <GmailOffer offer={step.gmail} onPress={() => void signUp("gmail")} /> : null}
-            {step?.review !== undefined ? (
-              <Markdown text={step.review} heading="#ffffff" />
-            ) : (
-              (step?.fields ?? [])
-                .filter((f) => f.visible)
-                .map((f) => (
-                  <Question
-                    key={f.key}
-                    f={f}
-                    value={raws[f.key]}
-                    error={errors[f.key]}
-                    check={init.check}
-                    onChange={(v) => void change(f.key, v)}
-                    onSignUp={f.platform ? () => void signUp(f.platform!) : undefined}
-                  />
-                ))
-            )}
-            {detail ? (
-              <text fg={theme.bad} wrapMode="char" flexShrink={0}>
-                {detail}
+            {/* the scrollbar sits on the last column: everything stops one short of it */}
+            <box flexDirection="column" paddingRight={1} flexShrink={0}>
+              <text fg={theme.muted} wrapMode="word" marginBottom={1} flexShrink={0}>
+                {step?.blurb ?? ""}
               </text>
-            ) : null}
+              {step?.gmail ? <GmailOffer offer={step.gmail} onPress={() => void signUp("gmail")} /> : null}
+              {step?.review !== undefined ? (
+                <Markdown text={step.review} heading="#ffffff" />
+              ) : (
+                (step?.fields ?? [])
+                  .filter((f) => f.visible)
+                  .map((f) => (
+                    <Question
+                      key={f.key}
+                      f={f}
+                      value={raws[f.key]}
+                      error={errors[f.key]}
+                      check={init.check}
+                      onChange={(v) => void change(f.key, v)}
+                      onSignUp={f.platform ? () => void signUp(f.platform!) : undefined}
+                    />
+                  ))
+              )}
+              {detail ? (
+                <text fg={theme.bad} wrapMode="char" flexShrink={0}>
+                  {detail}
+                </text>
+              ) : null}
+            </box>
           </Scroll>
           <box flexDirection="row" height={1} flexShrink={0} marginTop={1} marginBottom={1} alignItems="center">
             <Button id="back" label="Back" minWidth={roomy ? 22 : 12} marginRight={2} disabled={i === 0} onPress={() => void back()} />

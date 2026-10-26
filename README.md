@@ -70,12 +70,6 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
   <img src="docs/screenshots/setup-format.png" width="49%" alt="First-time setup: pick the format your channel starts with">
 </p>
 
-Rather use an installer on Windows? Download it from [reelforge.tools](https://reelforge.tools) and open it. It's
-also on GitHub: open the [latest release](https://github.com/dan2756/ReelForge/releases/latest) and click the file
-that ends in `Windows-Setup.exe` under **Assets**. If Windows says "Windows protected your PC", click **More info**,
-then **Run anyway**: it says that about new apps that aren't code-signed yet. Setup starts when the installer
-finishes. Both places have a zip for the Mac and a tar.gz for Linux too, if you'd rather download those yourself.
-
 ## Make your first video
 
 First-time setup turns your answers into instructions for your AI, `CLAUDE.md` for Claude Code and `AGENTS.md` for Codex,
@@ -224,15 +218,14 @@ version.
 ## FAQ
 
 <details>
-<summary><b>Windows says "Windows protected your PC". Is it safe?</b></summary>
+<summary><b>Is the install line safe to paste?</b></summary>
 
 <br>
 
-Yes. Windows says that about new apps that aren't code-signed yet; it doesn't mean it found anything wrong. Click
-**More info**, then **Run anyway**. Your browser may also warn that the file isn't commonly downloaded: open the
-**⋯** menu next to the download, choose **Keep**, then **Keep anyway** (Edge asks you to click **Show more** first).
-
-The one-line install in the [Quick start](#quick-start) doesn't go through your browser, so it skips both warnings.
+Yes. It runs a short script from this repository's latest release, [install.ps1](scripts/install.ps1) on Windows
+and [install.sh](scripts/install.sh) on a Mac or Linux, so you can read it first. The script downloads ReelForge from
+the same release, checks it against the release's checksums, unpacks it into your user folder and starts setup. It
+doesn't need admin rights. Copy the line only from this page or [reelforge.tools](https://reelforge.tools).
 
 </details>
 
@@ -272,8 +265,6 @@ On a Mac or Linux, put the folder in the install line, before `bash`:
 ```
 curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | REELFORGE_DIR=/Volumes/Big/ReelForge bash
 ```
-
-The Windows installer asks you where to put it as you click through it.
 
 </details>
 
@@ -339,9 +330,9 @@ plans every video from it. To change your answers, run `reelforge channel`.
 
 <br>
 
-Run `reelforge channel` (on Windows, **Change my channel answers** in the Start menu does the same). It starts from
-your last answers, and when you finish it rewrites your AI's instructions and ReelForge's settings. For another
-channel, open the profile menu and pick its settings, or run `reelforge -p "Channel name" channel`.
+Run `reelforge channel`. It starts from your last answers, and when you finish it rewrites your AI's instructions and
+ReelForge's settings. For another channel, open the profile menu and pick its settings, or run
+`reelforge -p "Channel name" channel`.
 
 </details>
 
@@ -352,8 +343,9 @@ channel, open the profile menu and pick its settings, or run `reelforge -p "Chan
 
 Use your strongest model. First-time setup sets Claude Code to Opus at high effort for the ReelForge folder, the
 standard for every channel. For more (or less), open the **Settings** tab (`reelforge 7`, or **Advanced settings**
-in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. With
-Codex, pick your strongest model with `/model`.
+in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. The
+ReelForge folder keeps your first channel's level, so when another channel's is different, your AI asks you to
+switch with `/effort` as it starts that channel's videos. With Codex, pick your strongest model with `/model`.
 
 </details>
 
@@ -362,10 +354,23 @@ Codex, pick your strongest model with `/model`.
 
 <br>
 
-Yes. Unpack your computer's download from the release into another folder and put a file called `TEST-COPY.txt` in
-it. That copy's window says **TEST**, its stats, logins and settings are its own, and it never touches the
-`reelforge` command, the hourly stats job or ReelForge's icon, which stay with your real ReelForge. Open it with its
-own `ReelForge.bat` (Windows) or `./reelforge.sh` (Mac and Linux).
+Yes. Install a second copy into a folder of its own, without setting it up yet. On Windows, run this in PowerShell
+before you paste the install line, with your own folder:
+
+```powershell
+$env:REELFORGE_DIR = "D:\ReelForge Test"; $env:REELFORGE_NO_SETUP = "1"
+```
+
+On a Mac or Linux, put them in the install line, before `bash`:
+
+```
+curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | REELFORGE_DIR=~/ReelForge-Test REELFORGE_NO_SETUP=1 bash
+```
+
+Then put a file called `TEST-COPY.txt` in that folder and set it up with its `setup.bat` (Windows) or `./setup.sh`.
+That copy's window says **TEST**, its stats, logins and settings are its own, and it never touches the `reelforge`
+command, the hourly stats job or ReelForge's icon, which stay with your real ReelForge. Open it with its own
+`ReelForge.bat` (Windows) or `./reelforge.sh` (Mac and Linux).
 
 </details>
 
@@ -393,19 +398,6 @@ a cron job) on Linux. Every change is tested on Windows, on Macs with Apple Sili
 
 blender.org has no Blender for ARM Linux, so on an ARM Linux PC install Blender 4.5 yourself (then setup finds it)
 or point `STUDIO_BLENDER` at it.
-
-</details>
-
-<details>
-<summary><b>My Mac says it can't check the file for malware.</b></summary>
-
-<br>
-
-That only happens with the zip from the release page, because macOS checks files your browser downloads. Open
-**System Settings**, go to **Privacy & Security**, scroll down and click **Open Anyway** next to the file's name (on
-macOS 14 and older, right-click the file and choose **Open** instead). Setup then clears that check for the ReelForge
-folder, so it doesn't ask again. The one-line install in the [Quick start](#quick-start) doesn't go through your
-browser, so it never asks.
 
 </details>
 

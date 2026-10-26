@@ -249,6 +249,15 @@ class SetAccount(Scratch):
         generate.set_account("youtube", "@yt")
         self.assertEqual(self.handles(), {"tiktok": "@np", "youtube": "@yt", "instagram": "@ig", "x": ""})
 
+    def test_the_notes_an_older_version_wrote_into_the_settings_say_first_time_setup(self):
+        example = (P.DASHBOARD / "config.example.toml").read_text(encoding="utf-8")
+        old = example.replace("first-time\n# setup fills that one in", "onboarding\n# fills that one in").replace(
+            "# (first-time setup fills this in;", "# (onboarding fills this in;")
+        self.assertEqual(old.count("onboarding"), 2)  # how 1.0.5 and older copied them in
+        self.config.write_bytes(old.replace("\n", "\r\n").encode("utf-8"))
+        generate.set_account("youtube", "@yt")
+        self.assertEqual(self.config.read_text(encoding="utf-8").replace('handle = "@yt"', 'handle = ""', 1), example)
+
 
 class Quiet(Loop):
     def send(self, msg: dict) -> None:

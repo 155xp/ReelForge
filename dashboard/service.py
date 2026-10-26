@@ -415,9 +415,15 @@ class Dashboard(SettingsTab, Service):
             self.notify(f"Couldn't save it: {e}", severity="error", timeout=10)
             return False
         name = dict((k, n) for k, n, _ in generate.REASONING)[level]
-        self.notify(f"Your AI now works at {name} on this channel's videos. A Claude Code session that's already open "
-                    f"keeps its effort until you start a new one (or type /effort {generate.EFFORT[level]}).",
-                    title="Advanced settings saved", timeout=10)
+        effort = generate.EFFORT[level]
+        if self.profile is not None and not self.profile.main:  # Claude Code's effort is the folder's: the first one's
+            more = (f"Claude Code's effort in the ReelForge folder is {profiles.main().name}'s, so type /effort {effort} "
+                    "when you make this channel's videos.")
+        else:
+            more = (f"A Claude Code session that's already open keeps its effort until you start a new one (or type "
+                    f"/effort {effort}).")
+        self.notify(f"Your AI now works at {name} on this channel's videos. {more}", title="Advanced settings saved",
+                    timeout=10)
         return True
 
     def started(self) -> None:
@@ -2131,11 +2137,9 @@ class Dashboard(SettingsTab, Service):
                              "tells you, and this tab updates ReelForge in one click." + (f"\n\n{own}" if own else ""))
         else:
             view["notes"] = "ReelForge checks for a new version every few hours while it's open."
-        kind = "installer" if self.demo and self.screenshots else kit_update.install_kind() if kit_update else ""
+        kind = "zip" if self.demo and self.screenshots else kit_update.install_kind() if kit_update else ""
         how = {
-            "installer": "Installed with the Windows installer: an update runs the new installer quietly into this "
-                         "folder.",
-            "zip": "Installed from a download: an update copies the new version's files over this folder.",
+            "zip": "An update downloads the new version and copies its files over this folder.",
             "git": "A git copy: an update runs git pull.",
         }.get(kind, "")
         if how:

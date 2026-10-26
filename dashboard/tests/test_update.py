@@ -25,10 +25,9 @@ class VersionTest(unittest.TestCase):
         self.assertFalse(update.is_newer("0.9", "1.0.0"))
 
     def test_asset_names(self):
-        self.assertEqual(update.asset_name("1.2.0", "installer"), "ReelForge-1.2.0-Windows-Setup.exe")
-        self.assertEqual(update.asset_name("1.2.0", "zip", "win32"), "ReelForge-1.2.0-Windows.zip")
-        self.assertEqual(update.asset_name("1.2.0", "zip", "darwin"), "ReelForge-1.2.0-macOS.zip")
-        self.assertEqual(update.asset_name("1.2.0", "zip", "linux"), "ReelForge-1.2.0-Linux.tar.gz")
+        self.assertEqual(update.asset_name("1.2.0", platform="win32"), "ReelForge-1.2.0-Windows.zip")
+        self.assertEqual(update.asset_name("1.2.0", platform="darwin"), "ReelForge-1.2.0-macOS.zip")
+        self.assertEqual(update.asset_name("1.2.0", platform="linux"), "ReelForge-1.2.0-Linux.tar.gz")
 
     def test_offline_check_is_calm(self):
         with mock.patch.object(update, "latest", side_effect=update.UpdateError("Couldn't reach GitHub (offline?)")):
@@ -55,10 +54,10 @@ class InstallTest(unittest.TestCase):
 
     def test_install_kind(self):
         self.assertEqual(update.install_kind(self.root), "zip")
+        (self.root / "unins000.exe").write_bytes(b"")   # the old Windows installer's copies update the zip way too
+        self.assertEqual(update.install_kind(self.root), "zip")
         (self.root / ".git").mkdir()
         self.assertEqual(update.install_kind(self.root), "git")
-        (self.root / "unins000.exe").write_bytes(b"")
-        self.assertEqual(update.install_kind(self.root), "installer")
 
     def test_kept_paths(self):
         for rel in ("my-studio/studio.toml", "episodes/ep01/episode.json", "completed videos/x/x.mp4", "CLAUDE.md",
@@ -129,6 +128,39 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(update.take_marker(self.root)["to"], "1.1.0")
         self.assertIsNone(update.take_marker(self.root))
 
+    def test_install_line_updates_an_old_installer_copy_in_place(self):
+        """install.ps1 runs the new download's updater (--into) on a copy the old Windows installer made."""
+        mine = {"my-studio/studio.toml": "my settings", "CLAUDE.md": "my instructions",
+                "dashboard/data/stats.db": "my stats", "episodes/ep01/episode.json": "{}", "unins000.exe": "uninstaller",
+                "unins000.dat": "its list"}
+        for rel, text in {**mine, "studio/__init__.py": 'KIT_VERSION = "1.0.5"\n', "README.md": "old",
+                          "requirements.txt": "rich\n"}.items():
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_text(text, encoding="utf-8")
+        new = self.dir / "ReelForge-1.1.0"     # the download the install line unpacked
+        for rel, text in {"studio/__init__.py": 'KIT_VERSION = "1.1.0"\n', "README.md": "new", "requirements.txt": "rich\n",
+                          "studio/new_module.py": "x = 1\n", "my-studio/studio.toml": "kit default",
+                          "CLAUDE.md": "bootstrap", "START-HERE.txt": "start"}.items():
+            (new / rel).parent.mkdir(parents=True, exist_ok=True)
+            (new / rel).write_text(text, encoding="utf-8")
+        with mock.patch.object(update, "ROOT", new), mock.patch.object(update, "_after") as after:
+            said = update.move_in(self.root)
+        self.assertEqual(said, "Updated ReelForge from 1.0.5 to 1.1.0.")
+        self.assertEqual(update.read_version(self.root), "1.1.0")
+        self.assertEqual((self.root / "README.md").read_text(encoding="utf-8"), "new")
+        self.assertTrue((self.root / "studio" / "new_module.py").exists())
+        for rel, text in mine.items():
+            self.assertEqual((self.root / rel).read_text(encoding="utf-8"), text, rel)
+        after.assert_called_once()
+        marker = update.take_marker(self.root)      # the restarted window says "Updated to 1.1.0"
+        self.assertEqual((marker["from"], marker["to"]), ("1.0.5", "1.1.0"))
+
+    def test_install_line_leaves_a_folder_without_reelforge(self):
+        (self.root / "notes.txt").write_text("mine", encoding="utf-8")
+        with self.assertRaises(update.UpdateError):
+            update.move_in(self.root)
+        self.assertEqual([p.name for p in self.root.iterdir()], ["notes.txt"])
+
 
 @unittest.skipUnless(shutil.which("git"), "needs git")
 class GitPullTest(unittest.TestCase):
@@ -191,7 +223,10 @@ class WhatsNewTest(unittest.TestCase):
         for word in ("onboarding", "ultracode"):
             self.assertNotIn(word, shown.lower())
         for line in shown.splitlines():
-            self.assertLessEqual(len(line), 120, line)
+            # Each bullet on one line, a bold lead first: the Updates tab before 1.0.6 (which people read these notes
+            # in until they've updated) shows a bullet's wrapped lines as loose lines at the left edge.
+            self.assertRegex(line, r"^(|## What's new in .+|- \*\*[^*]+\*\* .+|  - \S.+|Already have ReelForge\? .+)$")
+            self.assertLessEqual(len(line), 140, line)
 
 
 if __name__ == "__main__":

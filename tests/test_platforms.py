@@ -326,6 +326,28 @@ class Launchers(unittest.TestCase):
                 self.assertTrue(os.access(root / name, os.X_OK), name)
             self.assertFalse(os.access(root / "README.md", os.X_OK))
 
+    def test_the_old_launchers_an_update_left_behind_go_while_they_are_the_kits_own(self):
+        # onboard.bat and onboard.sh as ReelForge 1.0.0 to 1.0.5 shipped them
+        bat = ('@echo off\nrem ReelForge onboarding: the interview that sets up your channel and writes CLAUDE.md / '
+               'AGENTS.md.\nrem Run it again any time to change your answers. In any terminal, "reelforge onboard" '
+               'does the same.\ncall "%~dp0bin\\reelforge.cmd" onboard %*\nset code=%errorlevel%\n'
+               'if not "%code%"=="0" pause\nexit /b %code%\n')
+        sh = ('#!/usr/bin/env bash\n# ReelForge onboarding: the interview that sets up your channel and writes '
+              'CLAUDE.md / AGENTS.md.\n# Run it again any time to change your answers. "reelforge onboard" does the '
+              'same.\nexec "$(dirname "$0")/bin/reelforge" onboard "$@"\n')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "onboard.bat").write_bytes(bat.replace("\n", "\r\n").encode("utf-8"))
+            (root / "onboard.sh").write_bytes((sh + "# my own line\n").encode("utf-8"))  # one someone changed: stays
+            (root / "channel.bat").write_bytes(b"@echo off\r\n")
+            with mock.patch.object(P, "ROOT", root):
+                P.keep_runnable()
+            self.assertEqual(sorted(p.name for p in root.iterdir()), ["channel.bat", "onboard.sh"])
+            (root / "onboard.sh").write_bytes(sh.encode("utf-8"))
+            with mock.patch.object(P, "ROOT", root):
+                P.keep_runnable()
+            self.assertEqual([p.name for p in root.iterdir()], ["channel.bat"])
+
     def test_the_downloads_mark_scripts_executable(self):
         sys.path.insert(0, str(P.ROOT / "scripts"))
         try:

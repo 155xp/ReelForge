@@ -1,6 +1,6 @@
 """The reelforge command: type `reelforge` in any terminal to open ReelForge.
 
-  python -m studio command on|off      (setup and the Windows installer turn it on for you)
+  python -m studio command on|off      (setup turns it on for you)
   python -m studio command             is it on?
 
 Windows: puts this folder's bin\\ on your user PATH (no admin rights needed; terminal windows opened afterwards see

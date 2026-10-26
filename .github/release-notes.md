@@ -1,7 +1,6 @@
 ## What's new in 1.0.6
 
-- **A new look.** ReelForge's window is calm and dark, with panels instead of boxes and each platform in its own
-  colour, so your numbers stand out.
+- **A new look.** A calm dark window with panels instead of boxes, and each platform in its own colour.
   - Each platform's followers in big numbers that count up, with its views hour by hour under them.
   - Charts grow in, the tabs slide, and the bell shows how many notifications are new.
   - The bar along the bottom shows each platform, when your stats were read and the keys.
@@ -11,23 +10,24 @@
   - **New profile** asks a few questions about the channel, then opens its Accounts tab.
   - Your first channel stays exactly where it is.
 - **Sign up without logging out.** New profile helps you make the channel's accounts, starting with a Gmail.
-  Sign-up pages open in a private browser window, so your other channel stays logged in.
-- **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their
-  channel's rules. "Make today's videos" makes every channel's, except one set to post **Only when I ask**.
-- **Tell your AI about your channel.** Drag a file about it into the chat (or paste a description) and say
-  "here's my channel". Your AI keeps it as the channel's brief and plans every video from it.
+  - Sign-up pages open in a private browser window, so your other channel stays logged in.
+- **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their channel's rules.
+  - "Make today's videos" makes every channel's, except one set to post **Only when I ask**.
+- **Tell your AI about your channel.** Drag a file about it into the chat (or paste a description) and say "here's my channel".
+  - Your AI keeps it as the channel's brief and plans every video from it.
 - **Tidier What's new.** This panel now shows release notes as clean, short lists at any window size.
-- **A shorter first-time setup.** It no longer asks how hard your AI should work: High is the standard. For more
-  or less, the profile menu has **Advanced settings**: Max, High and Fast. `reelforge channel` changes your
-  channel's answers.
+- **A shorter first-time setup.** It no longer asks how hard your AI should work: High is the standard.
+  - For more or less, the profile menu has **Advanced settings**: Max, High and Fast.
+  - `reelforge channel` changes your channel's answers.
 - **A Settings tab (7).** Your channel's answers, your AI's reasoning and what ReelForge set up, in one place.
   - **Factory reset** puts your settings, logins and stats in a backup, then first-time setup again. Videos stay.
   - **Uninstall** removes ReelForge and keeps your videos in a folder beside it. `reelforge uninstall` does it too.
   - Both ask you to type your channel's name, never delete anything for good, and never stop half-way.
-- **First-time setup fits any window.** Its screens sit on the same calm dark as the window, stay whole in a small
-  window or one you resize, and the hints along their bottom edge are gone.
-- **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops
-  when it's all ready. On the Updates tab he hammers while an update installs, and he naps where there's nothing yet.
+- **First-time setup fits any window.** Its screens sit on the same calm dark as the window and stay whole in any size.
+  - In a small window or one you resize, every button stays whole, with no hints on the edges.
+- **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops when it's all ready.
+  - On the Updates tab he hammers while an update installs, and he naps where there's nothing yet.
+- **No more Setup.exe.** ReelForge installs only with its one-line command, so Windows never calls it unverified.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 
@@ -36,23 +36,20 @@ Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and 
 ReelForge lets Claude Code or Codex make faceless short videos for TikTok, YouTube Shorts, Instagram Reels and X,
 then shows you how each one does once you've posted it. Nothing is ever posted for you.
 
-## Download
+## Install
 
-| Your computer | Download | Then |
-|---|---|---|
-| **Windows 10 / 11** | `install.ps1` | Open PowerShell, paste `irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 \| iex` and press Enter. It downloads ReelForge straight from GitHub into your user folder, checks it and starts setup, so neither the browser nor Windows warns about it. |
-| **Mac or Linux** | `install.sh` | Open Terminal, paste `curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh \| bash` and press Enter. It downloads ReelForge straight from GitHub into `~/ReelForge`, checks it and starts setup, so neither the browser nor macOS warns about it. |
-| Windows, installer | `ReelForge-…-Windows-Setup.exe` | Run it (if Windows says "Windows protected your PC", click **More info**, then **Run anyway**: the installer isn't code-signed). It installs into your user folder, adds the `reelforge` command and a desktop icon, and starts setup. |
-| Windows, no installer | `ReelForge-…-Windows.zip` | Unzip it to a short path (e.g. `C:\Users\you\ReelForge`) and double-click `setup.bat`. |
-| Mac, no install line | `ReelForge-…-macOS.zip` | Unzip it and double-click `Set up ReelForge.command`. If macOS says it can't check the file, open **System Settings › Privacy & Security** and click **Open Anyway** (on macOS 14 and older, right-click the file and choose **Open**). |
-| Linux, no install line | `ReelForge-…-Linux.tar.gz` | Extract it and run `./setup.sh`. |
-| Developers | Source code (zip / tar.gz) | Same files; run `setup.bat` or `./setup.sh`. |
+- **Windows 10 / 11:** open PowerShell, paste `irm https://github.com/dan2756/ReelForge/releases/latest/download/install.ps1 | iex` and press Enter.
+- **Mac or Linux:** open Terminal, paste `curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install.sh | bash` and press Enter.
+
+It downloads ReelForge straight from GitHub into a ReelForge folder in your user folder, checks it against `SHA256SUMS.txt` and starts setup, so neither your browser nor your computer warns about it. The other files below are what it downloads.
+
+Installed ReelForge with the old Setup.exe? Its Updates tab can't install this version, so paste the Windows line into PowerShell instead: it finds that ReelForge and updates it in place, keeping your channel, videos, stats, logins and settings.
 
 Setup shows what ReelForge still needs (Blender 4.5 LTS, ffmpeg, the sound effects, the `reelforge` command,
 ReelForge's icon, and on a Mac or Linux PC a private Python or a Chromium if it hasn't got one), sets it all up inside
 the ReelForge folder once you say yes, then asks a few questions about your channel. You'll need Claude Code (a
 paid Claude plan or an API account) or Codex, a Mac with Apple Silicon or a PC with a recent NVIDIA or AMD graphics card (an Intel
-Mac works too, more slowly), and about 15 GB of free disk space. `SHA256SUMS.txt` lists every download's checksum.
+Mac works too, more slowly), and about 15 GB of free disk space.
 
 ## Then
 
