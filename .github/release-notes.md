@@ -16,6 +16,8 @@
   channel's answers.
 - **The setup box fits any window.** It stays whole in a small window or one you resize, and the hints on its bottom
   edge are gone.
+- **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops
+  when it's all ready. On the Updates tab he hammers while an update installs, and he naps where there's nothing yet.
 
 Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
 

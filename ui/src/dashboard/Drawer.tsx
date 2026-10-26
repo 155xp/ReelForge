@@ -11,6 +11,7 @@ import { Cells } from "../ui/Cells"
 import { cross, X_WIDTH } from "../ui/Graphics"
 import { Line } from "../ui/Line"
 import { OptionList, type Option } from "../ui/Lists"
+import { Asleep } from "../ui/Mascot"
 import { useDash } from "./state"
 import type { NotesView } from "./types"
 
@@ -92,7 +93,13 @@ export function Drawer() {
         onActivate={(id) => s.bridge.send("open_note", Number(id))}
         onDelete={del}
         aside={(it, lines) => <Cross id={it.id} lines={lines} onPress={() => del(it.id)} />}
-        empty={<text fg={DASH.muted} wrapMode="word">{notes?.empty ?? ""}</text>}
+        empty={
+          <Asleep>
+            <text fg={DASH.muted} wrapMode="word">
+              {notes?.empty ?? ""}
+            </text>
+          </Asleep>
+        }
       />
     </box>
   )

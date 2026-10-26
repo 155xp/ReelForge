@@ -62,7 +62,8 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
    doesn't have a recent one; Bun, which runs ReelForge's window, comes first by itself). Then it asks about your
    channel: what it's about, the format, where you post (TikTok, YouTube Shorts and Instagram Reels to start), and how
    your videos should look and sound. No accounts yet? It helps you make them, starting with a new Gmail for your
-   channel.
+   channel. ReelForge's mascot, the anvil, keeps you company: he hammers away while it all downloads and hops when
+   everything's ready.
 
 <p align="center">
   <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
@@ -188,8 +189,8 @@ out, say).
 ## Updates
 
 When a new version is out, the bell gets a red dot and the **Updates** tab (`reelforge 6`) shows what's new. Click
-**Update and restart** to install it. Your channel, videos, stats and settings stay as they are, and your AI's
-instructions are refreshed for the new version.
+**Update and restart** to install it: the anvil hammers while it installs and hops once it's in. Your channel,
+videos, stats and settings stay as they are, and your AI's instructions are refreshed for the new version.
 
 <p align="center">
   <img src="docs/screenshots/app-updates.png" width="75%" alt="The Updates tab: a new version installs and restarts ReelForge in one click">

@@ -45,7 +45,7 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 | `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
 | `src/dashboard/` | The ReelForge window: `App.tsx` (header, bell, tabs, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
 | `src/setup/` | The first-run screens (`App.tsx`), the channel's questions (`Onboard.tsx`) and the box round them (`Frame.tsx`) |
-| `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art |
+| `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art, and the mascot (`Mascot.tsx`; his frames in `mascot/`, copied from `../assets/mascot/opentui`) |
 | `src/lib/` | Charts in cells, styled text, fitting parts to a width, number formats, keyboard focus |
 | `test/` | `bun test`: the charts and cards on their own, and the window and first-run screens drawn without a terminal, clicked through on demo data with the real Python side |
 | `scripts/headless.tsx` | The window on OpenTUI's test renderer (the tests and screenshots use it) |

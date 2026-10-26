@@ -1,19 +1,20 @@
 // ReelForge's first run, all inside one box round the terminal with the logo on top: the tools it needs (one list,
-// one yes), the downloads with their progress, a health check, onboarding, then what to do next. The Python side is
-// studio/setup_service.py.
+// one yes), the downloads with their progress, a health check, onboarding, then what to do next, with the mascot
+// beside each screen when the window has room for him. The Python side is studio/setup_service.py.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext, useFocus, useTheme } from "../lib/focus"
-import type { Segs } from "../lib/styled"
+import { cellLen, type Segs } from "../lib/styled"
 import { SETUP } from "../theme"
 import { Button } from "../ui/Button"
 import { ProgressBar } from "../ui/Graphics"
 import { Line } from "../ui/Line"
+import { Mascot } from "../ui/Mascot"
 import { Scroll, ToastStack, toasts, useTick, Wrapped } from "../ui/Panels"
-import { Frame } from "./Frame"
+import { Frame, frameLayout } from "./Frame"
 import { Onboard } from "./Onboard"
 
 export interface SetupInit {
@@ -36,6 +37,9 @@ export interface SetupInit {
 }
 
 type Screen = "tools" | "work" | "onboard" | "done"
+
+/** The tools' screens show the full logo from this many rows (they size what they show by the same layout). */
+const TOOLS_BIG_MIN = 30
 
 export interface SetupProps {
   bridge: Bridge
@@ -143,6 +147,11 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
   const theme = useTheme()
   const view = useView<{ intro: Segs; items: Item[]; todo: string[]; note: string }>(bridge, "items")
   const [ticked, setTicked] = useState<Record<string, boolean>>({})
+  // Each item on one line when they all fit beside the ticks and the names (34 cells), else on two: the name with where
+  // it comes from, then what it's for (rather than lines broken anywhere, beside the mascot or in a narrow window).
+  const { width, height } = useTerminalDimensions()
+  const room = frameLayout(init, width, height, TOOLS_BIG_MIN, true).content - 34
+  const stacked = (view?.items ?? []).some((i) => cellLen(`${i.why}  ·  ${i.detail}`) > room)
   useEffect(() => {
     bridge.send("plan")
   }, [bridge])
@@ -160,7 +169,7 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
     } else label = "Continue without these"
   }
   return (
-    <Frame init={init} step="tools" bigMinHeight={30}>
+    <Frame init={init} step="tools" bigMinHeight={TOOLS_BIG_MIN} mascot={<Mascot once="wink" animation="idle" />}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           <box flexDirection="column" paddingRight={1} flexShrink={0}>
@@ -179,13 +188,28 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
                       {i.ready ? ` ${init.check}` : " !"}
                     </text>
                   )}
-                  <text width={26} flexShrink={0} attributes={TextAttributes.BOLD} wrapMode="none">
-                    {i.name}
-                  </text>
-                  <text flexGrow={1} flexShrink={1} wrapMode="word">
-                    <span fg={theme.muted}>{i.why + "  ·  "}</span>
-                    <span fg={i.ready ? theme.good : !i.can_install ? theme.warn : theme.muted}>{i.detail}</span>
-                  </text>
+                  {stacked ? (
+                    <box flexDirection="column" flexGrow={1} flexShrink={1}>
+                      <text wrapMode="word">
+                        <span attributes={TextAttributes.BOLD}>{i.name}</span>
+                        <span fg={theme.muted}>{"  ·  "}</span>
+                        <span fg={i.ready ? theme.good : !i.can_install ? theme.warn : theme.muted}>{i.detail}</span>
+                      </text>
+                      <text fg={theme.muted} wrapMode="word">
+                        {i.why}
+                      </text>
+                    </box>
+                  ) : (
+                    <>
+                      <text width={26} flexShrink={0} attributes={TextAttributes.BOLD} wrapMode="none">
+                        {i.name}
+                      </text>
+                      <text flexGrow={1} flexShrink={1} wrapMode="word">
+                        <span fg={theme.muted}>{i.why + "  ·  "}</span>
+                        <span fg={i.ready ? theme.good : !i.can_install ? theme.warn : theme.muted}>{i.detail}</span>
+                      </text>
+                    </>
+                  )}
                 </box>
               ))}
             </box>
@@ -238,10 +262,18 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
   const tick = useTick(working || !checks?.rows, 120)
   const spin = init.fancy ? "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏" : "-\\|/"
   const finished = Boolean(checks?.rows)
-  // The bars get what the window has left after the names and some room for each one's status, up to 44 cells.
-  const bar = Math.min(Math.max(useTerminalDimensions().width - 56, 10), 44)
+  // The bars get what the screen has left after the names, the percentages and 28 cells for each one's status, from
+  // 10 up to 44 cells.
+  const { width, height } = useTerminalDimensions()
+  const bar = Math.min(Math.max(frameLayout(init, width, height, TOOLS_BIG_MIN, true).content - 62, 10), 44)
+  // He hammers while it all downloads, thinks while the health check runs, then hops (or frowns at what failed).
+  const mascot = finished ? (
+    <Mascot once={checks!.bad ? "error" : "success"} animation="idle" />
+  ) : (
+    <Mascot animation={checks?.checking ? "think" : "forge"} />
+  )
   return (
-    <Frame init={init} step="tools" bigMinHeight={30}>
+    <Frame init={init} step="tools" bigMinHeight={TOOLS_BIG_MIN} mascot={mascot}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {(jobs?.jobs ?? []).map((j) => {
@@ -334,7 +366,7 @@ function Done({ bridge, init, quit }: SetupProps) {
   }, [bridge])
   useEscape(() => quit(0))
   return (
-    <Frame init={init} step="ready" bigMinHeight={32}>
+    <Frame init={init} step="ready" bigMinHeight={32} mascot={<Mascot once="success" animation="idle" />}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {info ? (

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReelForge Mascot</title>
+<style>
+  :root { --bg: #0b0b0c; --card: #141315; --fg: #ecebee; --muted: #8d8892; --line: #262428; --stage: #000; }
+  :root[data-bg="light"] { --bg: #f4f3f5; --card: #fff; --fg: #141316; --muted: #66616b; --line: #e2e0e4; --stage: #fff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  header { max-width: 1100px; margin: 0 auto 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  button { font: inherit; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  main { max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .stage { background: var(--stage); display: grid; place-items: center; padding: 12px; }
+  img { image-rendering: pixelated; max-width: 100%; height: auto; }
+  figcaption { padding: 12px 14px; }
+  figcaption span { color: var(--muted); margin-left: 6px; }
+  figcaption p { margin: 6px 0 0; color: var(--muted); }
+  a { color: #fd4b33; }
+</style>
+</head>
+<body>
+<header><h1>ReelForge mascot · 9 animations · 43×36 px</h1>
+<button id="bg">Light background</button></header>
+<main>
+<figure><div class="stage"><img src="gifs/8x/reelforge-idle.gif" alt="ReelForge idle animation" width="344" height="288"></div><figcaption><b>idle</b> <span>25 frames · 3.25s loop</span><p>Breathing, blinking, hot face shimmering. Default state.</p><p class=links><a href="gifs/1x/reelforge-idle.gif">1x</a> <a href="gifs/4x/reelforge-idle.gif">4x</a> <a href="gifs/8x/reelforge-idle.gif">8x</a> <a href="gifs/16x/reelforge-idle.gif">16x</a> · <a href="gifs/black-8x/reelforge-idle.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-look.gif" alt="ReelForge look animation" width="344" height="288"></div><figcaption><b>look</b> <span>9 frames · 2.69s loop</span><p>Glances left and right, then blinks.</p><p class=links><a href="gifs/1x/reelforge-look.gif">1x</a> <a href="gifs/4x/reelforge-look.gif">4x</a> <a href="gifs/8x/reelforge-look.gif">8x</a> <a href="gifs/16x/reelforge-look.gif">16x</a> · <a href="gifs/black-8x/reelforge-look.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-forge.gif" alt="ReelForge forge animation" width="344" height="288"></div><figcaption><b>forge</b> <span>14 frames · 1.26s loop</span><p>Hammer strikes with sparks. Working / rendering / loading.</p><p class=links><a href="gifs/1x/reelforge-forge.gif">1x</a> <a href="gifs/4x/reelforge-forge.gif">4x</a> <a href="gifs/8x/reelforge-forge.gif">8x</a> <a href="gifs/16x/reelforge-forge.gif">16x</a> · <a href="gifs/black-8x/reelforge-forge.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-think.gif" alt="ReelForge think animation" width="344" height="288"></div><figcaption><b>think</b> <span>12 frames · 2.40s loop</span><p>Eyes up, dots counting. Thinking / waiting on a reply.</p><p class=links><a href="gifs/1x/reelforge-think.gif">1x</a> <a href="gifs/4x/reelforge-think.gif">4x</a> <a href="gifs/8x/reelforge-think.gif">8x</a> <a href="gifs/16x/reelforge-think.gif">16x</a> · <a href="gifs/black-8x/reelforge-think.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-success.gif" alt="ReelForge success animation" width="344" height="288"></div><figcaption><b>success</b> <span>12 frames · 1.45s loop</span><p>Happy hop with sparkles. Done / export finished.</p><p class=links><a href="gifs/1x/reelforge-success.gif">1x</a> <a href="gifs/4x/reelforge-success.gif">4x</a> <a href="gifs/8x/reelforge-success.gif">8x</a> <a href="gifs/16x/reelforge-success.gif">16x</a> · <a href="gifs/black-8x/reelforge-success.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-error.gif" alt="ReelForge error animation" width="344" height="288"></div><figcaption><b>error</b> <span>13 frames · 1.70s loop</span><p>Shake with X eyes, then a sad puff of smoke. Something failed.</p><p class=links><a href="gifs/1x/reelforge-error.gif">1x</a> <a href="gifs/4x/reelforge-error.gif">4x</a> <a href="gifs/8x/reelforge-error.gif">8x</a> <a href="gifs/16x/reelforge-error.gif">16x</a> · <a href="gifs/black-8x/reelforge-error.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-sleep.gif" alt="ReelForge sleep animation" width="344" height="288"></div><figcaption><b>sleep</b> <span>20 frames · 3.00s loop</span><p>Forge cooled down, snoozing with Zzz. Idle for a long time / offline.</p><p class=links><a href="gifs/1x/reelforge-sleep.gif">1x</a> <a href="gifs/4x/reelforge-sleep.gif">4x</a> <a href="gifs/8x/reelforge-sleep.gif">8x</a> <a href="gifs/16x/reelforge-sleep.gif">16x</a> · <a href="gifs/black-8x/reelforge-sleep.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-heat.gif" alt="ReelForge heat animation" width="344" height="288"></div><figcaption><b>heat</b> <span>10 frames · 1.20s loop</span><p>Heats up to white-hot and cools. Charging / processing.</p><p class=links><a href="gifs/1x/reelforge-heat.gif">1x</a> <a href="gifs/4x/reelforge-heat.gif">4x</a> <a href="gifs/8x/reelforge-heat.gif">8x</a> <a href="gifs/16x/reelforge-heat.gif">16x</a> · <a href="gifs/black-8x/reelforge-heat.gif">on black</a></p></figcaption></figure>
+<figure><div class="stage"><img src="gifs/8x/reelforge-wink.gif" alt="ReelForge wink animation" width="344" height="288"></div><figcaption><b>wink</b> <span>9 frames · 1.98s loop</span><p>Winks with a sparkle. Hello / tips / easter egg.</p><p class=links><a href="gifs/1x/reelforge-wink.gif">1x</a> <a href="gifs/4x/reelforge-wink.gif">4x</a> <a href="gifs/8x/reelforge-wink.gif">8x</a> <a href="gifs/16x/reelforge-wink.gif">16x</a> · <a href="gifs/black-8x/reelforge-wink.gif">on black</a></p></figcaption></figure>
+</main>
+<script>
+  const b = document.getElementById("bg");
+  b.onclick = () => {
+    const light = document.documentElement.dataset.bg !== "light";
+    document.documentElement.dataset.bg = light ? "light" : "";
+    b.textContent = light ? "Dark background" : "Light background";
+  };
+</script>
+</body>
+</html>

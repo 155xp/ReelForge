@@ -2179,14 +2179,14 @@ class Dashboard(Service):
 
     def update_done(self, message: str) -> None:
         self.emit("update_step", {"step": Text(f"{message} Restarting…", f"bold {GOOD}").json(),
-                                  "progress": {"done": 1, "total": 1}})
+                                  "progress": {"done": 1, "total": 1}, "done": True})
         self.loop.set_timer(1.5, lambda: self.exit(kit_update.RESTART))
 
     def update_failed(self, message: str) -> None:
         self.updating = False
         self.show_update()
         self.emit("update_step", {"step": Text(f"The update didn't finish: {message}\nThe version you have keeps "
-                                               "working.", BAD).json(), "progress": None})
+                                               "working.", BAD).json(), "progress": None, "failed": True})
 
     # --- shared actions -------------------------------------------------------------------
 

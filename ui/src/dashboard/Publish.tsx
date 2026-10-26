@@ -11,6 +11,7 @@ import { Button } from "../ui/Button"
 import { TextField } from "../ui/Fields"
 import { Fitted, Line } from "../ui/Line"
 import { OptionList, Table } from "../ui/Lists"
+import { Asleep } from "../ui/Mascot"
 import { Panel, Scroll } from "../ui/Panels"
 import { useDash } from "./state"
 import type { FilesView, PlatformInfo, PreviewView, TableView } from "./types"
@@ -44,11 +45,13 @@ function Files() {
         }}
         onMenu={(id) => void s.openDialog("remove", s.bridge.call("remove_menu", id))}
         empty={
-          <box flexDirection="column">
-            {(files?.empty ?? []).map((l, i) => (
-              <Line key={i} segs={l} />
-            ))}
-          </box>
+          <Asleep>
+            <box flexDirection="column">
+              {(files?.empty ?? []).map((l, i) => (
+                <Line key={i} segs={l} />
+              ))}
+            </box>
+          </Asleep>
         }
       />
     </Panel>

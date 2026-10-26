@@ -208,4 +208,6 @@ export interface UpdateStep {
   step?: Segs
   status?: Segs
   progress?: { done: number; total: number | null } | null
+  done?: boolean // the update is in; ReelForge restarts
+  failed?: boolean // it didn't finish, and the version you have keeps working
 }

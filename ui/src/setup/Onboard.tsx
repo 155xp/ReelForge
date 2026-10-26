@@ -1,7 +1,8 @@
 // The onboarding interview, step by step, then a review: Create my studio writes everything. Mouse and keyboard both
 // work: Tab moves between fields, Enter presses a button, Esc offers to leave. The questions, their defaults and when
 // each shows come from studio/questions.py, through studio/setup_service.py. Your accounts has a sign-up guide for
-// each platform (and the channel's Gmail) for someone without the accounts yet.
+// each platform (and the channel's Gmail) for someone without the accounts yet. In a big enough window the mascot
+// stands under the list of steps.
 
 import { TextAttributes, type KeyEvent, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
@@ -10,9 +11,13 @@ import { useFocusManager, useTheme } from "../lib/focus"
 import { mix } from "../theme"
 import { Button } from "../ui/Button"
 import { CheckList, RadioSet, Switch, TextBox, TextField } from "../ui/Fields"
+import { Mascot, MASCOT_BODY } from "../ui/Mascot"
 import { Markdown, Modal, Scroll } from "../ui/Panels"
 import type { SetupProps } from "./App"
-import { Frame } from "./Frame"
+import { Frame, frameLayout } from "./Frame"
+
+/** The full logo needs this many rows here, where the questions want the room. */
+const BIG_MIN_HEIGHT = 48
 
 interface Field {
   key: string
@@ -60,8 +65,12 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
   const [leaving, setLeaving] = useState(false)
   const [guide, setGuide] = useState<Guide | null>(null)
   const scroll = useRef<ScrollBoxRenderable | null>(null)
-  const { width } = useTerminalDimensions()
+  const { width, height } = useTerminalDimensions()
   const roomy = width >= 100 // room for the list of steps beside the questions (each step's title says n/8 anyway)
+  // the mascot under the steps, when the column has his rows and a gap below them (and their 3 rows of heading)
+  const mascot =
+    roomy && width >= 110 && steps.length > 0 &&
+    frameLayout(init, width, height, BIG_MIN_HEIGHT, false).rows >= 3 + steps.length + 1 + MASCOT_BODY.height
 
   const show = (s: Step) => {
     setStep(s)
@@ -148,12 +157,12 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
 
   const i = step?.index ?? 0
   return (
-    <Frame init={init} step="channel" bigMinHeight={48}>
+    <Frame init={init} step="channel" bigMinHeight={BIG_MIN_HEIGHT}>
       <box flexDirection="row" flexGrow={1}>
         {roomy ? (
           <box
             flexDirection="column"
-            width={30}
+            width={mascot ? MASCOT_BODY.width + 3 : 30}
             flexShrink={0}
             paddingTop={1}
             paddingRight={2}
@@ -176,6 +185,12 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
                 {(n < i ? `${init.check} ` : n === i ? "› " : "  ") + label}
               </text>
             ))}
+            {mascot ? (
+              <box flexGrow={1} justifyContent="flex-end">
+                {/* hello on the first step, then a glance round at each new one */}
+                <Mascot fit="animation" once={i === 0 ? "wink" : "look"} cue={i} animation="idle" />
+              </box>
+            ) : null}
           </box>
         ) : null}
         <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={roomy ? 3 : 0}>

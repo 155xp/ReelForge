@@ -209,6 +209,7 @@ export function svg(frame: CapturedFrame, background: string, title = "ReelForge
 export async function take(name: string, outDir: string): Promise<string> {
   const shot = SHOTS[name]
   if (!shot) throw new Error(`no shot called ${name}`)
+  process.env.REELFORGE_MASCOT_STILL = "1" // the mascot holds the moment each screen is about (ui/Mascot.tsx)
   const env = {
     REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py"),
     REELFORGE_QUADRANTS: "1", // the logo's, bell's and ×'s 2 x 2 blocks, as Windows Terminal draws them
