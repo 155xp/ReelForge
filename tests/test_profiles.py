@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from contextlib import closing, redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 from dashboard import config
@@ -221,6 +222,27 @@ class Onboarding(Scratch):
         self.assertEqual(svc.answers["quality"], "max")  # the channel's questions again: still Max
         with self.assertRaises(ValueError):
             generate.set_reasoning("ultracode")
+
+    def test_another_channels_reasoning_goes_in_its_notes_and_the_folder_keeps_the_first_ones_effort(self):
+        from dashboard.service import Dashboard
+
+        self.onboard_main()  # the first channel, at High
+        a = profiles.create("Cool Epic Facts")
+        with redirect_stdout(io.StringIO()):
+            generate.write_all({**ANSWERS, "channel_name": "Cool Epic Facts"}, a)
+        local = self.root / ".claude" / "settings.local.json"
+        before = local.read_text(encoding="utf-8")
+        os.environ[profiles.ENV] = a.key
+        said = []
+        window = SimpleNamespace(demo=False, profile=a, notify=lambda text, **kw: said.append(text))
+        with redirect_stdout(io.StringIO()):
+            self.assertTrue(Dashboard.set_reasoning(window, "max"))
+        self.assertEqual(S.load(a.settings)["ai"]["quality"], "max")
+        self.assertEqual(local.read_text(encoding="utf-8"), before)  # Claude Code's effort here is still High
+        notes = (a.folder / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("Opus at max effort", notes)
+        self.assertIn("holds Night Physics's effort, which can be another one", notes)
+        self.assertIn("is Night Physics's, so type /effort max when you make this channel's videos", said[0])
 
 
 CHROME = signup.Private("Chrome", ("chrome.exe", "--incognito"))

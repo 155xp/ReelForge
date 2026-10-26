@@ -415,9 +415,15 @@ class Dashboard(SettingsTab, Service):
             self.notify(f"Couldn't save it: {e}", severity="error", timeout=10)
             return False
         name = dict((k, n) for k, n, _ in generate.REASONING)[level]
-        self.notify(f"Your AI now works at {name} on this channel's videos. A Claude Code session that's already open "
-                    f"keeps its effort until you start a new one (or type /effort {generate.EFFORT[level]}).",
-                    title="Advanced settings saved", timeout=10)
+        effort = generate.EFFORT[level]
+        if self.profile is not None and not self.profile.main:  # Claude Code's effort is the folder's: the first one's
+            more = (f"Claude Code's effort in the ReelForge folder is {profiles.main().name}'s, so type /effort {effort} "
+                    "when you make this channel's videos.")
+        else:
+            more = (f"A Claude Code session that's already open keeps its effort until you start a new one (or type "
+                    f"/effort {effort}).")
+        self.notify(f"Your AI now works at {name} on this channel's videos. {more}", title="Advanced settings saved",
+                    timeout=10)
         return True
 
     def started(self) -> None:
