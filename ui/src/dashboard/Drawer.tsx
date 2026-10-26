@@ -145,7 +145,7 @@ function Cross({ id, lines, onPress }: { id: string; lines: number; onPress: () 
       }}
     >
       <text fg={hover ? DASH.bad : DASH.faint} attributes={hover ? TextAttributes.BOLD : undefined}>
-        ✕
+        ×
       </text>
     </box>
   )

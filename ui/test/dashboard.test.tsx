@@ -210,7 +210,7 @@ describe("the drawer", () => {
     const h = await window("overview", [180, 50], true)
     const before = noteTitles(h)
     const at = find(h, before[0]!.slice(0, 20))!
-    await h.t.mockMouse.click([...rows(h)[at[1]]!].lastIndexOf("✕"), at[1]) // its × (beside its title)
+    await h.t.mockMouse.click([...rows(h)[at[1]]!].lastIndexOf("×"), at[1]) // its × (beside its title)
     await h.settle(500)
     expect(noteTitles(h)).toEqual(before.slice(1))
     expect(activeTab(h)).toBe("Overview")

@@ -169,7 +169,7 @@ function Header() {
                     ["   ", ""],
                     ["?", DASH.muted, ["help"]],
                     ["   ", ""],
-                    ["✕", DASH.muted, ["quit"]],
+                    ["×", DASH.muted, ["quit"]],
                   ]
             }
           />

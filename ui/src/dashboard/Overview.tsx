@@ -26,7 +26,7 @@ export const TILE_ROWS = 9
 /** The big numbers' shading, white at the top to grey at the foot. */
 const FACE = ["#ffffff", "#dde1e6", "#a9b0ba"]
 /** Narrower than this, Top performers goes under the charts instead of beside them. */
-const SIDE_BY_SIDE = 150
+const SIDE_BY_SIDE = 140
 
 export function Overview() {
   const s = useDash()
@@ -207,7 +207,8 @@ function Trends({ only }: { only?: "views" | "followers" }) {
       return seg[2] ? [...gap, [seg[0], DASH.muted, seg[2]]] : [...gap, [seg[0], `bold ${DASH.text} on ${mix(DASH.raised, "#ffffff", 0.05)}`]]
     })
   const short = segsLen(trends?.legend) + 20 > width - 4
-  const legend: Segs = [...((short ? trends?.legend_short : trends?.legend) ?? []), ["  ▼ video posted", DASH.warn]]
+  const key = (short ? trends?.legend_short : trends?.legend) ?? []
+  const legend: Segs = key.length ? [...key, ["  ▼ video posted", DASH.warn]] : [] // no platforms shown: no key at all
   const views = <Metric metric="views" view={trends?.metrics.views} range={trends?.range} flexGrow={1} right={<Line segs={ranges} />} sub={<Line segs={legend} />} />
   const small = (
     <>
