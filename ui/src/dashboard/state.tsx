@@ -9,7 +9,7 @@ import type { Init, ProfilesMenu } from "./types"
 /** Rows above a tab's own: the header (3) and the hairline under it. */
 export const TOP_ROWS = 4
 
-export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates"] as const
+export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings"] as const
 export type Tab = (typeof TABS)[number]
 export const TAB_NAMES: Record<Tab, string> = {
   overview: "Overview",
@@ -18,6 +18,7 @@ export const TAB_NAMES: Record<Tab, string> = {
   publish: "Publish",
   accounts: "Accounts",
   updates: "Updates",
+  settings: "Settings",
 }
 
 export type Dialog =
@@ -29,9 +30,10 @@ export type Dialog =
   | { kind: "disconnect"; data: { key: string; title: string; note: import("../lib/styled").Segs } }
   | { kind: "profiles"; data: ProfilesMenu }
   | { kind: "remove_profile"; data: { key: string; name: string; note: import("../lib/styled").Segs; bin: string } }
-  | { kind: "advanced"; data: AdvancedData }
+  | { kind: "factory_reset"; data: import("./Settings").ResetData }
+  | { kind: "uninstall"; data: import("./Settings").UninstallData }
 
-/** Advanced settings (dashboard/service.py advanced_info): how hard your AI reasons on each video, High the standard. */
+/** How hard your AI reasons on each video (dashboard/service.py advanced_info), High the standard: the Settings tab. */
 export interface AdvancedData {
   current: string
   channel: string
@@ -155,7 +157,7 @@ export class DashState {
   }
 
   async openDialog(
-    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile" | "advanced",
+    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile" | "factory_reset" | "uninstall",
     call: Promise<any>,
   ) {
     const data = await call

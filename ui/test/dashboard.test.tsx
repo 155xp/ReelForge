@@ -273,16 +273,18 @@ describe("profiles", () => {
     expect(frame(h)).toContain("PROFILES")
   })
 
-  test("Advanced settings pick how hard the AI reasons: High is the standard", async () => {
+  test("Advanced settings opens the Settings tab, where you pick how hard the AI reasons: High is the standard", async () => {
     const h = await window("overview", [180, 50])
     await press(h, "p")
     await clickText(h, "Advanced settings", 2)
-    expect(frame(h)).toContain("ADVANCED SETTINGS")
-    expect(frame(h)).toContain("High: the standard, great videos")
-    expect(frame(h)).toContain("Max: the best video it can make")
+    await h.settle(1000)
+    expect(activeTab(h)).toBe("Settings")
+    expect(frame(h)).not.toContain("PROFILES")
+    expect(frame(h)).toContain("YOUR AI'S REASONING")
+    expect(frame(h)).toContain("High (the standard)")
+    expect(frame(h)).toContain("The standard, great videos checked carefully.")
+    expect(frame(h)).toContain("Max")
     expect(frame(h)).not.toContain("ltracode")
-    await clickText(h, "Cancel", 2)
-    expect(frame(h)).not.toContain("ADVANCED SETTINGS")
   })
 
   test("the status bar names each platform, or says TT YT IG X in a window too narrow for that, and when it read them", async () => {

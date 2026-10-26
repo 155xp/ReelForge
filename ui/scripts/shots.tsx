@@ -42,8 +42,8 @@ export const SHOTS: Record<string, Shot> = {
   "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
   // the profile button's menu: the demo's two channels, New profile and this one's settings
   "app-profiles": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openProfiles },
-  // the same menu's Advanced settings: how hard the AI reasons, High the standard
-  "app-advanced": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openAdvanced },
+  // the Settings tab: the channel's answers, how hard the AI reasons, this computer, and the danger zone
+  "app-settings": { screen: "dashboard", options: demo("settings"), size: APP, folder: "docs/screenshots" },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },
   overview: { screen: "dashboard", options: demo("overview", true), size: GUIDE, folder: "dashboard/docs" },
@@ -86,12 +86,6 @@ async function toAccountsStep(h: Headless) {
 
 async function openProfiles(h: Headless) {
   await h.t.mockInput.pressKey("p")
-  await h.settle(800)
-}
-
-async function openAdvanced(h: Headless) {
-  await openProfiles(h)
-  await clickText(h, "Advanced settings", 2)
   await h.settle(800)
 }
 
@@ -210,6 +204,7 @@ export function svg(frame: CapturedFrame, background: string, title = "ReelForge
 export async function take(name: string, outDir: string): Promise<string> {
   const shot = SHOTS[name]
   if (!shot) throw new Error(`no shot called ${name}`)
+  process.env.REELFORGE_MASCOT_STILL = "1" // the mascot holds the moment each screen is about (ui/Mascot.tsx)
   const env = {
     REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py"),
     REELFORGE_QUADRANTS: "1", // the logo's, bell's and ×'s 2 x 2 blocks, as Windows Terminal draws them

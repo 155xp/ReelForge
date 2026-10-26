@@ -197,6 +197,11 @@ class Toasts {
     this.list = this.list.filter((t) => t.id !== id)
     this.changed()
   }
+  /** Let them all go at once (a test's next window starts without the last one's). */
+  clear() {
+    this.list = []
+    this.changed()
+  }
   private changed() {
     for (const l of this.listeners) l()
   }

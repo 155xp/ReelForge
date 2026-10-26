@@ -44,9 +44,9 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 | `src/root.tsx` | The window round the profiles (one per channel): switching starts a Python side on the profile picked (`REELFORGE_PROFILE`) and lets the old one finish; New profile shows the channel's questions inside the window |
 | `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
 | `src/dashboard/` | The ReelForge window: `App.tsx` (the header with its sliding tab marker, the bell, the status bar, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
-| `src/setup/` | The first-run screens (`App.tsx`), the channel's questions (`Onboard.tsx`) and the steps and logo above them (`Frame.tsx`) |
+| `src/setup/` | The first-run screens (`App.tsx`), the channel's questions (`Onboard.tsx`) and the steps, logo and mascot round them (`Frame.tsx`) |
 | `src/theme.ts` | The colours, and `restyle`: the Python side's colours mapped to them as its messages arrive |
-| `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art (the big numbers, sparklines, the bell), and `Motion.tsx` (counting up, growing in, sliding, fading) |
+| `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art (the big numbers, sparklines, the bell), the mascot (`Mascot.tsx`; his frames in `mascot/`, copied from `../assets/mascot/opentui`), and `Motion.tsx` (counting up, growing in, sliding, fading) |
 | `src/lib/` | Charts in cells, styled text, fitting parts to a width, number formats, keyboard focus |
 | `test/` | `bun test`: the charts and cards on their own, and the window and first-run screens drawn without a terminal, clicked through on demo data with the real Python side |
 | `scripts/headless.tsx` | The window on OpenTUI's test renderer (the tests and screenshots use it) |
@@ -69,6 +69,6 @@ while something moves; `REELFORGE_MOTION=0` turns it off.
 
 Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
 keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
-click on the highlighted row) opens it. In the ReelForge window 1-6 switch tabs and r / R refresh, except while a
+click on the highlighted row) opens it. In the ReelForge window 1-7 switch tabs and r / R refresh, except while a
 text field has the keyboard, p opens the profile menu and ? the help; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q
 quits.

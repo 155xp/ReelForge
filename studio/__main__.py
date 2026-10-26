@@ -1,8 +1,10 @@
 """reelforge [what]   (the same as: python -m studio [what], from this folder)
 
   reelforge                    open ReelForge (the first time: first-time setup)
-  reelforge 1 .. 6             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates
-  reelforge videos             tabs by name work too: overview, videos, compare, publish, accounts, updates
+  reelforge 1 .. 7             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates,
+                               7 Settings
+  reelforge videos             tabs by name work too: overview, videos, compare, publish, accounts, updates,
+                               settings
   reelforge --demo             try ReelForge on made-up stats
   reelforge refresh            read every profile's stats once and exit
 
@@ -25,6 +27,12 @@
   reelforge sounds             download the Mixkit sound effects
   reelforge new-episode SLUG [--from EXAMPLE]   start episodes/epNN_<slug>/ from an example
   reelforge publish-check episodes/<id>         is this video ready in the Publish tab (tab 4)?
+
+  reelforge reset [--yes]      factory reset: every channel's settings, log-ins and stats back to brand-new (into a
+                               backup in backups/), then first-time setup again; your first channel's videos stay
+  reelforge uninstall [--yes] [--remove-videos]
+                               remove ReelForge from this computer: the folder goes to the Recycle Bin (Trash), and
+                               your videos and channels are kept in a folder beside it unless you say otherwise
 """
 
 from __future__ import annotations
@@ -342,6 +350,12 @@ def main(argv: list[str] | None = None) -> int:
         pass
     argv = list(sys.argv[1:] if argv is None else argv)
     P.keep_runnable()
+    from . import reset
+    done = reset.finish_pending()   # a factory reset or an uninstall the window just asked for (it quit for this)
+    if isinstance(done, list):
+        return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
+    if done is not None:
+        return done
     argv, word = take_profile(argv)
     if word is not None:
         chosen = profiles.find(word)
@@ -385,6 +399,12 @@ def main(argv: list[str] | None = None) -> int:
         if not failed:
             sounds.build_cache()
         return 1 if failed else 0
+    if cmd in ("reset", "factory-reset"):
+        from . import reset
+        return reset.reset_main(rest)
+    if cmd == "uninstall":
+        from . import reset
+        return reset.uninstall_main(rest)
     if cmd == "new-episode":
         return new_episode(rest)
     if cmd == "publish-check":

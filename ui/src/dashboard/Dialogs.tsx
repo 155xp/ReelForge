@@ -10,7 +10,8 @@ import { RadioSet, TextField } from "../ui/Fields"
 import { OptionList } from "../ui/Lists"
 import { Modal, Scroll, Wrapped } from "../ui/Panels"
 import { useFocusManager } from "../lib/focus"
-import { AdvancedSettings, ProfileMenu, RemoveProfile } from "./Profiles"
+import { ProfileMenu, RemoveProfile } from "./Profiles"
+import { FactoryReset, Uninstall } from "./Settings"
 import { useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
@@ -25,7 +26,8 @@ export function Dialogs() {
   if (d.kind === "disconnect") return <Disconnect data={d.data} close={close} />
   if (d.kind === "profiles") return <ProfileMenu data={d.data} close={close} />
   if (d.kind === "remove_profile") return <RemoveProfile data={d.data} close={close} />
-  if (d.kind === "advanced") return <AdvancedSettings data={d.data} close={close} />
+  if (d.kind === "factory_reset") return <FactoryReset data={d.data} close={close} />
+  if (d.kind === "uninstall") return <Uninstall data={d.data} close={close} />
   return <EpisodePicker data={d.data} close={close} />
 }
 

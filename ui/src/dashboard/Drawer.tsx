@@ -10,6 +10,7 @@ import { segsLen, type Segs } from "../lib/styled"
 import { DASH, mix } from "../theme"
 import { Line } from "../ui/Line"
 import { OptionList, type Option } from "../ui/Lists"
+import { Asleep } from "../ui/Mascot"
 import { MOTION, useTween } from "../ui/Motion"
 import { TOP_ROWS, useDash } from "./state"
 import type { NotesView } from "./types"
@@ -117,9 +118,11 @@ function Notes() {
         onDelete={del}
         aside={(it, lines) => <Cross id={it.id} lines={lines} onPress={() => del(it.id)} />}
         empty={
-          <text fg={DASH.muted} wrapMode="word">
-            {notes?.empty ?? ""}
-          </text>
+          <Asleep>
+            <text fg={DASH.muted} wrapMode="word">
+              {notes?.empty ?? ""}
+            </text>
+          </Asleep>
         }
       />
     </box>

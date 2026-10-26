@@ -10,6 +10,10 @@ my-studio/
 # Your other channels: a folder each, laid out like this one (studio/profiles.py)
 profiles/
 
+# Factory reset's backups, and a reset or uninstall the window asked for (studio/reset.py)
+backups/
+.reelforge-pending.json
+
 # Your videos and their builds (episodes/ and completed videos/ keep only their placeholders)
 episodes/*
 !episodes/.gitkeep

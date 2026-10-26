@@ -11,7 +11,7 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | Type this | and you get |
 |---|---|
 | `reelforge` | the Overview |
-| `reelforge 1` … `reelforge 6` | straight to a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates |
+| `reelforge 1` … `reelforge 7` | straight to a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates, 7 Settings |
 | `reelforge videos`, `reelforge publish`, … | the same, by the tab's name (`post` and `upload` work for Publish, `login` for Accounts) |
 | `reelforge notifications` | the Overview with the notifications drawer open |
 | `reelforge -p "Channel name"` | ReelForge on one of your profiles (its number in the list, or the start of its name, works too) |
@@ -21,7 +21,7 @@ ReelForge shows only the platforms you've connected: first-time setup connects t
 **Accounts (5)** connects (or disconnects) any of them later. TikTok and YouTube stats start straight away; Instagram
 and X need **Log in** once (see below). With nothing connected yet, ReelForge opens on Accounts. It looks best in
 Windows Terminal with the window maximised.
-Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**6** switch tabs, **r** / **R**
+Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**7** switch tabs, **r** / **R**
 refresh / force a refresh, **p** opens the profile menu, **Tab** moves between buttons, lists and fields (**Enter**
 presses, the arrows move through a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q**
 quits.
@@ -64,7 +64,7 @@ On Windows, ReelForge also adds itself to Windows Terminal: opened from the desk
 tab is called ReelForge and shows the anvil, and **ReelForge** is in Terminal's **+** menu. Terminal picks this up the
 next time it starts. A tab you type `reelforge` into is called ReelForge too, but keeps that tab's own icon.
 
-## The six tabs
+## The seven tabs
 
 | Tab | What's on it |
 |---|---|
@@ -74,6 +74,7 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
 | **5 Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it, in a private window of your browser once you have more than one profile) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
 | **6 Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
+| **7 Settings** | This channel's answers from first-time setup (**Change your answers**), how hard your AI reasons (**Max**, **High**, **Fast**), and what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button. At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
 3× is a hit. **Engagement** = (likes + comments + shares) ÷ views. **Share rate** = shares ÷ views, the strongest
