@@ -2131,11 +2131,9 @@ class Dashboard(SettingsTab, Service):
                              "tells you, and this tab updates ReelForge in one click." + (f"\n\n{own}" if own else ""))
         else:
             view["notes"] = "ReelForge checks for a new version every few hours while it's open."
-        kind = "installer" if self.demo and self.screenshots else kit_update.install_kind() if kit_update else ""
+        kind = "zip" if self.demo and self.screenshots else kit_update.install_kind() if kit_update else ""
         how = {
-            "installer": "Installed with the Windows installer: an update runs the new installer quietly into this "
-                         "folder.",
-            "zip": "Installed from a download: an update copies the new version's files over this folder.",
+            "zip": "An update downloads the new version and copies its files over this folder.",
             "git": "A git copy: an update runs git pull.",
         }.get(kind, "")
         if how:

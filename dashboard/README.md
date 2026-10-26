@@ -127,8 +127,8 @@ checks too, so the bell tells you). **Update and restart** downloads it, puts it
 ![The Updates tab](docs/updates.png)
 
 
-- installed with the Windows installer: the new installer runs quietly into the same folder;
-- installed from a download (zip): the new files are copied over the old ones;
+- installed with the install line (or from a download, or with the old Windows installer): the new version's files
+  are copied over the old ones;
 - a git copy: `git pull` (only when you haven't changed files yourself).
 
 Your channel (`my-studio/`), videos (`episodes/`, `completed videos/`), stats, logins, settings and downloaded tools
@@ -214,7 +214,7 @@ upload it).
 | Instagram "wants to check it's you" | Press **Log in again** and follow Instagram's steps in the window that opens. |
 | A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
 | A post is grouped with the wrong video | Videos tab: highlight it and press **Fix episode**. ReelForge keeps your choice. |
-| An update didn't finish | The message on the Updates tab says why; the version you have keeps working. Try again, or download the new version from the releases page. |
+| An update didn't finish | The message on the Updates tab says why; the version you have keeps working. Try again. |
 | `config.toml has a typo` | Fix the line it names, or delete `dashboard/config.toml` and run `reelforge channel`. |
 
 ## Files

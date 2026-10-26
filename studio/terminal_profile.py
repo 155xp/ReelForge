@@ -11,8 +11,7 @@ menu or a double-click), so Terminal matches those windows to the profile and th
 reelforge into keeps its own icon: Terminal gives programs no way to change it.
 
 ReelForge checks the fragment each time it opens and rewrites it when something in it is out of date (a moved folder,
-a new icon); Terminal reads it the next time it starts. A test copy, or STUDIO_DRY_SYSTEM=1, leaves it alone; the
-Windows installer's uninstaller deletes it.
+a new icon); Terminal reads it the next time it starts. A test copy, or STUDIO_DRY_SYSTEM=1, leaves it alone.
 """
 
 from __future__ import annotations

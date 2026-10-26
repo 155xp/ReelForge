@@ -1,5 +1,7 @@
 # Builds the downloads for a release and publishes it when a version tag (v1.2.3) is pushed.
 # Run it by hand (Actions tab, Run workflow) to build the downloads without publishing anything.
+# ReelForge has no installer: the one-line installs (scripts/install.ps1 and install.sh, attached to every release)
+# fetch these downloads, and so does the Updates tab.
 name: Release
 
 on:
@@ -32,86 +34,10 @@ jobs:
             dist/*.zip
             dist/*.tar.gz
 
-  installer:
-    name: Windows installer
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Stage the files
-        shell: pwsh
-        run: |
-          $v = if ("$env:GITHUB_REF" -like "refs/tags/v*") { "$env:GITHUB_REF_NAME".TrimStart("v") } else { python scripts/package.py --print-version }
-          python scripts/package.py --stage-only --out dist --version $v
-          "VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Install Inno Setup
-        run: choco install innosetup -y --no-progress
-      # Code signing turns on once the repository has the ARTIFACT_SIGNING_* variables and AZURE_* secrets
-      # (.github/SIGNING.md). Until then the signing steps are skipped and the installer is built unsigned.
-      - uses: actions/setup-dotnet@v4
-        if: vars.ARTIFACT_SIGNING_ACCOUNT != ''
-        with:
-          dotnet-version: "8.0.x"
-      - name: Get the code-signing tools
-        if: vars.ARTIFACT_SIGNING_ACCOUNT != ''
-        shell: pwsh
-        env:
-          ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
-          ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
-          PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
-        run: |
-          $tools = Join-Path $env:RUNNER_TEMP "signing"
-          New-Item -ItemType Directory -Force -Path $tools | Out-Null
-          foreach ($pkg in "Microsoft.Windows.SDK.BuildTools/10.0.26100.9169", "Microsoft.ArtifactSigning.Client/1.0.146") {
-            $name = $pkg.Split("/")[0]
-            Invoke-WebRequest "https://www.nuget.org/api/v2/package/$pkg" -OutFile "$tools\$name.zip"
-            Expand-Archive "$tools\$name.zip" "$tools\$name"
-          }
-          $signtool = (Get-ChildItem "$tools\Microsoft.Windows.SDK.BuildTools" -Recurse -Filter signtool.exe | Where-Object { $_.Directory.Name -eq "x64" })[0].FullName
-          $dlib = (Get-ChildItem "$tools\Microsoft.ArtifactSigning.Client" -Recurse -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.Directory.Name -eq "x64" })[0].FullName
-          # Sign in with the AZURE_* secrets straight away instead of trying every other way first
-          @{
-            Endpoint = $env:ENDPOINT; CodeSigningAccountName = $env:ACCOUNT; CertificateProfileName = $env:PROFILE
-            ExcludeCredentials = @("ManagedIdentityCredential", "WorkloadIdentityCredential", "SharedTokenCacheCredential",
-              "VisualStudioCredential", "VisualStudioCodeCredential", "AzureCliCredential", "AzurePowerShellCredential",
-              "AzureDeveloperCliCredential", "InteractiveBrowserCredential")
-          } | ConvertTo-Json | Set-Content -Path "$tools\metadata.json" -Encoding utf8
-          # Inno Setup runs this for every file it signs, with $f replaced by the file's quoted path and $q by a quote
-          $command = '$q{0}$q sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $q{1}$q /dmdf $q{2}$q $f' -f $signtool, $dlib, "$tools\metadata.json"
-          "SIGN_COMMAND=$command" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-      - name: Build the installer
-        shell: pwsh
-        env:
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if ($env:SIGN_COMMAND) {
-            & $iscc "/DMyAppVersion=$env:VERSION" /DSign "/Sreelforge=$env:SIGN_COMMAND" scripts\installer.iss
-          } else {
-            & $iscc "/DMyAppVersion=$env:VERSION" scripts\installer.iss
-          }
-      - name: Check the signature
-        if: vars.ARTIFACT_SIGNING_ACCOUNT != ''
-        shell: pwsh
-        run: |
-          foreach ($exe in Get-ChildItem dist\*.exe) {
-            $sig = Get-AuthenticodeSignature -LiteralPath $exe.FullName
-            "$($exe.Name): $($sig.Status), signed by $($sig.SignerCertificate.Subject)"
-            if ($sig.Status -ne "Valid") { throw "$($exe.Name) isn't signed properly: $($sig.StatusMessage)" }
-          }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installer
-          path: dist/*.exe
-
   release:
     name: Publish the release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [packages, installer]
+    needs: [packages]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -122,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Checksums (the Updates tab checks downloads against them)
+      - name: Checksums (the install lines and the Updates tab check downloads against them)
         run: python scripts/package.py --sums-only --out dist
       - name: Create the GitHub release with the downloads
         env:

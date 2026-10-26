@@ -2,12 +2,13 @@
 
   python -m studio.update             is there a newer version?
   python -m studio.update --apply     download it and install it into this folder
+  python -m studio.update --into DIR  put this copy's version in place in DIR, an older ReelForge, the way an update
+                                      does (the install line runs it for a copy the old Windows installer made)
 
 How the new version goes in depends on how this copy got here:
-  installer  the Windows installer put it here (unins000.exe is in this folder): the new installer runs quietly
-             into the same folder
   git        a git clone: git pull (only when you haven't changed the kit's own files yourself)
-  zip        anything else: the new version's download is unpacked and copied over this folder
+  zip        anything else (the install line, a download, the old Windows installer): the new version's download is
+             unpacked and copied over this folder
 
 Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the window's
 packages (ui/node_modules: the update installs what the new version's window needs), the downloaded sounds, the
@@ -75,9 +76,8 @@ def is_newer(candidate: str, than: str = KIT_VERSION) -> bool:
 
 
 def install_kind(root: Path = ROOT) -> str:
-    """'installer', 'git' or 'zip': how this copy got here, which decides how it's updated."""
-    if (root / "unins000.exe").exists():
-        return "installer"
+    """'git' or 'zip': how this copy got here, which decides how it's updated. A copy the old Windows installer made
+    (unins000.exe in it) updates the zip way: ReelForge has no installer now."""
     if (root / ".git").exists():
         return "git"
     return "zip"
@@ -138,9 +138,7 @@ def release_from(info: dict) -> Release:
                    assets={k: (v[0], int(v[1])) for k, v in (info.get("assets") or {}).items()})
 
 
-def asset_name(version: str, kind: str, platform: str = sys.platform) -> str:
-    if kind == "installer":
-        return f"ReelForge-{version}-Windows-Setup.exe"
+def asset_name(version: str, *, platform: str = sys.platform) -> str:
     if platform == "win32":
         return f"ReelForge-{version}-Windows.zip"
     if platform == "darwin":
@@ -161,7 +159,7 @@ def apply(rel: Release, progress: Progress | None = None, log: Callable[[str], N
     if kind == "git":
         _git_pull(root, progress)
     else:
-        name = asset_name(rel.version, kind)
+        name = asset_name(rel.version)
         if name not in rel.assets:
             raise UpdateError(f"The {rel.version} release has no {name} to download. Get it from {rel.url}")
         work = Path(tempfile.mkdtemp(prefix="reelforge-update-"))
@@ -169,13 +167,26 @@ def apply(rel: Release, progress: Progress | None = None, log: Callable[[str], N
             url, size = rel.assets[name]
             path = _download(url, work / name, size, progress)
             _verify(rel, name, path, progress)
-            if kind == "installer":
-                _run_installer(path, root, work, progress)
-            else:
-                _copy_release(path, root, work, progress)
+            _copy_release(path, root, work, progress)
         finally:
             shutil.rmtree(work, ignore_errors=True)
     new = read_version(root) or rel.version
+    _after(root, before, progress, log)
+    _write_marker(root, old, new)
+    return f"Updated ReelForge from {old} to {new}."
+
+
+def move_in(root: Path, progress: Progress | None = None, log: Callable[[str], None] = print) -> str:
+    """Put this copy's version in place in root, an older ReelForge, the way an update does: this copy (ROOT) is a
+    download the install line has just unpacked. The install line runs it for a copy the old Windows installer made,
+    whose Updates tab only knows how to run a newer installer, and ReelForge has none now. Raises UpdateError."""
+    progress = progress or (lambda what, done, total: None)
+    if not (root / "studio" / "__init__.py").exists():
+        raise UpdateError(f"There's no ReelForge in {root}; nothing was changed.")
+    before = _hash(root / "requirements.txt")
+    old = read_version(root)
+    _copy_tree(ROOT, root, progress)
+    new = read_version(root) or KIT_VERSION
     _after(root, before, progress, log)
     _write_marker(root, old, new)
     return f"Updated ReelForge from {old} to {new}."
@@ -234,21 +245,6 @@ def _verify(rel: Release, name: str, path: Path, progress: Progress) -> None:
                           "try again.")
 
 
-def _run_installer(exe: Path, root: Path, work: Path, progress: Progress) -> None:
-    progress("Installing", 0, 0)
-    log = work / "installer.log"
-    args = [str(exe), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/CLOSEAPPLICATIONS",
-            "/NORESTARTAPPLICATIONS", f"/DIR={root}", f"/LOG={log}"]
-    try:
-        code = subprocess.run(args, timeout=1800).returncode
-    except (OSError, subprocess.SubprocessError) as e:
-        raise UpdateError(f"The installer didn't run ({e}). Download it from {RELEASES} and run it.") from e
-    if code != 0:
-        tail = log.read_text("utf-8", "replace").strip().splitlines()[-1:] if log.exists() else []
-        raise UpdateError(f"The installer stopped (code {code}{': ' + tail[0] if tail else ''}). "
-                          f"Download it from {RELEASES} and run it.")
-
-
 def kept(rel: str) -> bool:
     """Whether a path (relative to the kit folder, with forward slashes) is the person's own and stays as it is."""
     return any(rel == k.rstrip("/") or rel.startswith(k) for k in KEEP)
@@ -279,7 +275,11 @@ def _copy_release(archive: Path, root: Path, work: Path, progress: Progress) -> 
     except (zipfile.BadZipFile, tarfile.TarError, OSError) as e:
         raise UpdateError(f"The download couldn't be unpacked ({e}); try again.") from e
     tops = [p for p in out.iterdir() if p.is_dir()]
-    src = tops[0] if len(tops) == 1 and not any(p.is_file() for p in out.iterdir()) else out
+    _copy_tree(tops[0] if len(tops) == 1 and not any(p.is_file() for p in out.iterdir()) else out, root, progress)
+
+
+def _copy_tree(src: Path, root: Path, progress: Progress) -> None:
+    """Copy a new version's files (src) over the copy in root, leaving everything that's the person's own alone."""
     if not (src / "studio" / "__init__.py").exists():
         raise UpdateError("The download doesn't look like ReelForge; nothing was changed.")
     files = [p for p in src.rglob("*") if p.is_file()]
@@ -392,6 +392,8 @@ def take_marker(root: Path = ROOT) -> dict | None:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if "--into" in argv:
+        return _move_in_main(argv[argv.index("--into") + 1:][:1])
     info = check()
     if info["error"]:
         print(info["error"])
@@ -403,17 +405,30 @@ def main(argv: list[str] | None = None) -> int:
     if "--apply" not in argv:
         print("Run: python -m studio.update --apply   (or press Update and restart on the Updates tab, 6)")
         return 0
-
-    def show(what: str, done: int, total: int) -> None:
-        pct = f" {100 * done / total:5.1f}%" if total else ""
-        print(f"\r  {what}{pct}   ", end="", flush=True)
-
     try:
-        print(apply(release_from(info), show))
+        print(apply(release_from(info), _show))
     except UpdateError as e:
         print(f"\nThe update didn't finish: {e}")
         return 1
     print("Start ReelForge again to use it.")
+    return 0
+
+
+def _show(what: str, done: int, total: int) -> None:
+    pct = f" {100 * done / total:5.1f}%" if total else ""
+    print(f"\r  {what}{pct}   ", end="", flush=True)
+
+
+def _move_in_main(where: list[str]) -> int:
+    if not where:
+        print("Say which folder: python -m studio.update --into DIR")
+        return 2
+    try:
+        summary = move_in(Path(where[0]), _show)
+    except UpdateError as e:
+        print(f"\nThe update didn't finish: {e}")
+        return 1
+    print(f"\n{summary}")
     return 0
 
 

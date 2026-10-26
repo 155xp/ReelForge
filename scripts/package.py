@@ -1,11 +1,10 @@
 """Build the per-OS downloads for a release (GitHub Actions runs this on every version tag).
 
   python scripts/package.py                  dist/ReelForge-<v>-Windows.zip, -macOS.zip, -Linux.tar.gz
-  python scripts/package.py --stage-only     dist/stage/ReelForge/ only (what the Windows installer packs)
-  python scripts/package.py --print-version
 
 Every package holds the files git tracks, inside a ReelForge-<v>/ folder, plus that system's double-click
 launchers and a START-HERE.txt. Executable bits are set for the shell scripts so macOS and Linux can run them.
+They're what the one-line installs (scripts/install.ps1, install.sh) and the Updates tab download.
 
 It won't build while the README's screenshots are older than ReelForge's look (scripts/shot_sources.py): retake them
 all with scripts/screenshots.py and commit them first. --allow-old-screenshots builds anyway, for a local test.
@@ -17,7 +16,6 @@ import argparse
 import hashlib
 import io
 import re
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -35,9 +33,9 @@ SKIP = (".github/", "docs/demos/", "assets/mascot/")
 START = {
     "windows": """ReelForge {v} for Windows
 
-1. Double-click setup.bat. It lists what ReelForge still needs (Python packages, Blender, ffmpeg, the sound
-   effects, the reelforge command), sets it all up in this folder once you say yes, then starts a short interview
-   about your channel. If Windows says "Windows protected your PC", click More info, then Run anyway.
+1. Setup. The install line starts it for you; to run it again, double-click setup.bat. It lists what ReelForge
+   still needs (Python packages, Blender, ffmpeg, the sound effects, the reelforge command), sets it all up in this
+   folder once you say yes, then starts a short interview about your channel.
 2. Open this folder in Claude Code (the Claude desktop app's Code tab, then Open folder...) or run codex here,
    and say: "make my first video".
 3. Open ReelForge (double-click ReelForge.bat, or type reelforge in a terminal) and go to Publish (tab 4) to post
@@ -47,24 +45,23 @@ Keep this folder somewhere with a short path, e.g. C:\\Users\\<you>\\ReelForge. 
 """,
     "macos": """ReelForge {v} for macOS (Apple Silicon or Intel, macOS 12 or newer)
 
-1. Double-click "Set up ReelForge.command". If macOS says it can't check the file for malware, open System
-   Settings > Privacy & Security, scroll down and click Open Anyway (on macOS 14 and older, right-click the file
-   and choose Open instead). Or open Terminal in this folder and run ./setup.sh. Setup lists what ReelForge still
-   needs (Python if you haven't got it, Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in
-   your Applications folder), puts it all in this folder once you say yes, then starts a short interview about
-   your channel.
+1. Setup. The install line starts it for you; to run it again, run ./setup.sh in Terminal in this folder (or
+   double-click "Set up ReelForge.command"). It lists what ReelForge still needs (Python if you haven't got it,
+   Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in your Applications folder), puts it all
+   in this folder once you say yes, then starts a short interview about your channel.
 2. Open this folder in Claude Code (the Claude desktop app's Code tab, then Open folder...) or run codex here,
    and say: "make my first video".
 3. Open ReelForge (from Applications, Launchpad or Spotlight, or type reelforge in Terminal) and go to Publish
    (tab 4) to post it.
 
-Next time skip the warning: the one-line install (README.md) downloads straight from GitHub. Full guide: README.md
+Full guide: README.md
 """,
     "linux": """ReelForge {v} for Linux (x64, or ARM with your own Blender)
 
-1. In a terminal in this folder: ./setup.sh   It lists what ReelForge still needs (Python if you haven't got a
-   recent one, Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in your app menu), puts it
-   all in this folder once you say yes, then starts a short interview about your channel.
+1. Setup. The install line starts it for you; to run it again, run ./setup.sh in a terminal in this folder. It
+   lists what ReelForge still needs (Python if you haven't got a recent one, Blender, ffmpeg, the sound effects, the
+   reelforge command and ReelForge in your app menu), puts it all in this folder once you say yes, then starts a
+   short interview about your channel.
 2. Run claude or codex in this folder and say: "make my first video".
 3. Open ReelForge (from your app menu, or type reelforge) and go to Publish (tab 4) to post it.
 
@@ -142,30 +139,14 @@ def build_tar(dest: Path, top: str, files: list[str], extra: dict[str, tuple[byt
             t.addfile(ti, io.BytesIO(data))
 
 
-def stage(dest: Path, files: list[str], extra: dict[str, tuple[bytes, bool]]) -> None:
-    if dest.exists():
-        shutil.rmtree(dest)
-    for f in files:
-        target = dest / f
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / f, target)
-    for name, (data, _exe) in extra.items():
-        (dest / name).write_bytes(data)
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=ROOT / "dist")
     ap.add_argument("--version", default="")
-    ap.add_argument("--stage-only", action="store_true")
-    ap.add_argument("--print-version", action="store_true")
     ap.add_argument("--sums-only", action="store_true", help="just (re)write dist/SHA256SUMS.txt")
     ap.add_argument("--allow-old-screenshots", action="store_true", help="build even if the screenshots are out of date")
     args = ap.parse_args()
     v = (args.version or version()).lstrip("v")
-    if args.print_version:
-        print(v)
-        return 0
     if args.sums_only:
         write_sums(args.out)
         return 0
@@ -183,10 +164,6 @@ def main() -> int:
         return 1
     files = tracked()
     args.out.mkdir(parents=True, exist_ok=True)
-    stage(args.out / "stage" / "ReelForge", files, extras("windows", v))
-    print(f"staged {len(files)} files in {args.out / 'stage' / 'ReelForge'}")
-    if args.stage_only:
-        return 0
     top = f"ReelForge-{v}"
     built = []
     for os_name, name, fn in (("windows", f"{top}-Windows.zip", build_zip), ("macos", f"{top}-macOS.zip", build_zip),
@@ -200,10 +177,11 @@ def main() -> int:
 
 
 def write_sums(out: Path) -> None:
-    """SHA256SUMS.txt for every download in dist/ (the Updates tab checks a download against it)."""
+    """SHA256SUMS.txt for every download in dist/ (the install lines and the Updates tab check a download against
+    it)."""
     lines = []
     for f in sorted(out.iterdir()):
-        if f.is_file() and f.name.startswith("ReelForge-") and f.suffix in (".zip", ".gz", ".exe"):
+        if f.is_file() and f.name.startswith("ReelForge-") and f.suffix in (".zip", ".gz"):
             lines.append(f"{hashlib.sha256(f.read_bytes()).hexdigest()}  {f.name}")
     (out / "SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote SHA256SUMS.txt ({len(lines)} files)")
