@@ -6,6 +6,9 @@ import type { Bridge } from "../bridge"
 import type { Action } from "../lib/styled"
 import type { Init, ProfilesMenu } from "./types"
 
+/** Rows above a tab's own: the header (3) and the hairline under it. */
+export const TOP_ROWS = 4
+
 export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates"] as const
 export type Tab = (typeof TABS)[number]
 export const TAB_NAMES: Record<Tab, string> = {

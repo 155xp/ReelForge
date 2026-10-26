@@ -1,6 +1,6 @@
-// The Overview's cards and titles never cut anything off, the bell and a notification's × are block art in one
-// colour per cell, and release notes' Markdown reads as clean lists (src/dashboard/cards.ts, src/lib/fit.ts,
-// src/ui/Graphics.tsx, src/ui/Panels.tsx).
+// The Overview's cards and titles never cut anything off; the big numbers, sparklines and the bell are block art in one
+// colour per cell; release notes' Markdown reads as clean lists; the Python side's colours come out in the window's
+// palette (src/dashboard/cards.ts, src/lib/fit.ts, src/ui/Graphics.tsx, src/ui/Panels.tsx, src/theme.ts).
 
 import { describe, expect, test } from "bun:test"
 import { cardLines, wrapLines } from "../src/dashboard/cards"
@@ -9,8 +9,8 @@ import type { MetricView, Variant } from "../src/dashboard/types"
 import { fit } from "../src/lib/fit"
 import { fmtNum, shortNum } from "../src/lib/format"
 import { plain, segsLen, type Parts } from "../src/lib/styled"
-import { BELL } from "../src/theme"
-import { bell, cross, X_WIDTH } from "../src/ui/Graphics"
+import { PLATFORM, restyle, tone } from "../src/theme"
+import { bell, BELL_WIDTH, faceCells, faceWidth, sparkline, stackedSparkline } from "../src/ui/Graphics"
 import { inline, mdBlocks } from "../src/ui/Panels"
 
 const VALUES = { followers: 12_900, views: 1_234_567, likes: 98_765 }
@@ -130,25 +130,50 @@ describe("release notes' Markdown", () => {
 })
 
 describe("block art", () => {
-  test("the bell is three rows of blocks, with its red dot only while something is unread", () => {
+  test("the bell is three rows of blocks in one colour", () => {
     for (const quads of [true, false]) {
-      for (const unread of [false, true]) {
-        const rows = bell(unread, quads, "#ff4d5e")
-        expect(rows.length).toBe(3)
-        expect(new Set(rows.map((r) => r.length))).toEqual(new Set([8]))
-        const colours = new Set(rows.flat().filter((c) => c.ch !== " ").map((c) => c.fg))
-        expect(colours).toEqual(new Set(unread ? [BELL, "#ff4d5e"] : [BELL]))
-      }
+      const rows = bell(quads, "#e8eaed")
+      expect(rows.length).toBe(3)
+      expect(new Set(rows.map((r) => r.length))).toEqual(new Set([BELL_WIDTH]))
+      expect(new Set(rows.flat().filter((c) => c.ch !== " ").map((c) => c.fg))).toEqual(new Set(["#e8eaed"]))
     }
   })
 
-  test("a notification's × is three rows, or four (half a row lower) beside an even number of lines", () => {
-    for (const quads of [true, false]) {
-      for (let lines = 1; lines <= 6; lines++) {
-        const rows = cross(lines, quads, "#6e7681")
-        expect(rows.length).toBe(lines % 2 === 0 && lines > 2 ? 4 : 3)
-        expect(Math.max(...rows.map((r) => r.length))).toBe(X_WIDTH)
-      }
+  test("the big numbers: every character a tile shows has a shape, three rows tall, a column between characters", () => {
+    for (const text of ["17.3K", "2.27K", "285", "2.66M", "1.2B", "0"]) {
+      const rows = faceCells(text, ["#ffffff", "#888888"])
+      expect(rows.length).toBe(3)
+      expect(Math.max(...rows.map((r) => r.length))).toBe(faceWidth(text))
     }
+    expect(faceWidth("17.3K")).toBe(17) // 3 + 1 + 3 + 1 + 1 + 1 + 3 + 1 + 3
+    expect(faceWidth("1.2x")).toBe(Infinity) // a character it has no shape for: not drawn in the face at all
+    const shades = faceCells("8", ["#ffffff", "#000000"]).map((r) => r.find((c) => c.fg)?.fg)
+    expect(shades[0]).toBe("#ffffff") // white at the top, darker down the number
+    expect(shades[2]).not.toBe("#ffffff")
+  })
+
+  test("sparklines keep to their size, eighths of a row, and grow in from nothing", () => {
+    const data = [0, 1, 4, 9, 16, 25, 36, 49]
+    const full = sparkline(data, 8, 2, "#25f4ee", "#12151a")
+    expect(full.length).toBe(2)
+    expect(full.every((r) => r.length === 8)).toBe(true)
+    expect(full[0]![7]!.ch).toBe("█") // the newest, tallest reading fills its column
+    const none = sparkline(data, 8, 2, "#25f4ee", "#12151a", 0)
+    expect(none.flat().every((c) => c.ch === " " || c.ch === "▁")).toBe(true)
+    const stacked = stackedSparkline([{ color: "#ff0000", values: [1, 2] }, { color: "#0000ff", values: [1, 2] }], 2, 2, "#000000")
+    expect(stacked[0]![1]!.ch).toBe("█") // the tallest column reaches the top
+    expect(stacked[1]![0]!.ch).toBe("▄") // two platforms in one cell: the lower as eighths on the upper's colour
+    expect(stacked[1]![0]!.bg).not.toBeNull()
+  })
+})
+
+describe("the palette", () => {
+  test("the Python side's colours, in styles and on their own, come out in the window's", () => {
+    expect(tone("#ff4040")).toBe(PLATFORM.youtube!) // YouTube's red
+    expect(tone("bold #3dff9a on #1f5c45")).not.toContain("#3dff9a")
+    expect(tone("#25f4ee")).toBe("#25f4ee") // TikTok's stays
+    const msg = JSON.parse('{"d": {"color": "#FF4040", "caption": "#fyp #ff4040ish #facade"}}', restyle)
+    expect(msg.d.color).toBe(PLATFORM.youtube!)
+    expect(msg.d.caption).toBe("#fyp #ff4040ish #facade") // a hashtag is never a colour
   })
 })

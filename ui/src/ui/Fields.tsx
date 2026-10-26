@@ -30,7 +30,7 @@ export function TextField(
   useEffect(() => {
     if (input.current && input.current.value !== p.value) input.current.value = p.value
   }, [p.value])
-  const bg = focused ? theme.inputFocus : theme.input
+  const bg = p.bad && theme.buttons === "row" ? mix(theme.input, theme.bad, 0.07) : focused ? theme.inputFocus : theme.input
   return (
     <box
       ref={ref}
@@ -40,9 +40,9 @@ export function TextField(
       flexShrink={0}
       flexDirection="row"
       backgroundColor={bg}
-      border={p.bad ? true : ["left"]}
+      border={theme.buttons === "tall" && p.bad ? true : ["left"]}
       borderStyle="heavy"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : bg}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : bg}
       paddingLeft={1}
       paddingRight={1}
       alignItems="center"
@@ -78,16 +78,16 @@ export function TextBox(
   useEffect(() => {
     if (area.current && area.current.plainText !== p.value) area.current.setText(p.value)
   }, [p.value])
-  const bg = focused ? theme.inputFocus : theme.input
+  const bg = p.bad && theme.buttons === "row" ? mix(theme.input, theme.bad, 0.07) : focused ? theme.inputFocus : theme.input
   return (
     <box
       ref={ref}
       height={p.height ?? 5}
       flexShrink={0}
       backgroundColor={bg}
-      border={p.bad ? true : ["left"]}
+      border={theme.buttons === "tall" && p.bad ? true : ["left"]}
       borderStyle="heavy"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : bg}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : bg}
       paddingLeft={1}
       paddingRight={1}
       paddingTop={1}
@@ -140,7 +140,7 @@ export function RadioSet(
       flexShrink={0}
       border
       borderStyle="single"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : theme.input}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : theme.input}
       backgroundColor={theme.input}
       paddingLeft={1}
       paddingRight={1}
@@ -203,7 +203,7 @@ export function CheckList(
       flexShrink={0}
       border
       borderStyle="single"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : theme.input}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : theme.input}
       backgroundColor={theme.input}
       paddingLeft={1}
       paddingRight={1}

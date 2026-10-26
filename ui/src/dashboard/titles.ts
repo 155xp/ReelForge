@@ -3,11 +3,12 @@
 import { MARK, type Series } from "../lib/chart"
 import { fmtAge, fmtDelta, fmtNum, interp } from "../lib/format"
 import type { Parts, Segs } from "../lib/styled"
+import { DASH } from "../theme"
 import type { MetricView, Variant } from "./types"
 
-const MUTED = "#8b93a1"
-const GOOD = "#3dff9a"
-const BAD = "#ff4d5e"
+const MUTED = DASH.muted
+const GOOD = DASH.good
+const BAD = DASH.bad
 const SHORT: Record<string, string> = { tiktok: "TT", youtube: "YT", instagram: "IG", x: "X" }
 
 /** The bucket size a chart `columns` wide draws (trends.frame_fit): the finest whose bars each get two columns and a

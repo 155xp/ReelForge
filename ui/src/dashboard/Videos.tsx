@@ -10,6 +10,7 @@ import { Chart } from "../ui/Chart"
 import { BadgeLine, Fitted } from "../ui/Line"
 import { DASH } from "../theme"
 import { Table } from "../ui/Lists"
+import { Panel } from "../ui/Panels"
 import { useDash } from "./state"
 import { hoursTitle } from "./titles"
 import type { DetailView, TableView } from "./types"
@@ -29,19 +30,21 @@ export function Videos() {
     s.bridge.send("video_highlighted", key)
   }
   return (
-    <box flexDirection="column" flexGrow={1}>
-      <box height={1} marginTop={1} flexShrink={0}>
-        <Fitted parts={videos?.hint} />
-      </box>
-      <Table
-        id="videos-table"
-        data={videos}
-        selected={s.video}
-        zebra
-        onSelect={select}
-        onActivate={(key) => s.bridge.send("open_row", key)}
-        onSort={(col) => s.bridge.send("sort_videos", col)}
-      />
+    <box flexDirection="column" flexGrow={1} marginTop={1} gap={1}>
+      <Panel flexGrow={1} minHeight={8}>
+        <box height={1} marginBottom={1} flexShrink={0}>
+          <Fitted parts={videos?.hint} base={DASH.faint} />
+        </box>
+        <Table
+          id="videos-table"
+          data={videos}
+          selected={s.video}
+          zebra
+          onSelect={select}
+          onActivate={(key) => s.bridge.send("open_row", key)}
+          onSort={(col) => s.bridge.send("sort_videos", col)}
+        />
+      </Panel>
       {badges?.line?.length ? <BadgeLine parts={badges.line} how={s.init.badges_how} bg={DASH.surface} fg={DASH.muted} /> : null}
       <Detail />
     </box>
@@ -50,14 +53,16 @@ export function Videos() {
 
 const HEAD: Segs = [["VIEWS SINCE POSTING  ", "bold"]]
 
+/** The highlighted video's views hour by hour since it went up, the line drawing in from the left whenever another
+ * video is picked. */
 function Detail() {
   const s = useDash()
   const detail = useView<DetailView>(s.bridge, "detail")
   const series = detail?.series
   const span = detail?.span ?? 1
   const draw = useCallback(
-    (w: number, h: number, hover: number | null): Drawn =>
-      drawLines(series ?? [], span, w, h, (pw) => ageLabels(span, pw), [], hover, true),
+    (w: number, h: number, hover: number | null, grow: number): Drawn =>
+      drawLines(series ?? [], span, w, h, (pw) => ageLabels(span, pw), [], hover, true, true, true, { grow, fade: true }),
     [series, span],
   )
   return (
@@ -65,8 +70,9 @@ function Detail() {
       title={(hover) => (hover === null || !series ? (detail?.title ?? HEAD) : hoursTitle(HEAD, series, hover, true))}
       draw={series && !detail?.empty ? draw : null}
       empty={detail?.empty}
+      animate={detail?.key}
       height="40%"
-      minHeight={8}
+      minHeight={9}
     />
   )
 }

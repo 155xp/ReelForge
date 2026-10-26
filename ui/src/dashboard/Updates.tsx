@@ -20,9 +20,9 @@ export function Updates() {
   const status = step?.status && !u?.updating ? step.status : u?.status
   return (
     <box flexDirection="column" flexGrow={1}>
-      <Panel marginTop={1} flexShrink={0}>
+      <Panel marginTop={1} flexShrink={0} paddingBottom={1}>
         <Lines segs={status} />
-        <box flexDirection="row" height={3} marginTop={1} flexShrink={0}>
+        <box flexDirection="row" height={1} marginTop={2} flexShrink={0}>
           {u?.apply.show ? (
             <Button
               id="update-apply"
@@ -38,7 +38,7 @@ export function Updates() {
         </box>
         {progress ? (
           <box marginTop={1} flexShrink={0}>
-            <ProgressBar done={progress.done} total={progress.total} color={DASH.primary} track={DASH.border} width={60} tick={tick} />
+            <ProgressBar done={progress.done} total={progress.total} color={DASH.primary} stops={DASH.accent} track={DASH.border} width={60} tick={tick} />
           </box>
         ) : null}
         {step?.step ? (
@@ -48,7 +48,7 @@ export function Updates() {
         ) : null}
       </Panel>
       <Panel marginTop={1} flexGrow={1}>
-        <text fg={DASH.muted} attributes={TextAttributes.BOLD} flexShrink={0}>
+        <text fg={DASH.faint} attributes={TextAttributes.BOLD} flexShrink={0} marginBottom={1}>
           WHAT'S NEW
         </text>
         <Scroll flexGrow={1} scrollY>

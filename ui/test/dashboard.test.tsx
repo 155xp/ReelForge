@@ -2,6 +2,7 @@
 // keys, clicks on chips, headers, the bell and the drawer's notifications, and the dialogs. (What the Python side
 // does when they're pressed is tested in dashboard/tests/.)
 
+import { TextAttributes } from "@opentui/core"
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -9,6 +10,9 @@ import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
 import { clickText, find } from "../scripts/shots"
 import { ROOT } from "../src/bridge"
+import { DRAWER_WIDTH } from "../src/dashboard/Drawer"
+import { TILE_ROWS } from "../src/dashboard/Overview"
+import { TAB_NAMES, TOP_ROWS } from "../src/dashboard/state"
 import { DASH } from "../src/theme"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
@@ -29,11 +33,23 @@ afterEach(async () => {
 const frame = (h: Headless) => h.t.captureCharFrame()
 const rows = (h: Headless) => frame(h).split("\n")
 
-/** The tab that's lit (its label on the primary colour). */
+/** The tab that's open: its name bold in the header, where the others are plain. */
 function activeTab(h: Headless): string {
-  const line = h.t.captureSpans().lines[3]!
-  const lit = line.spans.find((s) => s.bg.toInts().slice(0, 3).join() === [0x3d, 0xff, 0x9a].join())
-  return lit?.text.trim().replace(/ ●$/, "") ?? ""
+  const names = Object.values(TAB_NAMES) as string[]
+  const lit = h.t.captureSpans().lines[1]!.spans.find((s) => s.attributes & TextAttributes.BOLD && names.includes(s.text.trim()))
+  return lit?.text.trim() ?? ""
+}
+
+const hex = (c: { toInts(): [number, number, number, number] }) => "#" + c.toInts().slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("")
+
+/** Row y as cells: each character with its background colour. */
+function cells(h: Headless, y: number): { ch: string; bg: string }[] {
+  const out: { ch: string; bg: string }[] = []
+  for (const s of h.t.captureSpans().lines[y]!.spans) {
+    const chars = [...s.text]
+    for (let i = 0; i < s.width; i++) out.push({ ch: chars[i] ?? " ", bg: hex(s.bg) })
+  }
+  return out
 }
 
 const KEYS: Record<string, "ESCAPE" | "RETURN" | "TAB" | "DELETE"> = { escape: "ESCAPE", return: "RETURN", tab: "TAB", delete: "DELETE" }
@@ -49,29 +65,28 @@ describe("the Overview fits", () => {
     [150, 45, true],
     [200, 52, true],
   ] as const) {
-    test(`at ${w}x${hh}${drawer ? " with the drawer open" : ""}: no card line runs into its border`, async () => {
+    test(`at ${w}x${hh}${drawer ? " with the drawer open" : ""}: every tile names its platform, and nothing spills out of one`, async () => {
       const h = await window("overview", [w, hh], drawer)
-      const all = rows(h)
-      const top = all.findIndex((r) => r.includes("╭─ All"))
-      expect(top).toBeGreaterThan(0)
-      expect([...all[top]!].filter((ch) => ch === "╭").length).toBe(5)
-      for (let y = top + 1; y < top + 7; y++) {
-        const line = all[y]!.slice(0, drawer ? w - 48 : w)
-        expect([...line].filter((ch) => ch === "│").length).toBe(10)
+      const top = TOP_ROWS + 1 // the header, its hairline, a row of space
+      const edge = drawer ? w - DRAWER_WIDTH - 2 : w // the drawer covers the right-hand tiles
+      // the tiles are the runs of the panels' colour along their first row, with the window's colour between them
+      const first = cells(h, top).slice(0, edge)
+      const gaps = first.map((c, x) => (c.bg === DASH.bg && x > 1 && x < edge - 1 && first[x - 1]!.bg === DASH.surface ? x : -1)).filter((x) => x >= 0)
+      expect(gaps.length).toBe(drawer ? gaps.length : 4) // five tiles side by side
+      for (let y = top; y < top + TILE_ROWS; y++) {
+        const row = cells(h, y)
+        for (const x of gaps) expect(row[x]).toEqual({ ch: " ", bg: DASH.bg })
       }
+      const names = rows(h).slice(top, top + 2).join("")
+      for (const name of [["All platforms", "All"], ["TikTok", "TT"], ["YouTube", "YT"]]) expect(name.some((n) => names.includes(n))).toBe(true)
     })
   }
 })
 
 describe("the header and the bell", () => {
-  test("the bell sits in the corner, off the grey bar, and opens and closes the drawer", async () => {
+  test("the bell sits in the top right corner with the unread count, and opens and closes the drawer", async () => {
     const h = await window("overview", [122, 30])
-    const spans = h.t.captureSpans().lines[1]!.spans
-    let x = 0
-    const cells: string[] = []
-    for (const s of spans) for (let i = 0; i < s.width; i++, x++) cells.push(s.bg.toInts().slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join(""))
-    const bar = cells.lastIndexOf(DASH.panel.slice(1))
-    expect(122 - 1 - 8 - bar).toBeGreaterThanOrEqual(4) // the window's dark background between the bar and the bell
+    expect(rows(h)[0]).toMatch(/\d▌\s*$/) // the unread count's pill, on the bell's shoulder
     expect(frame(h)).not.toContain("NOTIFICATIONS")
     await h.t.mockMouse.click(122 - 3, 1)
     await h.settle(400)
@@ -186,7 +201,7 @@ describe("the drawer", () => {
     const h = await window("overview", [180, 50], true)
     const before = noteTitles(h)
     const at = find(h, before[0]!.slice(0, 20))!
-    await h.t.mockMouse.click(180 - 6, at[1] + 1) // the middle of its ×
+    await h.t.mockMouse.click([...rows(h)[at[1]]!].lastIndexOf("✕"), at[1]) // its × (beside its title)
     await h.settle(500)
     expect(noteTitles(h)).toEqual(before.slice(1))
     expect(activeTab(h)).toBe("Overview")
@@ -218,7 +233,7 @@ describe("dialogs", () => {
     await clickText(h, " Remove ", 2)
     expect(frame(h)).toContain("REMOVE VIDEO")
     expect(frame(h)).toContain("demo_everyone_jumps.mp4")
-    await clickText(h, "  Cancel  ", 3)
+    await clickText(h, " Cancel ", 2)
     expect(frame(h)).not.toContain("REMOVE VIDEO")
     expect(frame(h)).toContain("demo_everyone_jumps.mp4")
   })
@@ -261,11 +276,12 @@ describe("profiles", () => {
     expect(frame(h)).not.toContain("ADVANCED SETTINGS")
   })
 
-  test("a window too narrow for the platforms' names beside the button shows TT YT IG X, and when it read them", async () => {
-    for (const [w, full] of [[122, false], [160, true]] as const) {
+  test("the status bar names each platform, or says TT YT IG X in a window too narrow for that, and when it read them", async () => {
+    for (const [w, full] of [[64, false], [122, true]] as const) {
       const h = await window("overview", [w, 30], false, { screenshots: true })
-      expect(rows(h)[1]).toContain(full ? "● TikTok" : "● TT  ● YT  ● IG  ● X")
-      expect(rows(h)[1]).toContain("updated")
+      const bar = rows(h)[29]!
+      expect(bar).toContain(full ? "● TikTok" : "● TT  ● YT  ● IG  ● X")
+      expect(bar).toContain("updated")
       await open?.close()
       open = null
     }

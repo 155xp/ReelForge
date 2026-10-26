@@ -31,7 +31,7 @@ export function Dialogs() {
 
 function Buttons({ children }: { children: React.ReactNode }) {
   return (
-    <box flexDirection="row" justifyContent="flex-end" height={3} marginTop={1} flexShrink={0} gap={1}>
+    <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
       {children}
     </box>
   )
@@ -44,15 +44,15 @@ function Help({ close }: { close: () => void }) {
       <Scroll maxHeight={30} flexShrink={1} scrollY>
         {s.init.help.map(([tab, text]) => (
           <box key={tab} flexDirection="column" marginBottom={1} flexShrink={0}>
-            <text fg={DASH.good} attributes={TextAttributes.BOLD}>
+            <text fg={DASH.text} attributes={TextAttributes.BOLD}>
               {tab}
             </text>
-            <text fg={DASH.text} wrapMode="word">
+            <text fg={DASH.muted} wrapMode="word">
               {text}
             </text>
           </box>
         ))}
-        <text fg={DASH.good} attributes={TextAttributes.BOLD} flexShrink={0}>
+        <text fg={DASH.text} attributes={TextAttributes.BOLD} flexShrink={0}>
           Keys
         </text>
         {s.init.keys.map(([key, what]) => (
@@ -249,7 +249,7 @@ function SignUp({ data, close }: { data: SignupData; close: () => void }) {
           </box>
         ))}
       </box>
-      <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
+      <box flexDirection="row" height={1} marginTop={1} marginLeft={4} flexShrink={0}>
         <Button id="su-open" label={data.button} variant="primary" autoFocus onPress={() => void open()} />
       </box>
       {opened ? (

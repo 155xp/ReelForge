@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { useSyncExternalStore } from "react"
+import { restyle } from "./theme"
 
 export const ROOT = process.env.REELFORGE_ROOT || resolve(dirname(import.meta.dir), "..")
 
@@ -101,7 +102,7 @@ export class Bridge {
   private receive(line: string) {
     let msg: any
     try {
-      msg = JSON.parse(line)
+      msg = JSON.parse(line, restyle) // every colour in it in the window's palette (theme.ts)
     } catch {
       return
     }

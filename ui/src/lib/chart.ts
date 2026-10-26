@@ -7,16 +7,30 @@
 // height lands within 1/8 of a row. Lines use thin box-drawing strokes; running totals can be drawn as a filled area
 // with a smooth top edge instead. The x axis is in "slots" (buckets of time, or hours since posting).
 
+import { DASH, MARK as MARK_COLOUR, mix } from "../theme"
 import { interp } from "./format"
 import { charWidth } from "./styled"
 
-export const BACKGROUND = "#0a0c0f"
-export const AXIS = "#4a515c"
-export const LABEL = "#8b93a1"
-export const GRID = "#1a1f27"
-export const HOVER = "#1a212b"
-export const MARK = "#ffcc33"
+export const BACKGROUND = DASH.surface // charts sit on a panel
+export const AXIS = DASH.border
+export const LABEL = DASH.faint
+export const GRID = mix(DASH.surface, DASH.border, 0.75)
+export const HOVER = mix(DASH.surface, "#ffffff", 0.045)
+export const MARK = MARK_COLOUR
 export const EIGHTHS = " ▁▂▃▄▅▆▇█"
+
+/** How bars are drawn beyond their numbers. */
+export interface BarStyle {
+  /** How far they've grown (0..1): the opening animation. The axes stay where the whole bars put them. */
+  grow?: number
+  /** Each bar a little darker at its foot, its true colour at the top of the chart. */
+  fade?: boolean
+}
+
+/** A bar's colour `k` rows up a plot `ph` rows tall, faded towards its foot. */
+export function fadeUp(color: string, k: number, ph: number): string {
+  return mix(BACKGROUND, color, 0.6 + 0.4 * Math.min(k / Math.max(ph - 1, 1), 1))
+}
 const LADDER = [1, 2, 2.5, 5]
 
 export interface Cell {
@@ -266,17 +280,15 @@ function cells(text: string, fg: string | null): Cell[] {
   return [...text].map((ch) => ({ ch, fg, bg: null }))
 }
 
-/** The y labels and axis, the drawn plot, then the x axis and its labels. */
+/** The y labels (no rule beside them: the gridlines carry the eye across), the drawn plot, then the x axis, a faint
+ * baseline with a tick under each label, and its labels. */
 function frame(canvas: Canvas, lay: Layout, xlabels: XLabels, xaxis: boolean): Cell[][] {
   const xl = typeof xlabels === "function" ? xlabels(lay.pw) : xlabels
   const labels = yLabels(lay)
   const rows: Cell[][] = []
   for (let r = 0; r < lay.ph; r++) {
     const label = labels.get(r)
-    const left =
-      label !== undefined
-        ? [...cells(label.padStart(lay.lw - 1) + " ", LABEL), ...cells("┤", AXIS)]
-        : cells(" ".repeat(lay.lw) + "│", AXIS)
+    const left = label !== undefined ? cells(label.padStart(lay.lw - 1) + "  ", LABEL) : cells(" ".repeat(lay.lw + 1), AXIS)
     rows.push([...left, ...canvas.row(r)])
   }
   if (xaxis) {
@@ -293,7 +305,7 @@ function frame(canvas: Canvas, lay: Layout, xlabels: XLabels, xaxis: boolean): C
         free = start + label.length + 2
       }
     }
-    rows.push(cells(" ".repeat(lay.lw) + "└" + axis.join(""), AXIS))
+    rows.push(cells(" ".repeat(lay.lw + 1) + axis.join(""), AXIS))
     rows.push(cells(" ".repeat(lay.lw + 1) + under.join("").slice(0, lay.pw), LABEL))
   }
   return rows
@@ -402,8 +414,10 @@ export function bars(
   marks: Mark[] = [],
   hovered: number | null = null,
   xaxis = true,
+  style: BarStyle = {},
 ): Drawn {
   xaxis = xaxis && h >= 5
+  const grow = Math.min(Math.max(style.grow ?? 1, 0), 1)
   const totals = Array.from({ length: slots }, (_, i) =>
     series.reduce((sum, s) => {
       const v = s.values?.[i]
@@ -432,10 +446,10 @@ export function bars(
       const v = s.values?.[i]
       if (!v || !Number.isFinite(v)) continue
       const faint = s.faint?.[i] ?? false
-      segments.push([top, top + lay.height(v) * 8, faint ? blend(s.color, 0.55) : s.color])
+      segments.push([top, top + lay.height(v) * 8 * grow, faint ? blend(s.color, 0.55) : s.color])
       top = segments[segments.length - 1]![1]
     }
-    stack(canvas, lay, cols, segments)
+    stack(canvas, lay, cols, segments, style.fade ?? false)
   }
   if (marks.length) marksOn(canvas, lay, marks)
   return { rows: frame(canvas, lay, xlabels, xaxis), lay }
@@ -445,7 +459,8 @@ export function bars(
  * platforms lands on a cell edge and a platform too thin to see joins its neighbour (its number is still in the hover
  * read-out); only the top cell keeps 1/8-row precision, as an eighth block. That top piece takes the colour of the cell
  * under it unless one platform fills at least half a row of it, so it's never a thin line of another colour. */
-function stack(canvas: Canvas, lay: Layout, cols: readonly [number, number], segments: [number, number, string][]) {
+function stack(canvas: Canvas, lay: Layout, cols: readonly [number, number], segments: [number, number, string][], fade = false) {
+  const tone = (col: string, k: number) => (fade ? fadeUp(col, k, lay.ph) : col)
   if (!segments.length) return
   const top = segments[segments.length - 1]![1]
   const eighths = Math.trunc(pyRound(top))
@@ -463,12 +478,12 @@ function stack(canvas: Canvas, lay: Layout, cols: readonly [number, number], seg
   const rest = eighths % 8
   for (let k = 0; k < Math.min(full, lay.ph); k++) {
     const col = colour(8 * k, 8 * k + 8)[0]
-    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - k, c, " ", null, col)
+    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - k, c, " ", null, tone(col, k))
   }
   if (rest && full < lay.ph) {
     let [col, cover] = colour(8 * full, top)
     if (full && cover < 4) col = colour(8 * full - 8, 8 * full)[0]
-    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - full, c, EIGHTHS[rest]!, col)
+    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - full, c, EIGHTHS[rest]!, tone(col, full))
   }
 }
 
@@ -493,23 +508,30 @@ function sortedPoints(s: Series): [number[], number[]] {
 }
 
 /** A filled area whose top edge lands within 1/8 of a row (for running totals: views so far). */
-function area(canvas: Canvas, lay: Layout, s: Series): void {
+function area(canvas: Canvas, lay: Layout, s: Series, style: BarStyle = {}): void {
   const [xs, ys] = sortedPoints(s)
   if (xs.length < 2) return
   const color = blend(s.color, 0.3)
+  const tone = (k: number) => (style.fade ? mix(BACKGROUND, s.color, 0.3 + 0.45 * Math.min(k / Math.max(lay.ph - 1, 1), 1)) : color)
   const first = Math.max(Math.trunc((xs[0]! - lay.first) * lay.per), 0)
-  const last = Math.min(Math.trunc(Math.ceil((xs[xs.length - 1]! - lay.first) * lay.per)) - 1, lay.pw - 1)
+  const last = drawnTo(lay, first, xs, style.grow)
   for (let c = first; c <= last; c++) {
     const x = Math.min(Math.max((c + 0.5) / lay.per + lay.first, xs[0]!), xs[xs.length - 1]!)
     const eighths = Math.trunc(pyRound(Math.min(Math.max(lay.height(interp(xs, ys, x)), 0), lay.ph) * 8))
     const full = Math.floor(eighths / 8)
     const part = eighths % 8
-    for (let k = 0; k < Math.min(full, lay.ph); k++) canvas.put(lay.ph - 1 - k, c, " ", null, color)
-    if (part && full < lay.ph) canvas.put(lay.ph - 1 - full, c, EIGHTHS[part]!, color)
+    for (let k = 0; k < Math.min(full, lay.ph); k++) canvas.put(lay.ph - 1 - k, c, " ", null, tone(k))
+    if (part && full < lay.ph) canvas.put(lay.ph - 1 - full, c, EIGHTHS[part]!, tone(full))
   }
 }
 
-function line(canvas: Canvas, lay: Layout, s: Series, fill: boolean): void {
+/** The last column a line or area is drawn to: its last point's, or part of the way there while it draws in. */
+function drawnTo(lay: Layout, first: number, xs: number[], grow = 1): number {
+  const last = Math.min(Math.trunc(Math.ceil((xs[xs.length - 1]! - lay.first) * lay.per)) - 1, lay.pw - 1)
+  return grow >= 1 ? last : first + Math.floor((last - first + 1) * Math.max(grow, 0)) - 1
+}
+
+function line(canvas: Canvas, lay: Layout, s: Series, fill: boolean, grow = 1): void {
   const [xs, ys] = sortedPoints(s)
   if (!xs.length) return
   if (xs.length === 1) {
@@ -518,7 +540,7 @@ function line(canvas: Canvas, lay: Layout, s: Series, fill: boolean): void {
     return
   }
   const first = Math.max(Math.trunc((xs[0]! - lay.first) * lay.per), 0)
-  const last = Math.min(Math.trunc(Math.ceil((xs[xs.length - 1]! - lay.first) * lay.per)) - 1, lay.pw - 1)
+  const last = drawnTo(lay, first, xs, grow)
   const shade = blend(s.color, 0.86)
   let prev: number | null = null
   for (let c = first; c <= last; c++) {
@@ -548,6 +570,7 @@ export function lines(
   zero = false,
   whole = true,
   xaxis = true,
+  style: BarStyle = {},
 ): Drawn {
   xaxis = xaxis && h >= 5
   const ys = series.flatMap((s) => (s.ys ?? []).filter(Number.isFinite))
@@ -559,8 +582,8 @@ export function lines(
   grid(canvas, lay)
   for (const s of [...series].sort((a, b) => Number(a.style !== "area") - Number(b.style !== "area"))) {
     // areas first, lines over them
-    if (s.style === "area" && (s.xs?.length ?? 0) > 1) area(canvas, lay, s)
-    else line(canvas, lay, s, s.fill ?? false)
+    if (s.style === "area" && (s.xs?.length ?? 0) > 1) area(canvas, lay, s, style)
+    else line(canvas, lay, s, s.fill ?? false, style.grow)
   }
   if (marks.length) marksOn(canvas, lay, marks)
   return { rows: frame(canvas, lay, xlabels, xaxis), lay }

@@ -6,6 +6,7 @@ import type { KeyEvent, MouseEvent, Renderable } from "@opentui/core"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useFocus, useTheme } from "../lib/focus"
 import { pad, type Segs } from "../lib/styled"
+import { mix } from "../theme"
 import { Cells } from "./Cells"
 import { Line } from "./Line"
 
@@ -26,19 +27,29 @@ export interface TableData {
   rows: Row[]
 }
 
-const ZEBRA = "#0e1114"
-const TRACK = "#14181e"
-const THUMB = "#474a4f"
-
-/** A one-column scrollbar: `visible` of `total` lines shown, from `offset`. */
+/** A thin one-column scrollbar: `visible` of `total` lines shown, from `offset`. */
 function Scrollbar({ total, visible, offset, height }: { total: number; visible: number; offset: number; height: number }) {
+  const theme = useTheme()
   if (total <= visible || height <= 0) return null
   const size = Math.max(1, Math.round((visible / total) * height))
   const start = Math.min(height - size, Math.round((offset / Math.max(total - visible, 1)) * (height - size)))
   const grid = Array.from({ length: height }, (_, y) => [
-    { ch: "▐", fg: y >= start && y < start + size ? THUMB : TRACK, bg: null },
+    y >= start && y < start + size ? { ch: "┃", fg: mix(theme.surface, theme.muted, 0.55), bg: null } : { ch: "│", fg: mix(theme.surface, theme.border, 0.8), bg: null },
   ])
   return <Cells grid={grid} width={1} height={height} />
+}
+
+/** The row under the mouse, a highlighted row with or without the keyboard, and every other one on a striped table. */
+function rowBg(theme: ReturnType<typeof useTheme>, here: boolean, focused: boolean, hover: boolean, stripe: boolean): string | undefined {
+  if (here) return focused ? theme.cursor : theme.cursorIdle
+  if (hover) return mix(theme.surface, "#ffffff", 0.035)
+  if (stripe) return mix(theme.surface, "#ffffff", 0.015)
+  return undefined
+}
+
+/** The highlighted row's edge: lit while its list has the keyboard. */
+function edge(theme: ReturnType<typeof useTheme>, here: boolean, focused: boolean, bg: string | undefined): Segs[number] {
+  return here ? ["▌", focused ? theme.focus : theme.faint] : [" ", bg ? `on ${bg}` : ""]
 }
 
 function move(key: KeyEvent, index: number, count: number, page: number): number | null {
@@ -76,15 +87,27 @@ export interface TableProps {
   flexGrow?: number
   /** Show the highlighted row even while the table doesn't have the keyboard. */
   cursor?: boolean
+  /** The column that takes the room left over (by default the title, so more of each title shows). */
+  stretch?: string
+}
+
+/** The columns, the stretching one widened to take whatever room the others leave. */
+export function stretched(columns: Column[], width: number, key: string): Column[] {
+  const used = columns.reduce((n, c) => n + c.width + 2, 0) + 1 // 1: the scrollbar
+  const extra = width - used
+  if (extra <= 0 || !columns.some((c) => c.key === key)) return columns
+  return columns.map((c) => (c.key === key ? { ...c, width: c.width + extra } : c))
 }
 
 export function Table(props: TableProps) {
   const theme = useTheme()
-  const columns = props.data?.columns ?? []
+  const [tableWidth, setTableWidth] = useState(0)
+  const columns = stretched(props.data?.columns ?? [], tableWidth, props.stretch ?? "title")
   const rows = props.data?.rows ?? []
   const keys = rows.map((r) => r.key)
   const index = props.selected ? keys.indexOf(props.selected) : -1
   const [offset, setOffset] = useState(0)
+  const [hover, setHover] = useState<number | null>(null)
   const [height, setHeight] = useState(props.rowsShown ?? 0)
   const shown = Math.max((props.rowsShown ?? height) - 0, 1)
   const select = (i: number) => {
@@ -139,6 +162,9 @@ export function Table(props: TableProps) {
       flexShrink={props.rowsShown ? 0 : 1}
       height={props.rowsShown ? props.rowsShown + 1 : undefined}
       minHeight={2}
+      onSizeChange={function (this: Renderable) {
+        setTableWidth(this.width)
+      }}
       onMouseDown={() => focus()}
       onMouseScroll={(e) => {
         const d = e.scroll?.direction === "up" ? -3 : e.scroll?.direction === "down" ? 3 : 0
@@ -146,7 +172,7 @@ export function Table(props: TableProps) {
       }}
     >
       <box height={1} flexShrink={0} onMouseDown={clickHeader}>
-        <Line segs={header} base="bold" />
+        <Line segs={header} base={theme.faint} />
       </box>
       <box
         flexDirection="row"
@@ -158,20 +184,16 @@ export function Table(props: TableProps) {
         <box flexDirection="column" flexGrow={1}>
           {visible.map((row, i) => {
             const at = offset + i
-            const cells: Segs = columns.flatMap((c, j) => [[" ", ""], ...pad(row.cells[j] ?? [], c.width, c.right), [" ", ""]] as Segs)
-            const bg =
-              at === index && (focused || props.cursor !== false)
-                ? focused
-                  ? theme.cursor
-                  : theme.cursorIdle
-                : props.zebra && at % 2 === 1
-                  ? ZEBRA
-                  : undefined
+            const here = at === index && (focused || props.cursor !== false)
+            const bg = rowBg(theme, here, focused, hover === at && row.key !== null, Boolean(props.zebra) && at % 2 === 1)
+            const cells: Segs = columns.flatMap((c, j) => [j ? [" ", ""] : edge(theme, here, focused, bg), ...pad(row.cells[j] ?? [], c.width, c.right), [" ", ""]] as Segs)
             return (
               <box
                 key={`${row.key ?? "row"}-${at}`}
                 height={1}
                 backgroundColor={bg}
+                onMouseOver={() => setHover(at)}
+                onMouseOut={() => setHover((h) => (h === at ? null : h))}
                 onMouseDown={(e) => {
                   if (e.button !== 0 || row.key === null) return
                   if (row.key === props.selected) props.onActivate?.(row.key)
@@ -211,6 +233,8 @@ export interface OptionListProps {
   onDelete?: (id: string) => void
   /** Height in lines, when it shouldn't take all the room it's given. */
   maxLines?: number
+  /** No row backgrounds: only the lit edge marks the highlighted one. */
+  flat?: boolean
   empty?: ReactNode
 }
 
@@ -218,6 +242,7 @@ export function OptionList(props: OptionListProps) {
   const theme = useTheme()
   const items = props.items
   const index = props.selected ? items.findIndex((it) => it.id === props.selected) : -1
+  const [hoverItem, setHoverItem] = useState<number | null>(null)
   const [offset, setOffset] = useState(0)
   const [height, setHeight] = useState(props.maxLines ?? 0)
   const tall = (it: Option) => it.lines.length + (props.spaced ? 1 : 0)
@@ -288,12 +313,15 @@ export function OptionList(props: OptionListProps) {
         {!items.length && props.empty}
         {visible.map((it, i) => {
           const at = offset + i
-          const bg = at === index ? (focused ? theme.cursor : theme.cursorIdle) : undefined
+          const here = at === index
+          const bg = props.flat ? undefined : rowBg(theme, here, focused, hoverItem === at && !it.disabled, false)
           return (
             <box
               key={it.id}
               flexDirection="column"
               flexShrink={0}
+              onMouseOver={() => setHoverItem(at)}
+              onMouseOut={() => setHoverItem((h) => (h === at ? null : h))}
               onMouseDown={(e) => {
                 if (it.disabled) return
                 if (e.button === 2) {
@@ -307,7 +335,12 @@ export function OptionList(props: OptionListProps) {
               }}
             >
               <box flexDirection="row" backgroundColor={bg}>
-                <box flexDirection="column" flexGrow={1}>
+                <box width={2} flexShrink={0}>
+                  <text fg={here ? (focused ? theme.focus : theme.faint) : undefined} wrapMode="none">
+                    {here ? Array(it.lines.length).fill("▌").join("\n") : ""}
+                  </text>
+                </box>
+                <box flexDirection="column" flexGrow={1} minWidth={0}>
                   {it.lines.map((line, j) => (
                     <Line key={j} segs={line} />
                   ))}

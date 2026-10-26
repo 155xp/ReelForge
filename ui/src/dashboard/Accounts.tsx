@@ -2,18 +2,18 @@
 // for each connected one where its stats come from, how fresh they are, its log-in / profile / refresh buttons, and
 // its followers over the time ReelForge has been reading them.
 
-import type { Renderable } from "@opentui/core"
+import { TextAttributes, type Renderable } from "@opentui/core"
 import { useCallback, useState } from "react"
 import { useView } from "../bridge"
 import { clockLabels, lines as drawLines, MARK, type Drawn } from "../lib/chart"
 import { fmtNum } from "../lib/format"
 import { lines, segsLen, type Segs } from "../lib/styled"
-import { DASH, PICKED } from "../theme"
+import { DASH } from "../theme"
 import { Button } from "../ui/Button"
 import { Chart } from "../ui/Chart"
 import { TextField } from "../ui/Fields"
 import { Fitted, Line } from "../ui/Line"
-import { Wrapped } from "../ui/Panels"
+import { Panel, Wrapped } from "../ui/Panels"
 import { useDash } from "./state"
 import type { AccountPanelView, AccountsView } from "./types"
 
@@ -23,10 +23,14 @@ export function Accounts() {
   const panels = accounts?.panels ?? []
   const rows = [panels.slice(0, 2), panels.slice(2, 4)].filter((r) => r.length)
   return (
-    <box flexDirection="column" flexGrow={1} paddingTop={1} paddingBottom={1} gap={1}>
-      {accounts?.hint ? <Fitted parts={accounts.hint} /> : null}
+    <box flexDirection="column" flexGrow={1} paddingTop={1} gap={1}>
+      {accounts?.hint ? (
+        <box paddingLeft={1} flexShrink={0}>
+          <Fitted parts={accounts.hint} />
+        </box>
+      ) : null}
       {rows.map((row, i) => (
-        <box key={i} flexDirection="row" flexGrow={1} flexBasis={0} gap={2}>
+        <box key={i} flexDirection="row" flexGrow={1} flexBasis={0} gap={1}>
           {row.map((p) => (
             <Account key={p.key} panel={p} picked={s.picked === `acct-${p.key}`} />
           ))}
@@ -39,24 +43,18 @@ export function Accounts() {
 
 function Account({ panel: p, picked }: { panel: AccountPanelView; picked: boolean }) {
   return (
-    <box
-      border
-      borderStyle={picked ? "heavy" : "rounded"}
-      borderColor={picked ? PICKED : p.color}
-      title={` ${p.name} `}
-      titleColor={p.color}
-      flexDirection="column"
-      flexGrow={1}
-      flexBasis={0}
-      paddingLeft={1}
-      paddingRight={1}
-    >
+    <Panel flexGrow={1} picked={picked} paddingBottom={1}>
+      <text wrapMode="none" flexShrink={0} marginBottom={1}>
+        <span fg={p.color} attributes={TextAttributes.BOLD}>
+          {p.name}
+        </span>
+      </text>
       <Status panel={p} />
       {lines(p.body).map((l, i) => (
         <Wrapped key={i} segs={l.length ? l : [[" ", ""]]} flexGrow={0} />
       ))}
       {p.state === "off" ? <Connect panel={p} /> : <Connected panel={p} />}
-    </box>
+    </Panel>
   )
 }
 
@@ -90,8 +88,8 @@ function Connect({ panel: p }: { panel: AccountPanelView }) {
   const signUp = () => void s.openDialog("signup", s.bridge.call("signup_guide", p.key))
   return (
     <>
-      <box flexDirection="row" height={3} marginTop={1} flexShrink={0}>
-        <box flexGrow={1} maxWidth={40} marginRight={1}>
+      <box flexDirection="row" height={3} marginTop={1} flexShrink={0} alignItems="center">
+        <box flexGrow={1} maxWidth={40} marginRight={2}>
           <TextField
             id={`handle-${p.key}`}
             value={typed}
@@ -123,8 +121,8 @@ function Connected({ panel: p }: { panel: AccountPanelView }) {
   const s = useDash()
   const chart = p.chart
   const draw = useCallback(
-    (w: number, h: number, hover: number | null): Drawn =>
-      drawLines(chart!.series, chart!.n, w, h, (pw) => clockLabels(chart!.slots, pw, chart!.step_h), [], hover),
+    (w: number, h: number, hover: number | null, grow: number): Drawn =>
+      drawLines(chart!.series, chart!.n, w, h, (pw) => clockLabels(chart!.slots, pw, chart!.step_h), [], hover, false, true, true, { grow, fade: true }),
     [chart],
   )
   const title = (hover: number | null): Segs => {
@@ -139,7 +137,7 @@ function Connected({ panel: p }: { panel: AccountPanelView }) {
   }
   return (
     <>
-      <box flexDirection="row" height={3} marginTop={1} flexShrink={0}>
+      <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
         {p.logs_in ? (
           <Button id={`login-${p.key}`} label={p.login_label ?? "Log in"} variant="primary" marginRight={1} onPress={() => s.bridge.send("login", p.key)} />
         ) : null}
