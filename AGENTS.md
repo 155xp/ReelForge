@@ -32,7 +32,9 @@ their answers (their channel, format, platforms, style, caption rules and qualit
    - Write their answers to `my-studio/answers.json` (`{"key": value, ...}`), then run
      `.venv\Scripts\python -m studio channel --answers my-studio/answers.json`. It checks the answers and says
      what to fix.
-3. **Read the new AGENTS.md** that first-time setup wrote, and follow it from then on.
+3. **Read the new AGENTS.md** that first-time setup wrote, and follow it from then on. Start by asking them for a
+   file or a description of their channel, its brief: first-time setup only asks a few questions, and the new
+   AGENTS.md says where the brief goes.
 4. `.venv\Scripts\python -m studio doctor` checks everything at any time; `--render-test` also renders a frame.
 5. **More channels later?** Each one is a profile with its own folder in `profiles/`: `reelforge profiles new` runs the
    same interview for it (or, interviewing them in chat, `--new --answers FILE.json`). The AGENTS.md first-time

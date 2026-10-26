@@ -10,6 +10,8 @@
 - **Viewers should feel:** {{ tone }}
 {% endif %}
 - **Platforms:** {% for p in platforms %}{{ p.name }}{% if p.handle %} ({{ p.handle }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{{ "" }}
+- **Brief:** `{{ here }}my-studio/brief.md`, {{ whose }} own description of the channel (once they've given one). Where
+  it and this bible differ, the brief wins.
 
 ## The promise
 

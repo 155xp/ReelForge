@@ -81,24 +81,35 @@ First-time setup turns your answers into instructions for your AI, `CLAUDE.md` f
 and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` on Windows and `~/ReelForge` on a Mac or Linux,
 unless you picked another). Its last screen tells you what to do next.
 
-![First-time setup's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
+![First-time setup's last screen: open this folder in Claude Code or Codex, tell it about your channel, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
 
 1. **Open the ReelForge folder in your AI.** In the Claude desktop app, go to **Code**, click **Open folder…** and
    pick the ReelForge folder (or run `claude` in a terminal inside it). For Codex, run `codex` in a terminal inside
    it.
-2. **Ask for your first video** in the words that screen gives you:
+2. **Tell it about your channel.** Drag a file about it into the chat (your notes, a doc, videos you like: whatever
+   you have) or paste a description, and say:
+
+   ```
+   here's my channel
+   ```
+
+   First-time setup only asks a few questions, so this is where your AI gets the full picture. It keeps your words
+   as the channel's brief (`my-studio/brief.md`), reads it every time and plans every video from it, and it asks
+   before changing your answers to match. Skip this and it asks for one before your first video.
+3. **Ask for your first video** in the words that screen gives you:
 
    ```
    make my first video
    ```
 
-3. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
+4. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
    renders it, adds the text and the sound, then watches the finished video and fixes anything that's off. Rendering
    takes from about 15 minutes to an hour on a fast graphics card.
-4. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
+5. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
    Windows, in Applications on a Mac, in your app menu on Linux) and go to **Publish**.
 
-After that, say **make today's videos** whenever you want more.
+After that, say **make today's videos** whenever you want more, and give it a new file whenever your plans for the
+channel change.
 
 ## Inside ReelForge
 
@@ -165,8 +176,9 @@ Run more than one channel from one ReelForge. Each channel is a profile, with it
 notifications, Publish list and settings. The button with your channel's name at the top left switches between them
 (or press **p**), and a red dot on it means another profile has something unread. **New profile** asks the same short
 questions as your first channel did, right in the window. Your first channel stays in the ReelForge folder itself, and
-each one you add gets its own folder in `profiles`, with its own notes for your AI. The hourly stats job reads every
-profile, and `reelforge -p "Channel name"` opens ReelForge on one.
+each one you add gets its own folder in `profiles`, with its own notes for your AI. Tell your AI about a new channel
+the way you did the first: "here's <its name>" and a file about it. The hourly stats job reads every profile, and
+`reelforge -p "Channel name"` opens ReelForge on one. "Make today's videos" makes every channel's.
 
 ![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
 
@@ -287,7 +299,9 @@ and the main `CLAUDE.md` lists them.
 <br>
 
 Make sure you opened the ReelForge folder itself, not the folder it's in: your AI reads `CLAUDE.md` (or `AGENTS.md`)
-from there. If it still seems lost, answer your channel's questions again with `reelforge channel`.
+from there. First-time setup only asks a few questions, so give it the full picture too: drag a file about your
+channel into the chat (or paste a description) and say "here's my channel". It keeps it as the channel's brief and
+plans every video from it. To change your answers, run `reelforge channel`.
 
 </details>
 

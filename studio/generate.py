@@ -164,6 +164,22 @@ SETTINGS_COMMENTS = {
 
 # ---------------------------------------------------------------- the context the templates see
 
+def _cadence(s: dict) -> str:
+    """How often a channel posts, from its settings: "2 videos a day", "3 videos a week"..."""
+    per_day, per_week = s["schedule"]["per_day"], s["schedule"]["per_week"]
+    return next((c[2] for c in CADENCE.values() if c[0] == per_day and c[1] == per_week), f"{per_week} videos a week")
+
+
+def _other_channel(p) -> dict:
+    """Another channel, for the first one's notes: its folder, how often it posts and how many videos its run makes
+    (0 while it isn't set up)."""
+    c = {"name": p.name, "folder": f"profiles/{p.folder.name}/", "cadence": "", "per_run": 0}
+    if p.onboarded:
+        s = S.load(p.settings)
+        c["cadence"], c["per_run"] = _cadence(s), s["schedule"]["per_day"] or 1
+    return c
+
+
 def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
     """What the templates see. profile: the one the notes are for (the first one, by default): another channel's
     paths start at its folder (here), and the first one's notes list the other channels."""
@@ -184,8 +200,7 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
         "x": "X: the caption only, no hashtags" if not s["captions"]["hashtags_on_x"] else "X: caption + hashtags",
     }
     per_day, per_week = s["schedule"]["per_day"], s["schedule"]["per_week"]
-    cadence = next((c[2] for c in CADENCE.values() if c[0] == per_day and c[1] == per_week),
-                   f"{per_week} videos a week")
+    cadence = _cadence(s)
     lufs = s["sound"]["target_lufs"]
     style = s["video"]["style"]
     style_text = s["video"]["style_notes"] if style == "custom" else STYLES.get(style, style)
@@ -201,8 +216,7 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
     stills = sorted({1, *(round(typical * k / 9) for k in range(1, 9)), int(typical) - 1})
     preview = [2, round(typical * 0.3), round(typical * 0.7), int(typical) - 3]
     here = "" if profile.main else f"profiles/{profile.folder.name}/"
-    channels = [] if not profile.main else [{"name": p.name, "folder": f"profiles/{p.folder.name}/"}
-                                            for p in profiles.extra()]
+    channels = [] if not profile.main else [_other_channel(p) for p in profiles.extra()]
     return {
         "kit": KIT_NAME, "version": KIT_VERSION, "date": dt.date.today().isoformat(),
         "mark": GENERATED_MARK,

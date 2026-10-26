@@ -446,8 +446,17 @@ class Setup(Service):
         if s["ai"]["assistant"] in ("codex", "both"):
             steps.append(seg_line(("  1. " if s["ai"]["assistant"] == "codex" else "     ", "bold"),
                                   (f"Codex: run codex in a terminal in {folder}.", "")))
-        steps.append(seg_line(("  2. ", "bold"), ("Say: ", ""), (f'"{first}"', "bold #ffffff")))
-        steps.append(seg_line(("  3. ", "bold"),
+        # Setup only asks a few questions: the channel's brief (a file or a description, in the person's words) is
+        # what the AI plans from. Its notes say where it goes and what to do with it.
+        channel = s["channel"]["name"]
+        say, kept = ("here's my channel", "your channel's brief") if here.main else \
+            (f"here's {channel}", f"the brief for {channel}")
+        steps.append(seg_line(("  2. ", "bold"), ("Say ", ""), (f'"{say}"', "bold #ffffff"),
+                              (" and drag a file about it into the chat, or paste a description.", "")))
+        steps.append(seg_line(("     ", ""), (f"Your notes, a doc, examples you like: it keeps it as {kept} and plans "
+                                              "every video from it.", "")))
+        steps.append(seg_line(("  3. ", "bold"), ("Say: ", ""), (f'"{first}"', "bold #ffffff")))
+        steps.append(seg_line(("  4. ", "bold"),
                               ("When it's done, it's waiting in ReelForge → Publish (tab 4), ready for you to post.",
                                "")))
         logins, missing = self.needs_login(), self.to_connect()
