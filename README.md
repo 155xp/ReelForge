@@ -330,8 +330,9 @@ ReelForge's settings. For another channel, open the profile menu and pick its se
 
 Use your strongest model. First-time setup sets Claude Code to Opus at high effort for the ReelForge folder, the
 standard for every channel. For more (or less), open the **Settings** tab (`reelforge 7`, or **Advanced settings**
-in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. With
-Codex, pick your strongest model with `/model`.
+in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. The
+ReelForge folder keeps your first channel's level, so when another channel's is different, your AI asks you to
+switch with `/effort` as it starts that channel's videos. With Codex, pick your strongest model with `/model`.
 
 </details>
 
