@@ -146,6 +146,49 @@ describe("the box", () => {
       open = null
     }
   })
+
+  // Every first-run screen, resized while it's open the way a person drags a window: the edges stay whole, every button
+  // is there in full (they move onto another row when they don't fit side by side), and the first words aren't cut
+  // off at the scrollbar. A button is "label|other label" when it can say either, and ends in "?" when it's only there
+  // on some computers (Check again, while the health check finds something to fix).
+  const SIZES = [[40, 16], [40, 36], [46, 14], [56, 20], [66, 18], [80, 24], [100, 30], [160, 46], [120, 40]] as const
+  const waitFor = async (h: Headless, text: string) => {
+    for (let i = 0; i < 50 && !find(h, text); i++) await h.settle(100)
+  }
+  const SCREENS: [string, string, string[], string, (h: Headless) => Promise<void>][] = [
+    ["the tools", "tools", ["Set up (about 570 MB)", "Skip for now"], "Let's get ReelForge ready. Everything goes into this folder", (h) => waitFor(h, "Desktop shortcut")],
+    ["the downloads", "tools", ["Next: your channel|Continue", "Check again?"], "Sound library", async (h) => {
+      await waitFor(h, "Desktop shortcut")
+      await clickText(h, "Skip for now", 2)
+      await waitFor(h, "Health check")
+      await h.settle(300)
+    }],
+    ["the questions", "onboard", ["Back", "Next"], "Welcome! Answer a few questions and your AI will know your channel inside out.", async () => {}],
+    ["the last screen", "done", ["Open ReelForge to log in", "Show this folder", "Close"], "You're all set! Night Physics is ready to make videos.", async () => {}],
+  ]
+  for (const [name, start, buttons, words, ready] of SCREENS)
+    test(`${name}: whole at every size while it's resized, with its buttons and words in full`, async () => {
+      const h = await screen(start, [120, 40])
+      await ready(h)
+      const wanted = buttons.filter((b) => !b.endsWith("?") || find(h, b.slice(0, -1))).map((b) => b.replace(/\?$/, ""))
+      const wrong: string[] = []
+      for (const [w, hh] of SIZES) {
+        h.t.resize(w, hh)
+        await h.settle(50)
+        const rows = frame(h).split("\n").slice(0, hh).map((r) => [...r])
+        const at = `${w}x${hh}`
+        if (rows[0]![0] !== "╔" || rows[0]![w - 1] !== "╗") wrong.push(`${at}: top corners`)
+        if (rows.at(-1)!.join("") !== "╚" + "═".repeat(w - 2) + "╝") wrong.push(`${at}: bottom edge`)
+        if (rows.slice(1, -1).some((r) => r[0] !== "║" || r[w - 1] !== "║")) wrong.push(`${at}: sides`)
+        // inside the box from a column on (the words' own, past the list of steps), without the scrollbar's thumb, as
+        // one line of text
+        const text = (from: number) =>
+          rows.slice(1, -1).map((r) => r.slice(from, -1).join("").replace(/[█▀▄]/g, " ")).join(" ").replace(/\s+/g, " ")
+        for (const b of wanted) if (!b.split("|").some((label) => text(1).includes(label))) wrong.push(`${at}: button "${b}"`)
+        if (!text(find(h, words.split(" ")[0]!)?.[0] ?? 1).includes(words)) wrong.push(`${at}: "${words}"`)
+      }
+      expect(wrong).toEqual([])
+    })
 })
 
 describe("ready", () => {

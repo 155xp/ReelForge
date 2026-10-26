@@ -222,7 +222,7 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
             ) : null}
           </box>
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginTop={1} marginBottom={1}>
+        <box flexDirection="row" flexWrap="wrap" flexShrink={0} marginTop={1} marginBottom={1}>
           <Button
             id="go"
             label={label}
@@ -282,7 +282,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
               !st ? "·" : st.state === "ok" ? init.check : st.state === "failed" ? init.cross : spin[tick % spin.length]!
             const color = !st ? theme.muted : st.state === "ok" ? theme.good : st.state === "failed" ? theme.bad : theme.text
             return (
-              <box key={j.key} flexDirection="row" height={2} flexShrink={0}>
+              <box key={j.key} flexDirection="row" minHeight={2} flexShrink={0}>
                 <text width={4} paddingLeft={1} flexShrink={0} fg={color} attributes={TextAttributes.BOLD}>
                   {mark}
                 </text>
@@ -302,7 +302,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
                     <text fg={theme.muted} marginLeft={1} width={4}>{`${Math.floor((100 * st.done) / st.total)}%`}</text>
                   ) : null}
                 </box>
-                <text flexGrow={1} wrapMode="none" fg={st?.state === "ok" ? theme.good : st?.state === "failed" ? theme.bad : theme.muted}>
+                <text flexGrow={1} flexShrink={1} wrapMode="word" fg={st?.state === "ok" ? theme.good : st?.state === "failed" ? theme.bad : theme.muted}>
                   {st?.text ?? "waiting"}
                 </text>
               </box>
@@ -317,7 +317,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
             <box flexDirection="column" paddingTop={1} flexShrink={0}>
               <text attributes={TextAttributes.BOLD}>Health check</text>
               {checks.rows.map((r, i) => (
-                <Line key={i} segs={r} />
+                <Wrapped key={i} segs={r} flexGrow={0} />
               ))}
               {checks.warning ? (
                 <box marginTop={1}>
@@ -329,7 +329,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
             </box>
           ) : null}
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginBottom={1} marginTop={1}>
+        <box flexDirection="row" flexWrap="wrap" flexShrink={0} marginBottom={1} marginTop={1}>
           <Button
             id="next"
             label={finished ? (checks!.next ?? "Continue") : "Working…"}
@@ -370,7 +370,7 @@ function Done({ bridge, init, quit }: SetupProps) {
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {info ? (
-            <box flexDirection="column" flexShrink={0}>
+            <box flexDirection="column" paddingRight={1} flexShrink={0}>
               {info.head.map((l, i) => (
                 <Wrapped key={i} segs={l} flexGrow={0} />
               ))}
@@ -398,7 +398,7 @@ function Done({ bridge, init, quit }: SetupProps) {
             </box>
           ) : null}
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginBottom={1} gap={2}>
+        <box flexDirection="row" flexWrap="wrap" flexShrink={0} marginBottom={1} columnGap={2}>
           <Button
             id="open"
             label={info?.open ?? "Open ReelForge"}
