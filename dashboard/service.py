@@ -219,7 +219,8 @@ class Dashboard(Service):
 
     def start(self, options: dict) -> dict:
         """options: tab, drawer, demo, screenshots (the README's pictures: the demo as a set-up account looks),
-        only_demos (the Publish tab lists just the kit's demo videos), unconnected (demo platforms left unconnected)."""
+        only_demos (the Publish tab lists just the kit's demo videos), unconnected (demo platforms left unconnected),
+        switched (the window switched to this profile: Accounts, while it has nothing connected)."""
         from .__main__ import load_platforms
 
         cfg, every = load_platforms(bool(options.get("demo")), options.get("only_demos", False),
@@ -237,6 +238,8 @@ class Dashboard(Service):
         self.platforms = connected(self.every, self.stored)
         self.config_seen = _mtime(config.CONFIG_PATH)
         tab = options.get("tab")
+        if options.get("switched") and not self.platforms:
+            tab = "accounts"  # a profile you switched to with nothing connected yet: where you connect one
         self.tab = tab if tab in TABS else "overview" if self.platforms or tab else "accounts"
         saved = db.get_meta("overview_range", "24h")
         self.range = saved if saved in trends.RANGES else "24h"

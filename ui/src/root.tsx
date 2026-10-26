@@ -89,7 +89,7 @@ export function Root({ sides, first, quit }: { sides: Sides; first: View; quit: 
     () => ({
       profile: async (key: string, tab?: string) => {
         try {
-          const next = await sides.open<Init>("dashboard", { tab }, key)
+          const next = await sides.open<Init>("dashboard", { tab, switched: true }, key)
           sides.adopt(next.bridge)
           setView((v) => ({ kind: "dashboard", bridge: next.bridge, init: next.init, n: v.n + 1 }))
         } catch (e) {

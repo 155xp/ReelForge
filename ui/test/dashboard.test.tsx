@@ -262,7 +262,7 @@ describe("profiles", () => {
   test("picking another profile shows it in the same window, on its own Python side", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "reelforge-profiles-"))
     try {
-      open = await headless("dashboard", { tab: "accounts" }, 160, 40, {
+      open = await headless("dashboard", { tab: "overview" }, 160, 40, {
         REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "profiles_preload.py"),
         REELFORGE_TEST_ROOT: tmp,
         REELFORGE_PROFILE: "profiles/alpha",
@@ -275,6 +275,7 @@ describe("profiles", () => {
       await press(h, "3") // 1 the ReelForge folder's own, 2 Alpha, 3 Beta
       for (let i = 0; i < 30 && !rows(h)[1]!.includes("Beta ▾"); i++) await h.settle(200)
       expect(rows(h)[1]).toContain("Beta ▾")
+      expect(activeTab(h)).toBe("Accounts") // nothing connected there yet: where you connect one
       expect(h.sides.active).not.toBe(h.bridge)
       expect(await Promise.race([h.bridge.exited.then(() => "exited"), Bun.sleep(8000).then(() => "running")])).toBe("exited")
       expect(readFileSync(join(tmp, "profiles", "last-opened.txt"), "utf-8").trim()).toBe("profiles/beta")
