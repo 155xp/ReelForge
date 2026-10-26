@@ -36,6 +36,16 @@ export function shortNum(n: number | null | undefined): string {
   return (Math.abs(v) >= 9.95 ? v.toFixed(0) : v.toFixed(1).replace(/0$/, "").replace(/\.$/, "")) + suffix
 }
 
+/** Three significant figures, for the big numbers: 285, 2.27K, 17.3K, 541K, 2.66M. */
+export function sigNum(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—"
+  const f = (v: number, u: string) => (Math.abs(v) >= 99.95 ? v.toFixed(0) : Math.abs(v) >= 9.995 ? v.toFixed(1) : v.toFixed(2)) + u
+  const a = Math.abs(n)
+  if (a >= 999_500) return f(n / 1_000_000, "M")
+  if (a >= 999.5) return f(n / 1_000, "K")
+  return n.toFixed(0)
+}
+
 /** Linear interpolation along points sorted by x (the ends hold their values). */
 export function interp(xs: number[], ys: number[], x: number): number {
   let i = 0

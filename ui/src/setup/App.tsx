@@ -1,6 +1,6 @@
-// ReelForge's first run, all inside one box round the terminal with the logo on top: the tools it needs (one list,
-// one yes), the downloads with their progress, a health check, onboarding, then what to do next. The Python side is
-// studio/setup_service.py.
+// ReelForge's first run, under the logo, in the window's own calm colours: the tools it needs (one list, one yes),
+// the downloads with their progress, a health check, the channel's questions, then what to do next. The Python side
+// is studio/setup_service.py.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
@@ -163,7 +163,7 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
     <Frame init={init} step="tools" bigMinHeight={30}>
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
-          <box flexDirection="column" paddingRight={1} flexShrink={0}>
+          <box flexDirection="column" flexShrink={0} backgroundColor={theme.surface} paddingLeft={3} paddingRight={3} paddingTop={1} paddingBottom={1}>
             {view ? (
               <Wrapped segs={view.intro} flexGrow={0} />
             ) : (
@@ -175,7 +175,7 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
                   {!i.ready && i.can_install ? (
                     <Tick id={`cb-${i.key}`} on={Boolean(ticked[i.key])} check={init.check} onChange={(on) => setTicked((t) => ({ ...t, [i.key]: on }))} />
                   ) : (
-                    <text width={6} flexShrink={0} fg={i.ready ? theme.good : theme.warn} attributes={TextAttributes.BOLD}>
+                    <text width={6} flexShrink={0} fg={i.ready ? theme.good : theme.warn} attributes={TextAttributes.BOLD} wrapMode="none">
                       {i.ready ? ` ${init.check}` : " !"}
                     </text>
                   )}
@@ -198,7 +198,7 @@ function Tools({ bridge, init, quit, onGo }: SetupProps & { onGo: (keys: string[
             ) : null}
           </box>
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginTop={1} marginBottom={1}>
+        <box flexDirection="row" height={1} flexShrink={0} marginTop={1} marginBottom={1}>
           <Button
             id="go"
             label={label}
@@ -263,7 +263,8 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
                     done={st?.state === "ok" ? 1 : (st?.done ?? 0)}
                     total={st?.state === "ok" || st?.state === "failed" ? 1 : st?.total || null}
                     color={st?.state === "failed" ? theme.bad : st?.state === "ok" ? theme.good : theme.primary}
-                    track="#2a2e35"
+                    stops={st?.state === "failed" || st?.state === "ok" ? undefined : theme.accent}
+                    track={theme.border}
                     tick={st ? tick : 0}
                   />
                   {j.percent !== false && st?.total && st.state === "busy" ? (
@@ -297,7 +298,7 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
             </box>
           ) : null}
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginBottom={1} marginTop={1}>
+        <box flexDirection="row" height={1} flexShrink={0} marginBottom={1} marginTop={1}>
           <Button
             id="next"
             label={finished ? (checks!.next ?? "Continue") : "Working…"}
@@ -338,7 +339,7 @@ function Done({ bridge, init, quit }: SetupProps) {
       <box flexDirection="column" flexGrow={1}>
         <Scroll flexGrow={1} scrollY>
           {info ? (
-            <box flexDirection="column" flexShrink={0}>
+            <box flexDirection="column" flexShrink={0} backgroundColor={theme.surface} paddingLeft={3} paddingRight={3} paddingTop={1} paddingBottom={1}>
               {info.head.map((l, i) => (
                 <Wrapped key={i} segs={l} flexGrow={0} />
               ))}
@@ -366,7 +367,7 @@ function Done({ bridge, init, quit }: SetupProps) {
             </box>
           ) : null}
         </Scroll>
-        <box flexDirection="row" height={3} flexShrink={0} marginBottom={1} gap={2}>
+        <box flexDirection="row" height={1} flexShrink={0} marginTop={1} marginBottom={1} gap={2}>
           <Button
             id="open"
             label={info?.open ?? "Open ReelForge"}

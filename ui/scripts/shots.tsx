@@ -9,6 +9,7 @@ import { TextAttributes, type CapturedFrame } from "@opentui/core"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { ROOT } from "../src/bridge"
+import { DASH, SETUP } from "../src/theme"
 import { headless, type Headless } from "./headless"
 
 type Size = [number, number]
@@ -222,7 +223,7 @@ export async function take(name: string, outDir: string): Promise<string> {
     if (shot.then) await shot.then(h)
     await h.settle(600)
     const path = join(outDir, `${name}.svg`)
-    writeFileSync(path, svg(h.t.captureSpans(), shot.screen === "setup" ? "#000000" : "#0a0c0f"))
+    writeFileSync(path, svg(h.t.captureSpans(), shot.screen === "setup" ? SETUP.bg : DASH.bg))
     return path
   } finally {
     await h.close()

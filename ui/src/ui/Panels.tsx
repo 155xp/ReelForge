@@ -1,18 +1,23 @@
-// Boxes: a panel with a rounded border, a dialog over everything, the pop-ups in the corner, and a little Markdown
-// (release notes and onboarding's review).
+// Surfaces: a panel (a step lighter than the window, no box drawn round it), a dialog over everything, the pop-ups in
+// the corner (they slide in and fade out), and a little Markdown (release notes and the review in first-time setup).
 
 import { TextAttributes, type Renderable, type ScrollBoxRenderable } from "@opentui/core"
 import { forwardRef, useEffect, useState, useSyncExternalStore, type ReactNode } from "react"
 import { FocusScope, useTheme } from "../lib/focus"
-import type { Segs } from "../lib/styled"
-import { mix } from "../theme"
+import { parseStyle, type Segs } from "../lib/styled"
+import { mix, PICKED } from "../theme"
+import { useProgress, useTween } from "./Motion"
 
 export interface PanelProps {
   children?: ReactNode
+  /** The panel's name, bold at its top left. */
   title?: string
   titleColor?: string
-  borderColor?: string
-  /** Heavy and yellow: what a clicked notification is about. */
+  /** Beside the title, quieter: a number or a hint. */
+  sub?: ReactNode
+  /** At the right end of the title row: a chip, a range picker. */
+  right?: ReactNode
+  /** Lit along its left edge for a few seconds: what a clicked notification is about. */
   picked?: boolean
   width?: number | "auto" | `${number}%`
   height?: number | "auto" | `${number}%`
@@ -25,42 +30,76 @@ export interface PanelProps {
   marginTop?: number
   marginRight?: number
   marginBottom?: number
+  marginLeft?: number
   paddingX?: number
+  paddingTop?: number
+  paddingBottom?: number
+  gap?: number
   bg?: string
   id?: string
   onRef?: (r: Renderable | null) => void
 }
 
+/** A panel: a block of the surface colour, its title on its first row. The left edge is always there (in the panel's
+ * own colour), so lighting it for a clicked notification moves nothing. */
 export function Panel(p: PanelProps) {
   const theme = useTheme()
+  const bg = p.bg ?? theme.surface
+  const glow = useTween(p.picked ? 1 : 0, { ms: p.picked ? 180 : 900, ease: "outQuad" })
+  const pad = p.paddingX ?? 2
   return (
     <box
       id={p.id}
       ref={p.onRef}
-      border
-      borderStyle={p.picked ? "heavy" : "rounded"}
-      borderColor={p.picked ? "#ffcc33" : (p.borderColor ?? theme.border)}
-      title={p.title ? ` ${p.title} ` : undefined}
-      titleColor={p.titleColor}
+      border={["left"]}
+      borderStyle="heavy"
+      borderColor={mix(bg, PICKED, glow)}
       flexDirection="column"
       width={p.width}
       height={p.height}
       flexGrow={p.flexGrow}
       flexBasis={p.flexGrow ? 0 : undefined}
       flexShrink={p.flexShrink ?? 1}
-      minWidth={p.minWidth}
+      minWidth={p.minWidth ?? 0}
       maxWidth={p.maxWidth}
       minHeight={p.minHeight}
       maxHeight={p.maxHeight}
       marginTop={p.marginTop}
       marginRight={p.marginRight}
       marginBottom={p.marginBottom}
-      paddingLeft={p.paddingX ?? 1}
-      paddingRight={p.paddingX ?? 1}
-      backgroundColor={p.bg}
+      marginLeft={p.marginLeft}
+      paddingLeft={Math.max(pad - 1, 0)}
+      paddingRight={pad}
+      paddingTop={p.paddingTop ?? 1}
+      paddingBottom={p.paddingBottom ?? 0}
+      gap={p.gap}
+      backgroundColor={bg}
       overflow="hidden"
     >
+      {p.title || p.right ? <PanelHead title={p.title} titleColor={p.titleColor} sub={p.sub} right={p.right} /> : null}
       {p.children}
+    </box>
+  )
+}
+
+/** A title row: the name, something quieter beside it, and what goes at the right end. */
+export function PanelHead({ title, titleColor, sub, right }: { title?: string; titleColor?: string; sub?: ReactNode; right?: ReactNode }) {
+  const theme = useTheme()
+  return (
+    <box flexDirection="row" height={1} flexShrink={0} marginBottom={1}>
+      {title ? (
+        <text fg={titleColor ?? theme.text} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+          {title}
+        </text>
+      ) : null}
+      <box flexGrow={1} flexShrink={1} minWidth={0} paddingLeft={title ? 2 : 0} overflow="hidden">
+        {sub}
+      </box>
+      {right ? (
+        <box flexShrink={0} paddingLeft={1} flexDirection="row">
+          {right}
+        </box>
+      ) : null}
     </box>
   )
 }
@@ -78,6 +117,7 @@ export function Modal({
   children: ReactNode
 }) {
   const theme = useTheme()
+  const shown = useProgress(name, { ms: 160 })
   return (
     <box
       position="absolute"
@@ -86,7 +126,7 @@ export function Modal({
       width="100%"
       height="100%"
       zIndex={50}
-      backgroundColor={theme.bg + "b3"}
+      backgroundColor={theme.bg + Math.round(0x40 + 0x80 * shown).toString(16).padStart(2, "0")}
       alignItems="center"
       justifyContent="center"
       onMouseDown={(e) => e.stopPropagation()}
@@ -94,19 +134,19 @@ export function Modal({
       <FocusScope name={name}>
         <box
           border
-          borderStyle="heavy"
-          borderColor={theme.primary}
+          borderStyle="rounded"
+          borderColor={mix(theme.border, "#ffffff", 0.08)}
           backgroundColor={theme.surface}
           flexDirection="column"
           width={width}
           maxWidth="95%"
           maxHeight="90%"
-          paddingLeft={2}
-          paddingRight={2}
+          paddingLeft={3}
+          paddingRight={3}
           paddingTop={1}
           paddingBottom={1}
         >
-          <text fg={theme.primary} attributes={TextAttributes.BOLD} marginBottom={1} flexShrink={0}>
+          <text fg={theme.text} attributes={TextAttributes.BOLD} marginBottom={1} flexShrink={0}>
             {title}
           </text>
           {children}
@@ -124,7 +164,10 @@ export interface Toast {
   body: string
   severity: "information" | "warning" | "error"
   until: number
+  leaving: boolean
 }
+
+const FADE_MS = 280
 
 class Toasts {
   list: Toast[] = []
@@ -137,16 +180,18 @@ class Toasts {
   get = () => this.list
   add(t: { title?: string; body?: string; severity?: string; timeout?: number }) {
     const severity = (["warning", "error"].includes(t.severity ?? "") ? t.severity : "information") as Toast["severity"]
-    const toast: Toast = {
-      id: this.next++,
-      title: t.title ?? "",
-      body: t.body ?? "",
-      severity,
-      until: Date.now() + (t.timeout ?? 5) * 1000,
-    }
+    const ms = (t.timeout ?? 5) * 1000
+    const toast: Toast = { id: this.next++, title: t.title ?? "", body: t.body ?? "", severity, until: Date.now() + ms, leaving: false }
     this.list = [...this.list, toast].slice(-6)
     this.changed()
-    setTimeout(() => this.drop(toast.id), (t.timeout ?? 5) * 1000)
+    setTimeout(() => this.leave(toast.id), Math.max(ms - FADE_MS, 0))
+  }
+  /** Fade it out, then let it go. */
+  leave(id: number) {
+    if (!this.list.some((t) => t.id === id && !t.leaving)) return
+    this.list = this.list.map((t) => (t.id === id ? { ...t, leaving: true } : t))
+    this.changed()
+    setTimeout(() => this.drop(id), FADE_MS)
   }
   drop(id: number) {
     this.list = this.list.filter((t) => t.id !== id)
@@ -161,35 +206,41 @@ export const toasts = new Toasts()
 
 /** The pop-ups in the bottom-right corner (each goes after its time, or when clicked). */
 export function ToastStack() {
-  const theme = useTheme()
   const list = useSyncExternalStore(toasts.subscribe, toasts.get)
   if (!list.length) return null
   return (
-    <box position="absolute" right={1} bottom={1} width={52} zIndex={80} flexDirection="column" gap={1}>
-      {list.map((t) => {
-        const color = t.severity === "error" ? theme.bad : t.severity === "warning" ? theme.warn : theme.primary
-        return (
-          <box
-            key={t.id}
-            flexDirection="row"
-            backgroundColor={mix(theme.surface, "#ffffff", 0.04)}
-            flexShrink={0}
-            onMouseDown={() => toasts.drop(t.id)}
-          >
-            <box width={1} backgroundColor={color} />
-            <box flexDirection="column" flexGrow={1} paddingLeft={1} paddingRight={1}>
-              {t.title ? (
-                <text fg={color} attributes={TextAttributes.BOLD} wrapMode="word">
-                  {t.title}
-                </text>
-              ) : null}
-              <text fg={theme.text} wrapMode="word">
-                {t.body}
-              </text>
-            </box>
-          </box>
-        )
-      })}
+    <box position="absolute" right={2} bottom={2} width={54} zIndex={80} flexDirection="column" gap={1}>
+      {list.map((t) => (
+        <ToastCard key={t.id} toast={t} />
+      ))}
+    </box>
+  )
+}
+
+function ToastCard({ toast: t }: { toast: Toast }) {
+  const theme = useTheme()
+  const shown = useTween(t.leaving ? 0 : 1, { from: 0, ms: t.leaving ? FADE_MS : 220, ease: "outQuad" })
+  const color = t.severity === "error" ? theme.bad : t.severity === "warning" ? theme.warn : theme.focus
+  const bg = mix(theme.bg, mix(theme.surface, "#ffffff", 0.05), shown)
+  return (
+    <box
+      flexDirection="row"
+      backgroundColor={bg}
+      flexShrink={0}
+      marginLeft={Math.round((1 - shown) * 6)}
+      onMouseDown={() => toasts.leave(t.id)}
+    >
+      <box width={1} backgroundColor={mix(theme.bg, color, shown)} />
+      <box flexDirection="column" flexGrow={1} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
+        {t.title ? (
+          <text fg={mix(theme.bg, color === theme.focus ? theme.text : color, shown)} attributes={TextAttributes.BOLD} wrapMode="word">
+            {t.title}
+          </text>
+        ) : null}
+        <text fg={mix(theme.bg, theme.muted, shown)} wrapMode="word">
+          {t.body}
+        </text>
+      </box>
     </box>
   )
 }
@@ -300,7 +351,7 @@ export function mdBlocks(text: string): MdBlock[] {
  * and the inline styles above. `spaced` puts a blank line between top-level items (release notes: easier to scan). */
 export function Markdown({ text, heading, spaced }: { text: string; heading?: string; spaced?: boolean }) {
   const theme = useTheme()
-  const code = `${theme.primary}`
+  const code = `${mix(theme.text, theme.warn, 0.35)} on ${theme.panel}`
   const all = mdBlocks(text)
   return (
     <box flexDirection="column" flexShrink={0} paddingRight={1}>
@@ -316,7 +367,7 @@ export function Markdown({ text, heading, spaced }: { text: string; heading?: st
   function item(b: Extract<MdBlock, { kind: "item" }>, i: number) {
     return (
       <box key={i} flexDirection="row" paddingLeft={b.depth * 2} flexShrink={0}>
-        <text fg={theme.muted} width={b.mark.length + 1} flexShrink={0}>
+        <text fg={theme.faint} width={b.mark.length + 1} flexShrink={0}>
           {b.mark + " "}
         </text>
         <Wrapped segs={inline(b.text, theme.text, code)} />
@@ -328,7 +379,7 @@ export function Markdown({ text, heading, spaced }: { text: string; heading?: st
     if (b.kind === "gap") return <box key={i} height={1} flexShrink={0} />
     if (b.kind === "code")
       return (
-        <box key={i} flexDirection="column" backgroundColor={theme.panel} paddingLeft={1} flexShrink={0}>
+        <box key={i} flexDirection="column" backgroundColor={theme.panel} paddingLeft={2} paddingTop={1} paddingBottom={1} flexShrink={0}>
           {b.lines.map((l, j) => (
             <text key={j} fg={theme.muted} wrapMode="char">
               {l || " "}
@@ -337,7 +388,7 @@ export function Markdown({ text, heading, spaced }: { text: string; heading?: st
         </box>
       )
     // In a row, so a paragraph wraps to the width and never grows downwards (the empty gap the notes used to have).
-    const style = b.kind === "heading" ? `bold ${b.level <= 2 ? (heading ?? theme.primary) : theme.text}` : theme.text
+    const style = b.kind === "heading" ? `bold ${b.level <= 2 ? (heading ?? theme.text) : theme.text}` : theme.text
     return (
       <box key={i} flexDirection="row" flexShrink={0}>
         <Wrapped segs={inline(b.text, style, code)} />
@@ -351,14 +402,9 @@ export function Wrapped({ segs, flexGrow = 1 }: { segs: Segs; flexGrow?: number 
   return (
     <text wrapMode="word" flexGrow={flexGrow} flexShrink={1}>
       {segs.map((s, i) => {
-        const words = (s[1] ?? "").split(/\s+/)
-        const attributes =
-          (words.includes("bold") ? TextAttributes.BOLD : 0) |
-          (words.includes("italic") ? TextAttributes.ITALIC : 0) |
-          (words.includes("underline") ? TextAttributes.UNDERLINE : 0)
-        const fg = words.find((w) => w.startsWith("#"))
+        const st = parseStyle(s[1])
         return (
-          <span key={i} fg={fg} attributes={attributes || undefined}>
+          <span key={i} fg={st.fg} bg={st.bg} attributes={st.attributes || undefined}>
             {s[0]}
           </span>
         )
@@ -389,10 +435,7 @@ export function useTick(on: boolean, ms = 120): number {
   return tick
 }
 
-const TRACK = "#14181e"
-const THUMB = "#474a4f"
-
-/** A scrolling area (the mouse wheel scrolls it), with scrollbars in the window's colours. */
+/** A scrolling area (the mouse wheel scrolls it), with a thin scrollbar in the window's colours. */
 export const Scroll = forwardRef<
   ScrollBoxRenderable,
   {
@@ -405,7 +448,8 @@ export const Scroll = forwardRef<
     scrollY?: boolean
   }
 >(function Scroll(p, ref) {
-  const bar = { trackOptions: { foregroundColor: THUMB, backgroundColor: TRACK } }
+  const theme = useTheme()
+  const bar = { trackOptions: { foregroundColor: mix(theme.bg, theme.muted, 0.35), backgroundColor: mix(theme.bg, theme.surface, 0.5) } }
   return (
     <scrollbox
       ref={ref}

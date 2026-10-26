@@ -30,7 +30,7 @@ export function TextField(
   useEffect(() => {
     if (input.current && input.current.value !== p.value) input.current.value = p.value
   }, [p.value])
-  const bg = focused ? theme.inputFocus : theme.input
+  const bg = p.bad ? mix(theme.input, theme.bad, 0.07) : focused ? theme.inputFocus : theme.input
   return (
     <box
       ref={ref}
@@ -40,9 +40,9 @@ export function TextField(
       flexShrink={0}
       flexDirection="row"
       backgroundColor={bg}
-      border={p.bad ? true : ["left"]}
+      border={["left"]}
       borderStyle="heavy"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : bg}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : bg}
       paddingLeft={1}
       paddingRight={1}
       alignItems="center"
@@ -78,16 +78,16 @@ export function TextBox(
   useEffect(() => {
     if (area.current && area.current.plainText !== p.value) area.current.setText(p.value)
   }, [p.value])
-  const bg = focused ? theme.inputFocus : theme.input
+  const bg = p.bad ? mix(theme.input, theme.bad, 0.07) : focused ? theme.inputFocus : theme.input
   return (
     <box
       ref={ref}
       height={p.height ?? 5}
       flexShrink={0}
       backgroundColor={bg}
-      border={p.bad ? true : ["left"]}
+      border={["left"]}
       borderStyle="heavy"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : bg}
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : bg}
       paddingLeft={1}
       paddingRight={1}
       paddingTop={1}
@@ -138,9 +138,9 @@ export function RadioSet(
       ref={ref}
       flexDirection="column"
       flexShrink={0}
-      border
-      borderStyle="single"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : theme.input}
+      border={["left"]}
+      borderStyle="heavy"
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : theme.input}
       backgroundColor={theme.input}
       paddingLeft={1}
       paddingRight={1}
@@ -163,8 +163,8 @@ export function RadioSet(
               {on ? "● " : "○ "}
             </text>
             <text
-              fg={on ? "#ffffff" : theme.text}
-              bg={on ? theme.primary : here ? theme.cursor : undefined}
+              fg={on ? "#ffffff" : here ? theme.text : theme.muted}
+              bg={on ? theme.raised : here ? theme.cursor : undefined}
               attributes={on || here ? TextAttributes.BOLD : undefined}
               wrapMode="none"
             >
@@ -201,9 +201,9 @@ export function CheckList(
       ref={ref}
       flexDirection="column"
       flexShrink={0}
-      border
-      borderStyle="single"
-      borderColor={p.bad ? theme.bad : focused ? theme.primary : theme.input}
+      border={["left"]}
+      borderStyle="heavy"
+      borderColor={p.bad ? theme.bad : focused ? theme.focus : theme.input}
       backgroundColor={theme.input}
       paddingLeft={1}
       paddingRight={1}

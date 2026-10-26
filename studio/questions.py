@@ -152,8 +152,9 @@ QUESTIONS: list[Q] = [
     Q("default_tags", "posting", "Your usual hashtags", default=_default_tags,
       help="Each video swaps in its own topic tags; these fill the rest."),
     Q("cadence", "posting", "How often do you want to post?", "choice", default="2/day",
+      help="Only when I ask: no regular videos, just the ones you ask for.",
       options=[("2/day", "2 videos a day"), ("1/day", "1 video a day"), ("3/week", "3 a week"),
-               ("1/week", "1 a week")]),
+               ("1/week", "1 a week"), ("ask", "Only when I ask")]),
     Q("post_times", "posting", "When do you usually post?", default="8-11 am and 5-8 pm"),
     Q("timezone", "posting", "Your time zone", default=lambda a: _local_timezone()),
 ]

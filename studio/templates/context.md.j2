@@ -11,7 +11,7 @@ and mixes the sound, ffmpeg encodes, an automatic QA gate checks the finished fi
 **This is one of several channels in this ReelForge folder** (the first is {{ main_name }}, whose notes are the
 ReelForge folder's own {{ notes_file }}). This channel's files are all in `{{ here }}`, laid out like the
 ReelForge folder's:
-- its settings and channel bible: `{{ here }}my-studio/`
+- its settings, brief and channel bible: `{{ here }}my-studio/`
 - its episodes: `{{ here }}episodes/`
 - its finished videos: `{{ here }}completed videos/`
 
@@ -20,28 +20,56 @@ there. For this channel's videos, follow these notes, not another channel's.
 {% endif %}
 
 Read before making or changing a video:
+- `{{ here }}my-studio/brief.md`: {{ whose }} own description of the channel, in their words (see "The channel brief")
 - `{{ here }}my-studio/channel-bible.md`: the channel, the format, the slate of ideas, posting
 - `docs/QUALITY.md`: the quality bar and the faults that get a video rejected
 - `docs/PIPELINE.md`: pipeline commands, every `episode.json` key, and how to add a new scene
 - `docs/SOUND.md`: the sound rules (no static, the loudness target)
 - `{{ here }}completed videos/production-log.md`: what has been made, so no subject is repeated
 
-Where another doc disagrees with this file, this file wins.
+Where another doc disagrees with this file, this file wins, except the brief on what the channel and its videos are
+about (see below).
+
+## The channel brief
+
+First-time setup only asks a few questions, so the full picture of {{ ch.name }} comes from its brief,
+`{{ here }}my-studio/brief.md`: {{ whose }} own description of the channel (what it's about, who it's for, the kind
+of videos, examples they like, their rules). Read it at the start of every session, before this file's channel and
+format sections.
+
+- **When {{ who }} gives you a file or a description of the channel** (dragged into the chat, pasted in, or the path
+  to one):
+  1. Save it as `{{ here }}my-studio/brief.md`, in their words. Turn a file that isn't text (a PDF, a document, a
+     screenshot) into Markdown and keep its links. If there's a brief already, copy it into
+     `{{ here }}my-studio/backups/` first, then add the new one to it, or replace it if that's what they want.
+  2. Check it against first-time setup's answers in `{{ here }}my-studio/answers.json` (every key and its choices:
+     `{{ py }} -m studio channel --questions`). Where the brief says something different or more (often the
+     format: `"format": "custom"`, with the format described in `custom_format`; also `about`, `audience`, `tone`,
+     `twist`, `subjects` for its video ideas, `references`, `avoid`, `length`, `cadence`), show {{ who }} the
+     changes in a few lines. On their OK, write them and run `{{ py }} -m studio channel --regenerate`. It rewrites
+     this file, the channel bible and the settings from the answers, and never touches the brief.
+  3. Tell {{ who }} what you took from it, and ask about anything a video needs that it doesn't say.
+- **No brief yet?** Before the first video, ask {{ who }} for one: a file, a pasted description, or a few answers
+  (what the channel is about, one or two videos they'd love to see on it, anything to avoid). If they'd rather
+  answer, write the brief from what they say, save it, and carry on as above.
+- Where the brief and this file disagree, the brief wins on what the channel is about and what its videos show;
+  this file wins on how videos are made and delivered (the video rules, QA, the loudness, never posting).
 {% if channels %}
 
 ## Other channels in this folder
 
 This ReelForge folder makes videos for more than one channel. Everything in this file is **{{ ch.name }}**'s. Each
 other channel has its own folder in `profiles/`, laid out like this one, with its own notes (its format, rules and
-captions), settings, episodes and finished videos:
+captions), brief, settings, episodes and finished videos:
 
 {% for c in channels %}
-- **{{ c.name }}**: `{{ c.folder }}` (its notes: `{{ c.folder }}{{ notes_file }}`)
+- **{{ c.name }}**: `{{ c.folder }}` (its notes: `{{ c.folder }}{{ notes_file }}`; {{ c.cadence or "not set up yet" }})
 {% endfor %}
 
 When {{ who }} asks for a video for one of them, read that channel's {{ notes_file }} first and follow it instead of this
-file's channel rules. Its episodes go in its own `episodes/` folder, never in this one's. If it isn't clear which
-channel a video is for, ask.
+file's channel rules. Its episodes go in its own `episodes/` folder, never in this one's. A file or a description of
+one of them is that channel's brief, and its notes say where it goes. If it isn't clear which channel a video or a
+file is for, ask.
 {% endif %}
 
 ## How {{ who }} works with you
@@ -197,12 +225,28 @@ platform's button opens its upload page and copies exactly the text that site ne
 
 ## A production run ("make today's videos")
 
+{% if channels %}
+"Make today's videos" is for every channel in this folder, one channel after another, each made by its own notes
+(with its own lock file and `episodes/` folder):
+- **{{ ch.name }}**: {% if per_run %}{{ per_run }} video{% if per_run != 1 %}s{% endif %}{% if not per_day %} unless this week's are already made ({{ per_week }} a week){% endif %}, as below{% else %}none (only when {{ who }} asks for one){% endif %}{{ "" }}
+{% for c in channels %}
+- **{{ c.name }}**: {% if not c.ready %}not set up yet, so none (say so){% elif not c.per_run %}none (only when {{ who }} asks for one){% else %}{{ c.per_run }} video{% if c.per_run != 1 %}s{% endif %}{% if not c.per_day %} unless this week's are already made ({{ c.per_week }} a week){% endif %}, by `{{ c.folder }}{{ notes_file }}`{% endif %}{{ "" }}
+{% endfor %}
+
+"Make today's videos for <channel>" is that channel's only. For {{ ch.name }}:
+
+{% endif %}
+{% if per_run %}
 {{ cadence }}{% if per_day %}: each run makes {{ per_run }}{% else %}: each run makes 1{% endif %}.
 1. If `{{ here }}episodes/.run.lock` exists and is under 8 hours old, another run is going: stop. Otherwise write it (the
    current time) and delete it when you finish, also when you stop early. Check there are 10 GB free.
 2. Read the log and pick new subjects (never repeat one).
 3. Make each video as above. If only one clears the bar, ship that one and say why.
 4. Finish with a short summary: the titles, their folders, and that they are in ReelForge's Publish tab.
+{% else %}
+None: {{ who }} picked "Only when I ask" for {{ ch.name }}, so a production run makes no videos for it. Make one only
+when {{ who }} asks for it, as in "Making a video".
+{% endif %}
 
 ## Commands (run from {% if extra %}the ReelForge folder{% else %}this folder{% endif %})
 

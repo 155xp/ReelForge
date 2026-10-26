@@ -19,20 +19,29 @@ import type { ProfileRow, ProfilesMenu, ProfileView } from "./types"
 
 export const MENU_WIDTH = 64
 
-/** The button: the profile's name with ▾, and a red dot while another profile has something unread. */
-export function profileButton(p: ProfileView, open: boolean): Segs {
-  const bg = open ? mix(DASH.chip, "#ffffff", 0.12) : DASH.chip
-  const out: Segs = [[` ${p.name} `, `bold #ffffff on ${bg}`, ["profiles"]], ["▾ ", `${DASH.muted} on ${bg}`, ["profiles"]]]
-  if (p.elsewhere > 0) out.push(["●", `bold ${DASH.bad}`, ["profiles"]])
+/** The button: a pill with the profile's name (cut short to `room` columns) and ▾, and a red dot while another
+ * profile has something unread. */
+export function profileButton(p: ProfileView, open: boolean, hover = false, room = 40): Segs {
+  const bg = open ? mix(DASH.raised, "#ffffff", 0.1) : hover ? mix(DASH.raised, "#ffffff", 0.05) : DASH.raised
+  const name = cellLen(p.name) > room ? p.name.slice(0, Math.max(room - 1, 1)) + "…" : p.name
+  const out: Segs = [
+    ["▐", bg, ["profiles"]],
+    [` ${name} `, `bold ${DASH.text} on ${bg}`, ["profiles"]],
+    ["▾", `${DASH.muted} on ${bg}`, ["profiles"]],
+    [" ", `on ${bg}`, ["profiles"]],
+    ["▌", bg, ["profiles"]],
+  ]
+  if (p.elsewhere > 0) out.push([" ●", `bold ${DASH.bad}`, ["profiles"]])
   return out
 }
 
-export function ProfileButton() {
+export function ProfileButton({ room = 40 }: { room?: number }) {
   const s = useDash()
   const view = useView<ProfileView>(s.bridge, "profile") ?? s.init.profile
+  const [hover, setHover] = useState(false)
   return (
-    <box flexDirection="row" height={3} alignItems="center" flexShrink={0} paddingLeft={2}>
-      <Line segs={profileButton(view, s.dialog?.kind === "profiles")} />
+    <box flexDirection="row" height={3} alignItems="center" flexShrink={0} onMouseOver={() => setHover(true)} onMouseOut={() => setHover(false)}>
+      <Line segs={profileButton(view, s.dialog?.kind === "profiles", hover, room)} />
     </box>
   )
 }
@@ -42,19 +51,20 @@ type Item = { kind: "profile"; row: ProfileRow } | { kind: "new" } | { kind: "se
 /** One row of the menu, as styled text fitted to the menu's width. */
 function rowSegs(row: ProfileRow, width: number, highlighted: boolean): Segs {
   const out: Segs = []
+  out.push([highlighted ? "▌" : " ", DASH.focus])
   out.push([row.current ? " ● " : "   ", `bold ${DASH.good}`])
-  out.push([`${row.number}  `, DASH.muted])
+  out.push([`${row.number}  `, DASH.faint])
   const tags: Segs = []
   for (const p of row.platforms) tags.push([`${p.short} `, `bold ${p.color}`])
   if (!row.platforms.length) tags.push(["nothing connected ", DASH.muted])
   const unread: Segs = row.unread ? [[`${row.unread} new `, `bold ${DASH.bad}`]] : []
-  const remove: Segs = !row.current && !row.main ? [[" Remove ", `${highlighted ? "#ffffff" : DASH.muted} on ${DASH.chip}`]] : []
+  const remove: Segs = !row.current && !row.main ? [[" Remove ", highlighted ? `${DASH.text} on ${mix(DASH.cursor, "#ffffff", 0.08)}` : DASH.faint]] : []
   const right = [...tags, ...unread, ...(remove.length ? [[" ", ""] as [string, string]] : []), ...remove]
   const used = cellLen(out.map((x) => x[0]).join("")) + cellLen(right.map((x) => x[0]).join("")) + 2
   let name = row.name
   const room = Math.max(width - used, 8)
   if (cellLen(name) > room) name = name.slice(0, Math.max(room - 1, 1)) + "…"
-  out.push([name, row.current ? "bold #ffffff" : "bold"])
+  out.push([name, row.current ? `bold ${DASH.text}` : highlighted ? DASH.text : DASH.muted])
   out.push([" ".repeat(Math.max(width - used - cellLen(name) + 2, 1)), ""])
   return [...out, ...right]
 }
@@ -129,7 +139,8 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
           run(items[i])
         }}
       >
-        <text wrapMode="none" fg={on ? "#ffffff" : DASH.text}>
+        <text wrapMode="none" fg={on ? DASH.text : DASH.muted}>
+          <span fg={DASH.focus}>{on ? "▌" : " "}</span>
           {label}
         </text>
       </box>
@@ -139,22 +150,23 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
     <box
       ref={ref}
       position="absolute"
-      left={s.init.anvil.length ? 10 : 2}
+      left={s.init.anvil.length ? 12 : 1}
       top={3}
       width={MENU_WIDTH}
       border
       borderStyle="rounded"
-      borderColor={mix(DASH.border, "#ffffff", 0.15)}
-      title=" PROFILES "
-      titleColor={DASH.muted}
+      borderColor={mix(DASH.border, "#ffffff", 0.08)}
       backgroundColor={DASH.surface}
       flexDirection="column"
       paddingLeft={1}
       paddingRight={1}
+      paddingTop={1}
+      paddingBottom={1}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      <text fg={DASH.muted} wrapMode="none" flexShrink={0}>
-        {" One for each channel: its own accounts, stats and log-ins"}
+      <text wrapMode="none" flexShrink={0}>
+        <span fg={DASH.text} attributes={TextAttributes.BOLD}>{" PROFILES"}</span>
+        <span fg={DASH.faint}>{"   one for each channel: its own accounts, stats and log-ins"}</span>
       </text>
       <box height={1} flexShrink={0} />
       {data.rows.map((row, i) => {
@@ -185,8 +197,8 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       {action(" +  New profile", data.rows.length)}
       {current ? action(` ›  ${data.onboarded ? "Settings for" : "Set up"} ${current.name}`, data.rows.length + 1) : null}
       {current && data.onboarded ? action(" ›  Advanced settings", data.rows.length + 2) : null}
-      <text fg={DASH.muted} wrapMode="none" flexShrink={0} marginTop={1}>
-        {" ↑↓ pick  ·  Enter opens  ·  Esc closes"}
+      <text fg={DASH.faint} wrapMode="none" flexShrink={0} marginTop={1}>
+        {"  ↑↓ pick   Enter opens   Delete removes   Esc closes"}
       </text>
     </box>
   )
@@ -200,7 +212,7 @@ export function RemoveProfile({ data, close }: { data: { key: string; name: stri
       {lines(data.note).map((l, i) => (
         <Wrapped key={i} segs={l.length ? l : [[" ", ""]]} flexGrow={0} />
       ))}
-      <box flexDirection="row" justifyContent="flex-end" height={3} marginTop={1} flexShrink={0} gap={1}>
+      <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
         <Button id="rp-cancel" label="Cancel" autoFocus onPress={close} />
         <Button
           id="rp-remove"
@@ -227,11 +239,14 @@ export function AdvancedSettings({ data, close }: { data: AdvancedData; close: (
       <text attributes={TextAttributes.BOLD} flexShrink={0}>
         Your AI's reasoning
       </text>
-      <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
-        {`How hard your AI thinks on each of ${data.channel}'s videos. High is the standard and suits almost every channel.`}
-      </text>
+      {/* in a row, so the sentence wraps to the dialog's width before the choices are placed under it */}
+      <box flexDirection="row" flexShrink={0} marginBottom={1}>
+        <text fg={DASH.muted} wrapMode="word" flexGrow={1} flexShrink={1}>
+          {`How hard your AI thinks on each of ${data.channel}'s videos. High is the standard and suits almost every channel.`}
+        </text>
+      </box>
       <RadioSet id="adv-reasoning" options={data.options} value={level} autoFocus onChange={setLevel} />
-      <box flexDirection="row" justifyContent="flex-end" height={3} marginTop={1} flexShrink={0} gap={1}>
+      <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
         <Button id="adv-cancel" label="Cancel" onPress={close} />
         <Button
           id="adv-save"

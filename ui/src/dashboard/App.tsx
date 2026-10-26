@@ -1,17 +1,20 @@
-// ReelForge's window: the header (logo, the profile button, platforms, Refresh / Help / Quit), the bell in the corner,
-// six tabs, the notifications drawer on the right, dialogs, and pop-ups. Keys: 1-6 switch tabs, r / R refresh, p the
-// profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
+// ReelForge's window: the header (the anvil, the profile button, six tabs with a marker that slides to the open one,
+// Refresh / Help / Quit and the bell), the tab, the status bar at the foot (each platform, when the stats were read,
+// any read under way, the keys), the notifications drawer sliding in from the right, dialogs, and pop-ups. Keys: 1-6
+// switch tabs, r / R refresh, p the profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons
+// and fields, Ctrl+Q quits.
 
-import { TextAttributes, type KeyEvent } from "@opentui/core"
-import { useKeyboard, useRenderer } from "@opentui/react"
-import { useEffect, useMemo, useState } from "react"
+import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
+import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext } from "../lib/focus"
-import { segsLen } from "../lib/styled"
+import { cellLen, segsLen, type Segs } from "../lib/styled"
 import { DASH, mix } from "../theme"
 import { Cells } from "../ui/Cells"
-import { bell, logoCells } from "../ui/Graphics"
+import { bell, BELL_WIDTH, logoCells, shade, widthOf } from "../ui/Graphics"
 import { ActionContext, Line } from "../ui/Line"
+import { useProgress, useTween } from "../ui/Motion"
 import { ToastStack, toasts } from "../ui/Panels"
 import { Accounts } from "./Accounts"
 import { Compare } from "./Compare"
@@ -72,124 +75,240 @@ function Window({ focus }: { focus: FocusManager }) {
     if (/^[1-6]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
     if (key.name === "p") return s.openProfiles()
+    if (key.name === "?" || key.sequence === "?") return s.set({ dialog: { kind: "help" } })
   })
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={DASH.bg}>
-      <Top />
-      <TabBar />
-      <box flexDirection="row" flexGrow={1}>
-        <box flexDirection="column" flexGrow={1} paddingLeft={1} paddingRight={1}>
-          {s.tab === "overview" && <Overview />}
-          {s.tab === "videos" && <Videos />}
-          {s.tab === "compare" && <Compare />}
-          {s.tab === "publish" && <Publish />}
-          {s.tab === "accounts" && <Accounts />}
-          {s.tab === "updates" && <Updates />}
-        </box>
-        {s.drawer && <Drawer />}
-      </box>
+      <Header />
+      <TabContent />
+      <StatusBar />
+      <Drawer />
       <Dialogs />
       <ToastStack />
     </box>
   )
 }
 
-/** The header's grey bar (the anvil, the profile button, each platform, when the stats were read, Refresh / Help /
- * Quit), then the bell. */
-function Top() {
+/** The open tab. A tab you switch to slides in a few columns from the side you moved towards and comes up out of the
+ * window's colour. */
+function TabContent() {
   const s = useDash()
-  const header = useView<{ line: import("../lib/styled").Segs; short?: import("../lib/styled").Segs }>(s.bridge, "header")
-  const [room, setRoom] = useState(0)
-  // TT YT IG X beside the profile button when the names don't fit
-  const line = header && room && header.short && segsLen(header.line) > room ? header.short : header?.line
+  const i = Math.max(TABS.indexOf(s.tab), 0)
+  const last = useRef(i)
+  const dir = i >= last.current ? 1 : -1
+  useEffect(() => {
+    last.current = i
+  }, [i])
+  const p = useProgress(s.tab, { ms: 220, ease: "outQuad" })
+  const shift = Math.round((1 - p) * 3) * dir
+  const veil = Math.round((1 - p) * 0xd0)
+  return (
+    <box flexDirection="column" flexGrow={1} paddingLeft={1 + Math.max(shift, 0)} paddingRight={1 + Math.max(-shift, 0)}>
+      {s.tab === "overview" && <Overview />}
+      {s.tab === "videos" && <Videos />}
+      {s.tab === "compare" && <Compare />}
+      {s.tab === "publish" && <Publish />}
+      {s.tab === "accounts" && <Accounts />}
+      {s.tab === "updates" && <Updates />}
+      {veil > 8 ? <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={20} backgroundColor={DASH.bg + veil.toString(16).padStart(2, "0")} /> : null}
+    </box>
+  )
+}
+
+// ---------------------------------------------------------------- the header
+
+const ANVIL_STOPS = ["#ffffff", "#d3d8de", "#8e97a3"]
+
+/** How the header fits the window's width: the gap between tabs, the actions as words or signs, the profile's name
+ * cut short, and the anvil, given up in that order. */
+function headerFit(width: number, name: string, anvilW: number, tabsW: (gap: number) => number) {
+  const bellW = BELL_WIDTH + 4
+  const fixed = (anvil: boolean) => 1 + (anvil ? anvilW + 2 : 0) + 4 + bellW + 2
+  for (const anvil of [true, false])
+    for (const [gap, words] of [
+      [4, true],
+      [3, false],
+      [2, false],
+    ] as const) {
+      const actions = words ? 29 : 10
+      const room = width - fixed(anvil) - tabsW(gap) - actions
+      if (room >= Math.min(cellLen(name), 12) + 6) return { anvil, gap, words, nameRoom: room - 6 }
+    }
+  return { anvil: false, gap: 2, words: false, nameRoom: 6 }
+}
+
+function Header() {
+  const s = useDash()
+  const { width } = useTerminalDimensions()
+  const anvil = useMemo(() => shade(logoCells(s.init.anvil), ANVIL_STOPS), [s.init.anvil])
+  const update = useView<UpdateView>(s.bridge, "update")
+  const labels = TABS.map((t) => TAB_NAMES[t] + (t === "updates" && update?.newer ? " ●" : ""))
+  const tabsW = (gap: number) => labels.reduce((n, l) => n + cellLen(l), 0) + gap * (labels.length - 1)
+  const profile = useView<{ name: string }>(s.bridge, "profile") ?? s.init.profile
+  const fit = headerFit(width, profile.name, widthOf(anvil), tabsW)
+  return (
+    <box flexDirection="column" flexShrink={0}>
+      <box flexDirection="row" height={3} flexShrink={0} paddingLeft={1}>
+        {fit.anvil && anvil.length ? <Cells grid={anvil} marginRight={2} /> : null}
+        <ProfileButton room={fit.nameRoom} />
+        <Tabs labels={labels} gap={fit.gap} />
+        <box flexGrow={1} />
+        <box flexDirection="column" justifyContent="center" flexShrink={0} marginRight={2}>
+          <Line
+            segs={
+              fit.words
+                ? [
+                    ["↻ Refresh", DASH.muted, ["refresh"]],
+                    ["    ", ""],
+                    ["? Help", DASH.muted, ["help"]],
+                    ["    ", ""],
+                    ["Quit", DASH.muted, ["quit"]],
+                  ]
+                : [
+                    ["↻", DASH.muted, ["refresh"]],
+                    ["   ", ""],
+                    ["?", DASH.muted, ["help"]],
+                    ["   ", ""],
+                    ["×", DASH.muted, ["quit"]],
+                  ]
+            }
+          />
+        </box>
+        <Bell />
+      </box>
+      <text fg={DASH.border} wrapMode="none" height={1} flexShrink={0}>
+        {"─".repeat(Math.max(width, 1))}
+      </text>
+    </box>
+  )
+}
+
+/** The tabs: the open one white and bold with a short bar under it that slides to whichever you pick; a red dot on
+ * Updates when a new version is out. */
+function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
+  const s = useDash()
+  const [hover, setHover] = useState<number | null>(null)
+  const starts: number[] = []
+  let x = 0
+  for (const l of labels) {
+    starts.push(x)
+    x += cellLen(l) + gap
+  }
+  const i = Math.max(TABS.indexOf(s.tab), 0)
+  const at = useTween(starts[i]!, { ms: 220, ease: "outQuad" })
+  const wide = useTween(cellLen(TAB_NAMES[TABS[i]!]), { ms: 220, ease: "outQuad" })
+  const from = Math.round(at)
+  return (
+    <box flexDirection="column" flexShrink={0} marginLeft={3}>
+      <box height={1} />
+      <box flexDirection="row" height={1}>
+        {TABS.map((tab, k) => {
+          const on = k === i
+          const name = TAB_NAMES[tab]
+          return (
+            <text
+              key={tab}
+              marginRight={k < TABS.length - 1 ? gap : 0}
+              fg={on ? DASH.text : k === hover ? mix(DASH.muted, DASH.text, 0.6) : DASH.muted}
+              attributes={on ? TextAttributes.BOLD : undefined}
+              wrapMode="none"
+              onMouseOver={() => setHover(k)}
+              onMouseOut={() => setHover((h) => (h === k ? null : h))}
+              onMouseDown={() => s.setTab(tab)}
+            >
+              {name}
+              {labels[k] !== name ? <span fg={DASH.bad}> ●</span> : ""}
+            </text>
+          )
+        })}
+      </box>
+      <text wrapMode="none" height={1}>
+        <span>{" ".repeat(Math.max(from, 0))}</span>
+        <span fg={DASH.text}>{"▔".repeat(Math.max(Math.round(at + wide) - from, 1))}</span>
+      </text>
+    </box>
+  )
+}
+
+/** The bell, with how many notifications are unread on its shoulder; it opens and closes the drawer. */
+function Bell() {
+  const s = useDash()
   const notes = useView<NotesView>(s.bridge, "notes")
   const [hover, setHover] = useState(false)
-  const anvil = useMemo(() => logoCells(s.init.anvil), [s.init.anvil])
-  const actions: import("../lib/styled").Segs = [
-    [" Refresh ", "#c9d1d9 on #1c222b", ["refresh"]],
-    [" ", ""],
-    [" Help ", "#c9d1d9 on #1c222b", ["help"]],
-    [" ", ""],
-    [" Quit ", "#c9d1d9 on #1c222b", ["quit"]],
-  ]
+  const unread = notes?.unread ?? 0
+  const art = useMemo(() => bell(s.init.quadrants, s.drawer || hover ? "#ffffff" : mix(DASH.text, DASH.muted, 0.35)), [s.init.quadrants, s.drawer, hover])
+  const badge = unread > 9 ? "9+" : String(unread)
   return (
-    <box flexDirection="row" height={3} flexShrink={0}>
-      <box flexDirection="row" flexGrow={1} flexShrink={1} height={3} backgroundColor={DASH.panel}>
-        <Cells grid={anvil} marginLeft={1} marginRight={1} />
-        <ProfileButton />
-        {/* the platforms and status give way in a narrow window, so the bell keeps its corner */}
-        <box
-          flexGrow={1}
-          flexShrink={1}
-          flexBasis={0}
-          paddingLeft={3}
-          justifyContent="center"
-          overflow="hidden"
-          onSizeChange={function (this: import("@opentui/core").Renderable) {
-            setRoom(Math.max(this.width - 3, 0))
-          }}
-        >
-          <Line segs={line} />
-        </box>
-        <box paddingLeft={1} paddingRight={1} justifyContent="center" flexShrink={0}>
-          <Line segs={actions} />
-        </box>
-      </box>
-      <box
-        marginLeft={4}
-        marginRight={1}
-        backgroundColor={hover ? mix(DASH.panel, "#ffffff", 0.06) : undefined}
-        onMouseOver={() => setHover(true)}
-        onMouseOut={() => setHover(false)}
-        onMouseDown={(e) => {
-          e.stopPropagation()
-          s.toggleDrawer()
-        }}
-      >
-        <Cells grid={bell(Boolean(notes?.unread), s.init.quadrants, DASH.bad)} />
+    <box
+      flexDirection="row"
+      height={3}
+      flexShrink={0}
+      paddingLeft={1}
+      paddingRight={1}
+      backgroundColor={s.drawer ? DASH.surface : hover ? mix(DASH.bg, "#ffffff", 0.04) : undefined}
+      onMouseOver={() => setHover(true)}
+      onMouseOut={() => setHover(false)}
+      onMouseDown={(e) => {
+        e.stopPropagation()
+        s.toggleDrawer()
+      }}
+    >
+      <Cells grid={art} />
+      <box width={unread ? cellLen(badge) + 2 : 2} flexShrink={0} marginLeft={-1}>
+        {unread ? (
+          <text wrapMode="none">
+            <span fg={DASH.bad}>▐</span>
+            <span fg="#ffffff" bg={DASH.bad} attributes={TextAttributes.BOLD}>
+              {badge}
+            </span>
+            <span fg={DASH.bad}>▌</span>
+          </text>
+        ) : null}
       </box>
     </box>
   )
 }
 
-/** The tabs: the open one lit, with a line under them; a red dot on Updates when a new version is out. */
-function TabBar() {
+// ---------------------------------------------------------------- the status bar
+
+const KEYS: [string, string][] = [
+  ["1-6", "tabs"],
+  ["r", "refresh"],
+  ["p", "profiles"],
+  ["?", "help"],
+]
+
+/** The foot of the window: each platform (click one for Accounts), when the stats were read and any read under way
+ * (the Python side's header line), and the keys at the right while there's room. */
+function StatusBar() {
   const s = useDash()
-  const update = useView<UpdateView>(s.bridge, "update")
-  let x = 0
-  const spans: { tab: string; start: number; width: number }[] = []
-  for (const tab of TABS) {
-    const label = ` ${TAB_NAMES[tab]}${tab === "updates" && update?.newer ? " ●" : ""} `
-    spans.push({ tab, start: x, width: label.length })
-    x += label.length + 1
-  }
-  const active = spans.find((t) => t.tab === s.tab)!
+  const header = useView<{ line: Segs; short?: Segs }>(s.bridge, "header")
+  const [width, setWidth] = useState(0)
+  const keys: Segs = KEYS.flatMap(([k, what], i) => [
+    [i ? "   " : "", ""],
+    [k, DASH.muted],
+    [` ${what}`, DASH.faint],
+  ])
+  const full = header?.line ?? []
+  const short = header?.short ?? full
+  const room = width - 4 // its padding
+  const line = segsLen(full) <= room ? full : short
+  const showKeys = segsLen(line) + segsLen(keys) + 4 <= room
   return (
-    <box flexDirection="column" height={2} flexShrink={0}>
-      <box flexDirection="row" height={1}>
-        {TABS.map((tab) => {
-          const on = tab === s.tab
-          return (
-            <text
-              key={tab}
-              marginRight={1}
-              fg={on ? DASH.primaryText : DASH.muted}
-              bg={on ? DASH.primary : undefined}
-              attributes={on ? TextAttributes.BOLD : undefined}
-              onMouseDown={() => s.setTab(tab)}
-            >
-              {` ${TAB_NAMES[tab]}`}
-              {tab === "updates" && update?.newer ? <span fg={on ? DASH.primaryText : DASH.bad}> ●</span> : ""}
-              {" "}
-            </text>
-          )
-        })}
-      </box>
-      <text fg={DASH.border} wrapMode="none" flexShrink={0}>
-        <span fg={DASH.border}>{"━".repeat(active.start)}</span>
-        <span fg={DASH.primary}>{"━".repeat(active.width)}</span>
-        <span fg={DASH.border}>{"━".repeat(400)}</span>
-      </text>
+    <box
+      flexDirection="row"
+      height={1}
+      flexShrink={0}
+      paddingLeft={2}
+      paddingRight={2}
+      backgroundColor={mix(DASH.bg, DASH.surface, 0.7)}
+      onSizeChange={function (this: Renderable) {
+        setWidth(this.width)
+      }}
+    >
+      <Line segs={line} />
+      <box flexGrow={1} />
+      {showKeys ? <Line segs={keys} /> : null}
     </box>
   )
 }

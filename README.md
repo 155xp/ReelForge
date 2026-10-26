@@ -81,39 +81,62 @@ First-time setup turns your answers into instructions for your AI, `CLAUDE.md` f
 and saves them in the ReelForge folder (`C:\Users\<you>\ReelForge` on Windows and `~/ReelForge` on a Mac or Linux,
 unless you picked another). Its last screen tells you what to do next.
 
-![First-time setup's last screen: open this folder in Claude Code or Codex, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
+![First-time setup's last screen: open this folder in Claude Code or Codex, tell it about your channel, say "make my first video", then post it from Publish](docs/screenshots/first-run-ready.png)
 
 1. **Open the ReelForge folder in your AI.** In the Claude desktop app, go to **Code**, click **Open folder…** and
    pick the ReelForge folder (or run `claude` in a terminal inside it). For Codex, run `codex` in a terminal inside
    it.
-2. **Ask for your first video** in the words that screen gives you:
+2. **Tell it about your channel.** Drag a file about it into the chat (your notes, a doc, videos you like: whatever
+   you have) or paste a description, and say:
+
+   ```
+   here's my channel
+   ```
+
+   First-time setup only asks a few questions, so this is where your AI gets the full picture. It keeps your words
+   as the channel's brief (`my-studio/brief.md`), reads it every time and plans every video from it, and it asks
+   before changing your answers to match. Skip this and it asks for one before your first video.
+3. **Ask for your first video** in the words that screen gives you:
 
    ```
    make my first video
    ```
 
-3. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
+4. **Let it work.** Your AI picks a subject, writes the script, checks the facts, builds the scene in Blender and
    renders it, adds the text and the sound, then watches the finished video and fixes anything that's off. Rendering
    takes from about 15 minutes to an hour on a fast graphics card.
-4. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
+5. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
    Windows, in Applications on a Mac, in your app menu on Linux) and go to **Publish**.
 
-After that, say **make today's videos** whenever you want more.
+After that, say **make today's videos** whenever you want more, and give it a new file whenever your plans for the
+channel change.
 
 ## Inside ReelForge
 
 ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
-`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **Tab** moves between
-buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window and its first-time setup are built
-with [OpenTUI](https://github.com/anomalyco/opentui).
+`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **r** refreshes your
+stats, **p** opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and
+**Esc** closes.
+
+The window is calm and dark, so your numbers stand out: each platform keeps its own colour (TikTok cyan, YouTube red,
+Instagram purple, X white), green and red show what went up and down, and amber marks where each video went up.
+Numbers count up and charts grow in as they arrive, and the tabs slide. The bar along the bottom shows each platform
+you've connected (red when its last read failed: click it for Accounts), when your stats were last read and any read
+under way. It fits any window: in a small one the Overview's panels stack and scroll instead of squeezing.
+ReelForge's window and its first-time setup are built with [OpenTUI](https://github.com/anomalyco/opentui), and look
+sharpest in Windows Terminal.
 
 ### Overview
 
-Followers, views and likes on each platform you've connected, hour by hour, with a mark where each video went up,
-plus your top videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right
-collects milestones, new videos ready to post and updates, and gets a red dot when there's something new. Click a
+A tile for each platform you've connected, and one for them all: your followers in big numbers, today's change,
+your views and likes, and your views hour by hour (on All platforms, each platform's share). Under them, today's
+badges, then the views, followers and likes you gained each hour (or each few hours, or day: pick 24H, 48H, 7D or
+30D), stacked by platform, with a mark where each video went up. Point at a bar to read its numbers, and click a
+platform's name to hide it. Beside the charts are your top videos (with their views 12 hours in) and how the latest
+one is doing. The bell at the top right
+collects milestones, new videos ready to post and updates, and shows how many are new on its shoulder. Click a
 notification to see what it's about: a video that's taking off opens on the Videos tab, highlighted, and a finished
-video is picked out on Publish. The big × on a notification's right deletes it, and Clear all deletes them all.
+video is picked out on Publish. The × beside a notification deletes it, and Clear all deletes them all.
 
 <p align="center">
   <img src="docs/screenshots/app-notifications.png" width="49%" alt="The Overview tab with the notifications open">
@@ -167,14 +190,17 @@ notifications, Publish list and settings. The button with your channel's name at
 questions as your first channel did, right in the window, and helps you make the new channel's accounts: a Gmail
 first, then each platform's sign-up page, in a private window of your browser so your first channel stays logged in.
 Your first channel stays in the ReelForge folder itself, and each one you add gets its own folder in `profiles`, with
-its own notes for your AI. The hourly stats job reads every profile, and `reelforge -p "Channel name"` opens
-ReelForge on one.
+its own notes for your AI. Tell your AI about a new channel the way you did the first: "here's <its name>" and a file
+about it. The hourly stats job reads every profile, and `reelforge -p "Channel name"` opens ReelForge on one. "Make
+today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
+out, say).
 
 ![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
 
 ## Updates
 
-When a new version is out, the bell gets a red dot and the **Updates** tab (`reelforge 6`) shows what's new. Click
+When a new version is out, the bell tells you, and the **Updates** tab (`reelforge 6`) gets a red dot and shows
+what's new. Click
 **Update and restart** to install it. Your channel, videos, stats and settings stay as they are, and your AI's
 instructions are refreshed for the new version.
 
@@ -289,7 +315,9 @@ notes are in its folder (`profiles/<name>/CLAUDE.md`), and the main `CLAUDE.md` 
 <br>
 
 Make sure you opened the ReelForge folder itself, not the folder it's in: your AI reads `CLAUDE.md` (or `AGENTS.md`)
-from there. If it still seems lost, answer your channel's questions again with `reelforge channel`.
+from there. First-time setup only asks a few questions, so give it the full picture too: drag a file about your
+channel into the chat (or paste a description) and say "here's my channel". It keeps it as the channel's brief and
+plans every video from it. To change your answers, run `reelforge channel`.
 
 </details>
 

@@ -2,12 +2,13 @@
 // without cutting anything off.
 
 import { fmtNum, shortNum } from "../lib/format"
+import { DASH } from "../theme"
 import { cellLen, segsLen, type Segs } from "../lib/styled"
 
 export const CARD_LABELS = ["followers", "views", "likes"] as const
-const MUTED = "#8b93a1"
-const GOOD = "#3dff9a"
-const BAD = "#ff4d5e"
+const MUTED = DASH.muted
+const GOOD = DASH.good
+const BAD = DASH.bad
 
 type Fmt = (n: number | null | undefined) => string
 

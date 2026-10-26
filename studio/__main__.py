@@ -62,10 +62,14 @@ def next_steps(profile=None) -> str:
         lines.append(("  1. " if who == "codex" else "     ") + "Codex: run `codex` in a terminal in "
                      f"{'this' if profile.main else 'the ReelForge'} folder. It reads AGENTS.md by itself.")
     video = "my first video" if profile.main else f"my first {s['channel']['name']} video"
-    lines.append(f'  2. Say: "make {video}"')
+    say, kept = ("here's my channel", "your channel's brief") if profile.main else \
+        (f"here's {s['channel']['name']}", f"the brief for {s['channel']['name']}")
+    lines.append(f'  2. Say "{say}" and drag a file about it into the chat, or paste a description (your notes, a '
+                 f"doc, examples you like). It keeps it as {kept} and plans every video from it.")
+    lines.append(f'  3. Say: "make {video}"')
     icon = ("double-click ReelForge.bat" if P.WINDOWS else "open ReelForge from Applications" if P.MAC else
             "open ReelForge from your app menu")
-    lines.append(f"  3. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish (tab 4) to post "
+    lines.append(f"  4. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish (tab 4) to post "
                  "it.")
     return "\n".join(lines)
 

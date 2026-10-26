@@ -1,6 +1,6 @@
 // The first-run screens, drawn without a terminal with their real Python side and a fresh computer's tools list
-// (scripts/shots_preload.py): ticking what to set up, onboarding's steps and its Leave dialog, and the last screen's
-// buttons. (The Python side's steps are tested in tests/test_setup_service.py.)
+// (scripts/shots_preload.py): ticking what to set up, the channel's questions and their Leave dialog, the frame at any
+// size, and the last screen's buttons. (The Python side's steps are tested in tests/test_setup_service.py.)
 
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { join } from "node:path"
@@ -126,22 +126,23 @@ describe("onboarding", () => {
     expect(frame(h)).not.toContain("Leave without saving?")
     expect(h.exits).toEqual([])
     await press(h, "ESCAPE")
-    await clickText(h, "  Leave  ", 3)
+    await clickText(h, "▐ Leave ▌", 3) // the button, not the title above it
     expect(h.exits).toEqual([{ code: 0, result: undefined }])
   })
 })
 
-describe("the box", () => {
-  test("stays whole at any size: its corners, the step's buttons, and no hints on its edges", async () => {
+describe("the frame", () => {
+  test("fits any size: the steps along the top, the step's title, and its buttons all in view", async () => {
     for (const [w, hh] of [[60, 18], [90, 24], [120, 30], [200, 60]] as const) {
       const h = await screen("onboard", [w, hh])
-      const lines = frame(h).split("\n").filter((l) => l.trim())
-      expect(lines.length).toBe(hh)
-      expect(lines[0]!.startsWith("╔") && lines[0]!.endsWith("╗")).toBe(true)
-      expect(lines.at(-1)).toBe("╚" + "═".repeat(w - 2) + "╝")
-      for (const l of lines.slice(1, -1)) expect(l.startsWith("║") && l.endsWith("║")).toBe(true)
-      expect(frame(h)).toContain("Next")
+      const lines = frame(h).split("\n")
+      expect(lines.length).toBeGreaterThanOrEqual(hh)
+      expect(lines.slice(0, 3).join("")).toContain("Your channel") // the steps (or just this one, when narrow)
       expect(frame(h)).toContain("1/8  You")
+      const next = find(h, "Next")
+      expect(next).not.toBeNull()
+      expect(next![1]).toBeLessThan(hh - 1) // above the last row, with a row of space under it
+      expect(frame(h)).not.toContain("╔") // no box round the window any more
       await open?.close()
       open = null
     }
