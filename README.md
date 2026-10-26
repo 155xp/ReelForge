@@ -114,14 +114,26 @@ channel change.
 ## Inside ReelForge
 
 ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
-`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **Tab** moves between
-buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window and its first-time setup are built
-with [OpenTUI](https://github.com/anomalyco/opentui).
+`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **r** refreshes your
+stats, **p** opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and
+**Esc** closes.
+
+The window is calm and dark, so your numbers stand out: each platform keeps its own colour (TikTok cyan, YouTube red,
+Instagram purple, X white), green and red show what went up and down, and amber marks where each video went up.
+Numbers count up and charts grow in as they arrive, and the tabs slide. The bar along the bottom shows each platform
+you've connected (red when its last read failed: click it for Accounts), when your stats were last read and any read
+under way. It fits any window: in a small one the Overview's panels stack and scroll instead of squeezing.
+ReelForge's window and its first-time setup are built with [OpenTUI](https://github.com/anomalyco/opentui), and look
+sharpest in Windows Terminal.
 
 ### Overview
 
-Followers, views and likes on each platform you've connected, hour by hour, with a mark where each video went up,
-plus your top videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right
+A tile for each platform you've connected, and one for them all: your followers in big numbers, today's change,
+your views and likes, and your views hour by hour (on All platforms, each platform's share). Under them, today's
+badges, then the views, followers and likes you gained each hour (or each few hours, or day: pick 24H, 48H, 7D or
+30D), stacked by platform, with a mark where each video went up. Point at a bar to read its numbers, and click a
+platform's name to hide it. Beside the charts are your top videos (with their views 12 hours in) and how the latest
+one is doing. The bell at the top right
 collects milestones, new videos ready to post and updates, and shows how many are new on its shoulder. Click a
 notification to see what it's about: a video that's taking off opens on the Videos tab, highlighted, and a finished
 video is picked out on Publish. The × beside a notification deletes it, and Clear all deletes them all.
