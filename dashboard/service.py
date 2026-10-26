@@ -21,6 +21,7 @@ from studio.bridge import Loop, Service, rpc
 from . import analytics, badges, besttime, config, db, desktop, notify, sync, trends, videos
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
 from .platforms import Platform, PlatformError, PublishItem, browser, connected
+from .settings_tab import SettingsTab
 from .platforms.base import Account, Post
 from .view import (BAD, GOOD, MARK, MUTED, SHORT, TYPICAL, Text, act, change_text, chip, chips, js, legend, num,
                    parts, score_text, tag)
@@ -56,7 +57,7 @@ VIDEO_COLUMNS = [  # (key, label, width); Views 12h is wide enough for its ▼ w
 RIGHT = {"views", "views_12h", "likes", "comments", "shares", "eng", "share_rate", "vph", "score", "pscore",
          "followers", "gained", "videos", "median", "share"}
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
-TABS = ("overview", "videos", "compare", "publish", "accounts", "updates")
+TABS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
 WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
 # Demo mode's profiles (and the README's picture of the menu): (name, connected platforms, unread notifications).
@@ -95,6 +96,12 @@ HELP = [
                      "read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
+    ("Settings (7)", "This channel's answers from first-time setup (Change your answers asks the questions again), how "
+                     "hard your AI reasons on each video, and what ReelForge set up on this computer: the hourly stats "
+                     "read, the reelforge command and the icon. At the bottom, Factory reset puts every channel's "
+                     "settings, log-ins and stats in a backup and starts first-time setup again (your videos stay), "
+                     f"and Uninstall removes ReelForge, keeping your videos in a folder beside it. Neither deletes "
+                     f"anything: what they clear goes to a backup or the {desktop.BIN}."),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
                       "log-ins that need you. A red dot on the bell means something's unread; click one to go "
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
@@ -113,7 +120,7 @@ HELP = [
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]
-KEYS = [("1-6", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
+KEYS = [("1-7", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
         ("Tab", "move between buttons, lists and fields (Enter presses, the arrows move through a list)"),
         ("Esc", "close the drawer or a dialog, or leave a text field"), ("Ctrl+Q", "quit")]
 
@@ -169,7 +176,7 @@ def table(columns: list[tuple[str, str, int]], rows: list[tuple[str | None, list
                                                              for c in cells]} for k, cells in rows]}
 
 
-class Dashboard(Service):
+class Dashboard(SettingsTab, Service):
     def __init__(self, loop: Loop):
         super().__init__(loop)
         self.cfg: dict = {}
@@ -419,6 +426,8 @@ class Dashboard(Service):
         self.reload()
         self.scan_files()
         self.update_notes()
+        if self.tab == "settings":
+            self.update_settings()
         self.start_updates()
         self.run_refresh(manual=False)
         self.loop.run_worker(self.compact_db, group="maintenance")
@@ -681,6 +690,8 @@ class Dashboard(Service):
         self.update_active_tab()
         if tab == "publish":
             self.scan_files()
+        elif tab == "settings":
+            self.update_settings()
 
     def set_status(self, text: str) -> None:
         self.status = text

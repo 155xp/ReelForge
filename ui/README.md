@@ -55,6 +55,6 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 
 Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
 keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
-click on the highlighted row) opens it. In the ReelForge window 1-6 switch tabs and r / R refresh, except while a
+click on the highlighted row) opens it. In the ReelForge window 1-7 switch tabs and r / R refresh, except while a
 text field has the keyboard, and p opens the profile menu; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q
 quits.

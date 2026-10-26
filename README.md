@@ -114,8 +114,8 @@ channel change.
 
 ## Inside ReelForge
 
-ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
-`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **Tab** moves between
+ReelForge has seven tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 7`, or by name, like
+`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**7** switch tabs, **Tab** moves between
 buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window and its first-time setup are built
 with [OpenTUI](https://github.com/anomalyco/opentui).
 
@@ -185,6 +185,17 @@ today's videos" makes every channel's, except one you set to post **Only when I 
 out, say).
 
 ![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
+
+### Settings
+
+This channel's answers from first-time setup (**Change your answers** asks the questions again), how hard your AI
+reasons on each video (**Max**, **High**, the standard, or **Fast**), and what ReelForge set up on your computer: the
+hourly stats read, the `reelforge` command and the icon, each with a button to turn it on or off. At the bottom, the
+danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time setup
+again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
+anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac).
+
+![The Settings tab: the channel's answers, your AI's reasoning, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
 
 ## Updates
 
@@ -326,11 +337,9 @@ channel, open the profile menu and pick its settings, or run `reelforge -p "Chan
 <br>
 
 Use your strongest model. First-time setup sets Claude Code to Opus at high effort for the ReelForge folder, the
-standard for every channel. For more (or less), open the profile menu and pick **Advanced settings**: **Max** reasons
-the most and makes the best video it can, and **Fast** makes quick drafts. With Codex, pick your strongest model with
-`/model`.
-
-![Advanced settings: how hard your AI reasons on each video, Max, High (the standard) or Fast](docs/screenshots/app-advanced.png)
+standard for every channel. For more (or less), open the **Settings** tab (`reelforge 7`, or **Advanced settings**
+in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. With
+Codex, pick your strongest model with `/model`.
 
 </details>
 
@@ -392,13 +401,14 @@ browser, so it never asks.
 <br>
 
 - `reelforge` opens ReelForge.
-- `reelforge 1` to `reelforge 6` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates.
+- `reelforge 1` to `reelforge 7` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates, Settings.
 - `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.
 - `reelforge doctor` checks everything.
 - `reelforge stats on` and `reelforge stats off` turn the hourly stats on and off.
+- `reelforge reset` starts over (a factory reset), and `reelforge uninstall` removes ReelForge.
 - `reelforge help` lists the rest.
 
 </details>
@@ -408,14 +418,28 @@ browser, so it never asks.
 
 <br>
 
-If you used an install line or a download, run `reelforge stats off` and `reelforge command off`, delete ReelForge's
-icon (on Windows from your desktop, on a Mac from Applications, on Linux
-`~/.local/share/applications/reelforge.desktop`), then delete the ReelForge folder. On Windows, also delete
-`%LOCALAPPDATA%\Microsoft\Windows Terminal\Fragments\ReelForge`, ReelForge's profile in Windows Terminal.
+Run `reelforge uninstall`, or click **Uninstall…** at the bottom of the **Settings** tab. It lists what it removes and
+asks you to type your channel's name, then:
 
-If you used the installer, go to **Apps** in Windows **Settings**, find ReelForge and choose **Uninstall**. That
-removes ReelForge, the tools it downloaded, the hourly stats job and the `reelforge` command, and keeps your channel,
-videos and stats in its folder.
+- turns off the hourly stats read and the `reelforge` command, and puts ReelForge's icon (and on Windows its Windows
+  Terminal profile) in the Recycle Bin or the Trash
+- moves your videos and each channel's answers to **ReelForge videos and channels**, a folder beside ReelForge's
+  (add `--remove-videos` to let them go with the rest)
+- puts the ReelForge folder in the Recycle Bin or the Trash: the app, Blender, ffmpeg, Bun, your stats, logins and
+  settings. Restore it from there if you change your mind, or empty the bin to get the space back.
+
+Nothing is deleted for good, and videos kept outside the ReelForge folder aren't touched.
+
+</details>
+
+<details>
+<summary><b>How do I start over?</b></summary>
+
+<br>
+
+Run `reelforge reset`, or click **Factory reset…** on the **Settings** tab. It moves every channel's settings, logins
+and stats into a backup in `backups` and starts first-time setup again. Your videos stay where they are, and so do
+Blender, ffmpeg and the sounds, so nothing is downloaded again. To undo it, move the backup's files back.
 
 </details>
 

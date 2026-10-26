@@ -14,6 +14,12 @@
 - **A shorter first-time setup.** It no longer asks how hard your AI should work: High is the standard. For more
   or less, the profile menu has **Advanced settings**: Max, High and Fast. `reelforge channel` changes your
   channel's answers.
+- **A Settings tab (7).** Your channel's answers, how hard your AI reasons, and what ReelForge set up on your
+  computer, in one place. At the bottom:
+  - **Factory reset** puts your settings, logins and stats in a backup and starts first-time setup again. Your
+    videos stay.
+  - **Uninstall** removes ReelForge and keeps your videos in a folder beside it. `reelforge uninstall` does it too.
+  - Both ask you to type your channel's name, and nothing is deleted for good.
 - **The setup box fits any window.** It stays whole in a small window or one you resize, and the hints on its bottom
   edge are gone.
 - **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops

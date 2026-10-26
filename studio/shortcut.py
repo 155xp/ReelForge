@@ -69,6 +69,27 @@ def make() -> str:
     return _linux()
 
 
+def ours() -> bool:
+    """The icon is there and opens this folder's ReelForge (on Windows: the shortcut's target is this folder's
+    ReelForge.bat, not another copy's)."""
+    if not P.WINDOWS:
+        return ready()
+    link = path()
+    if not link.exists():
+        return False
+    ps = ("(New-Object -ComObject WScript.Shell).CreateShortcut($env:RF_LINK).TargetPath")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=30,
+                           env={**os.environ, "RF_LINK": str(link)},
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return False
+    target = r.stdout.strip()
+    return bool(target) and os.path.normcase(os.path.normpath(target)) == os.path.normcase(
+        os.path.normpath(str(P.ROOT / "ReelForge.bat")))
+
+
 def remove() -> bool:
     """Remove the icon if it opens this folder's ReelForge. Returns whether it did."""
     if not ready():

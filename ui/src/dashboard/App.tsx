@@ -1,5 +1,5 @@
 // ReelForge's window: the header (logo, the profile button, platforms, Refresh / Help / Quit), the bell in the corner,
-// six tabs, the notifications drawer on the right, dialogs, and pop-ups. Keys: 1-6 switch tabs, r / R refresh, p the
+// seven tabs, the notifications drawer on the right, dialogs, and pop-ups. Keys: 1-7 switch tabs, r / R refresh, p the
 // profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
@@ -20,6 +20,7 @@ import { Drawer } from "./Drawer"
 import { Overview } from "./Overview"
 import { ProfileButton } from "./Profiles"
 import { Publish } from "./Publish"
+import { Settings } from "./Settings"
 import { DashContext, DashState, TAB_NAMES, TABS, useDash, type Nav } from "./state"
 import type { Init, NotesView, UpdateView } from "./types"
 import { Updates } from "./Updates"
@@ -69,7 +70,7 @@ function Window({ focus }: { focus: FocusManager }) {
     }
     if (focus.handleKey(key)) return
     if (s.dialog || focus.typing || key.ctrl || key.meta) return
-    if (/^[1-6]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
+    if (/^[1-7]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
     if (key.name === "p") return s.openProfiles()
   })
@@ -85,6 +86,7 @@ function Window({ focus }: { focus: FocusManager }) {
           {s.tab === "publish" && <Publish />}
           {s.tab === "accounts" && <Accounts />}
           {s.tab === "updates" && <Updates />}
+          {s.tab === "settings" && <Settings />}
         </box>
         {s.drawer && <Drawer />}
       </box>
