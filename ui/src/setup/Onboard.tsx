@@ -1,4 +1,4 @@
-// The onboarding interview, step by step, then a review: Create my studio writes everything. Mouse and keyboard both
+// The channel's questions in first-time setup, step by step, then a review: Create my studio writes everything. Mouse and keyboard both
 // work: Tab moves between fields, Enter presses a button, Esc offers to leave. The questions, their defaults and when
 // each shows come from studio/questions.py, through studio/setup_service.py. Your accounts has a sign-up guide for
 // each platform (and the channel's Gmail) for someone without the accounts yet.
@@ -7,7 +7,6 @@ import { TextAttributes, type KeyEvent, type ScrollBoxRenderable } from "@opentu
 import { useKeyboard, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef, useState } from "react"
 import { useFocusManager, useTheme } from "../lib/focus"
-import { mix } from "../theme"
 import { Button } from "../ui/Button"
 import { CheckList, RadioSet, Switch, TextBox, TextField } from "../ui/Fields"
 import { Markdown, Modal, Scroll } from "../ui/Panels"
@@ -159,21 +158,19 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
             paddingRight={2}
             border={["right"]}
             borderStyle="single"
-            borderColor={theme.panel}
+            borderColor={theme.border}
           >
-            <text fg={theme.muted} marginBottom={1}>
+            <text fg={theme.faint} marginBottom={1}>
               {labels.side}
             </text>
             {steps.map(([key, label], n) => (
-              <text
-                key={key}
-                paddingLeft={1}
-                fg={n === i ? theme.text : n < i ? theme.good : theme.muted}
-                bg={n === i ? mix(theme.primary, theme.bg, 0.75) : undefined}
-                attributes={n === i ? TextAttributes.BOLD : undefined}
-                wrapMode="none"
-              >
-                {(n < i ? `${init.check} ` : n === i ? "› " : "  ") + label}
+              <text key={key} bg={n === i ? theme.raised : undefined} wrapMode="none">
+                <span fg={n === i ? theme.primary : theme.bg} bg={n === i ? theme.raised : undefined}>
+                  {"▌ "}
+                </span>
+                <span fg={n === i ? theme.text : n < i ? theme.good : theme.faint} attributes={n === i ? TextAttributes.BOLD : undefined}>
+                  {(n < i ? `${init.check} ` : "") + label}
+                </span>
               </text>
             ))}
           </box>
@@ -210,7 +207,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
               </text>
             ) : null}
           </Scroll>
-          <box flexDirection="row" height={3} flexShrink={0} marginTop={1} marginBottom={1} alignItems="center">
+          <box flexDirection="row" height={1} flexShrink={0} marginTop={1} marginBottom={1} alignItems="center">
             <Button id="back" label="Back" minWidth={roomy ? 22 : 12} marginRight={2} disabled={i === 0} onPress={() => void back()} />
             <Button
               id="next"
@@ -238,7 +235,7 @@ export function Onboard({ bridge, init, quit, onDone }: SetupProps & { onDone: (
       {leaving ? (
         <Modal name="quit" title="Leave without saving?" width={60}>
           <text flexShrink={0}>Your answers so far won't be saved.</text>
-          <box flexDirection="row" height={3} marginTop={1} gap={2} flexShrink={0}>
+          <box flexDirection="row" height={1} marginTop={2} gap={2} flexShrink={0}>
             <Button id="stay" label="Keep going" variant="primary" autoFocus onPress={() => setLeaving(false)} />
             <Button id="leave" label="Leave" variant="error" onPress={() => quit(0)} />
           </box>
@@ -272,7 +269,7 @@ function Question({
     field = <TextField id={id} value={String(value ?? "")} placeholder={f.placeholder} bad={bad} onChange={onChange} />
   else if (f.kind === "handle")
     field = (
-      <box flexDirection="row" height={3} flexShrink={0}>
+      <box flexDirection="row" height={3} flexShrink={0} alignItems="center">
         <box flexGrow={1} maxWidth={44} marginRight={2}>
           <TextField id={id} value={String(value ?? "")} placeholder={f.placeholder} bad={bad} flexGrow={1} onChange={onChange} />
         </box>
@@ -313,14 +310,14 @@ function Question({
 function GmailOffer({ offer, onPress }: { offer: { title: string; why: string; button: string }; onPress: () => void }) {
   const theme = useTheme()
   return (
-    <box border borderStyle="rounded" borderColor={theme.border} paddingLeft={1} paddingRight={1} marginBottom={1} flexDirection="column" flexShrink={0}>
+    <box backgroundColor={theme.surface} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1} marginBottom={1} flexDirection="column" flexShrink={0}>
       <text attributes={TextAttributes.BOLD} wrapMode="word">
         {offer.title}
       </text>
       <text fg={theme.muted} wrapMode="word">
         {offer.why}
       </text>
-      <box flexDirection="row" height={3} marginTop={1} flexShrink={0}>
+      <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
         <Button id="gmail" label={offer.button} onPress={onPress} />
       </box>
     </box>
@@ -383,7 +380,7 @@ function SignupGuide({
           </box>
         ))}
       </box>
-      <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
+      <box flexDirection="row" height={1} marginTop={1} marginLeft={4} flexShrink={0}>
         <Button id="guide-open" label={guide.button} variant="primary" autoFocus onPress={() => void open()} />
       </box>
       {opened ? (
@@ -404,7 +401,7 @@ function SignupGuide({
           ) : null}
         </>
       ) : null}
-      <box flexDirection="row" height={3} marginTop={1} gap={2} flexShrink={0}>
+      <box flexDirection="row" height={1} marginTop={2} gap={2} flexShrink={0}>
         <Button id="guide-done" label="Done" variant="primary" onPress={() => void done()} />
         <Button id="guide-back" label="Back" onPress={() => onDone(null)} />
       </box>

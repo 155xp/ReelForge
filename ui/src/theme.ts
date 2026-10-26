@@ -1,7 +1,7 @@
 // ReelForge's colours. The window is calm and dark: near-black, panels a step lighter instead of boxes, white and greys
 // for everything that's the app's own, so the only colours are the platforms' (TikTok cyan, YouTube red, Instagram
 // purple, X white), green and red for up and down, amber for the marks where a video went up, and the forge's red to
-// ember gradient on the few buttons that do the main thing. The first-run screens keep the logo's red on black.
+// ember gradient on the few buttons that do the main thing. First-time setup shares these colours, with the logo's red.
 
 export interface Theme {
   bg: string // the screen
@@ -26,7 +26,6 @@ export interface Theme {
   input: string // a text field's background
   inputFocus: string
   focus: string // the edge that says what has the keyboard
-  buttons: "row" | "tall" // one-row pills, or the first-run screens' three-row buttons
 }
 
 /** The forge: the logo's red into ember. */
@@ -55,33 +54,12 @@ export const DASH: Theme = {
   input: "#181b21",
   inputFocus: "#1d2128",
   focus: "#e8eaed",
-  buttons: "row",
 }
 
+/** First-time setup: the window's own calm dark, the logo's red on its main buttons and the step you're on. */
 export const SETUP: Theme = {
-  bg: "#000000",
-  surface: "#0d0f12",
-  panel: "#15181d",
-  raised: "#1d2026",
-  border: "#2a2e35",
-  text: "#e8eaed",
-  muted: "#8a94a3",
-  faint: "#5d6470",
+  ...DASH,
   primary: "#e8213a",
-  primaryText: "#ffffff",
-  accent: EMBER,
-  button: "#17191c",
-  buttonText: "#e8eaed",
-  good: "#4ade80",
-  warn: "#ffc83a",
-  bad: "#ff5a4e",
-  cursor: "#5c0d17",
-  cursorIdle: "#39080e",
-  chip: "#17191c",
-  input: "#17191c",
-  inputFocus: "#1f2226",
-  focus: "#e8213a",
-  buttons: "tall",
 }
 
 export const PICKED = "#f5c451" // the edge round what a clicked notification is about

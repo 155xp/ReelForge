@@ -1,5 +1,4 @@
-// A button. In the window it's a one-row pill: a raised block with half-block ends, the main one in the forge's red to
-// ember gradient. The first-run screens keep their three-row buttons (a thin light edge on top, a dark one under).
+// A button: a one-row pill, a raised block with half-block ends, the main one in the forge's red to ember gradient.
 // Click it, or give it the keyboard (Tab) and press Enter or Space.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
@@ -45,11 +44,10 @@ export function Button(props: ButtonProps) {
       return false
     },
   })
-  const tall = theme.buttons === "tall"
   const width = props.width ?? Math.max(cellLen(label) + 4, props.minWidth ?? 0)
   // the fill: a gradient for the main button, one colour for the others
   const stops: string[] =
-    variant === "primary" ? (tall ? [theme.primary, theme.primary] : [...theme.accent]) : variant === "error" ? [theme.bad, theme.bad] : variant === "ghost" ? [theme.bg, theme.bg] : [theme.button, theme.button]
+    variant === "primary" ? [...theme.accent] : variant === "error" ? [theme.bad, theme.bad] : variant === "ghost" ? [theme.bg, theme.bg] : [theme.button, theme.button]
   const lift = (c: string) => {
     if (disabled) return mix(c, theme.bg, 0.55)
     if (down) return mix(c, "#000000", 0.2)
@@ -77,34 +75,6 @@ export function Button(props: ButtonProps) {
       setHover(false)
       setDown(false)
     },
-  }
-  if (tall) {
-    const bg = fill[0]!
-    return (
-      <box
-        ref={ref}
-        flexDirection="column"
-        width={width}
-        height={3}
-        flexShrink={props.flexShrink ?? 0}
-        marginRight={props.marginRight}
-        marginLeft={props.marginLeft}
-        backgroundColor={bg}
-        {...events}
-      >
-        <text fg={mix(bg, "#ffffff", 0.25)} wrapMode="none">
-          {"▔".repeat(width)}
-        </text>
-        <box height={1} justifyContent="center" flexDirection="row">
-          <text fg={textFg} attributes={attributes} wrapMode="none">
-            {label}
-          </text>
-        </box>
-        <text fg={mix(bg, "#000000", 0.45)} wrapMode="none">
-          {"▁".repeat(width)}
-        </text>
-      </box>
-    )
   }
   // One row: the half-block ends in the fill's colour round the label, centred in the width.
   const inner = Math.max(width - 2, cellLen(label))
