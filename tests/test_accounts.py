@@ -1,8 +1,8 @@
 """Onboarding's platforms and "Your accounts" step, the sign-up guides, and connecting a platform afterwards
-(studio.questions, studio.signup, studio.onboard_app, studio.generate.set_account), in a scratch folder. No browser
-opens: the sign-up pages go to a stand-in."""
+(studio.questions, studio.signup, studio.setup_service, studio.generate.set_account), in a scratch folder. No browser
+opens: the sign-up pages go to a stand-in. The step's screen is tested in ui/test/setup.test.tsx."""
 
-import asyncio
+import copy
 import json
 import shutil
 import tempfile
@@ -11,11 +11,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from textual.widgets import Input
-
 from studio import generate, questions, settings, signup
 from studio import paths as P
-from studio.onboard_app import GmailOffer, Onboard, OnboardScreen, SignupGuide
+from studio import settings as S
+from studio.bridge import Loop
+from studio.setup_service import Setup
 
 KIT = Path(__file__).resolve().parent.parent
 
@@ -127,78 +127,73 @@ class SetAccount(Scratch):
         self.assertEqual(self.handles(), {"tiktok": "@np", "youtube": "@yt", "instagram": "@ig", "x": ""})
 
 
-class AccountsStep(Scratch):
-    """The interview's "Your accounts" step, in the full-screen box."""
+class Quiet(Loop):
+    def send(self, msg: dict) -> None:
+        pass
 
-    def run_onboarding(self, scenario, answers=None) -> None:
-        app = Onboard({"channel_name": "Night Physics", "about": "What-ifs.", **(answers or {})}, preview=True)
 
-        async def main():
-            async with app.run_test(size=(140, 46)) as pilot:
-                await pilot.pause(0.5)
-                screen = app.screen
-                self.assertIsInstance(screen, OnboardScreen)
-                await screen.show_step([k for k, _ in screen.steps].index("accounts"))
-                await pilot.pause(0.3)
-                await scenario(app, screen, pilot)
+class AccountsStep(unittest.TestCase):
+    """The interview's "Your accounts" step, as the onboarding screen gets it."""
 
-        asyncio.run(main())
+    def setUp(self) -> None:
+        self.svc = Setup(Quiet(out=None))
+        self.svc.start({"preview": True, "start": "onboard"})
+        with mock.patch("studio.setup_service.saved_answers",
+                        lambda: {"channel_name": "Night Physics", "about": "What-ifs."}):
+            self.svc.onboard_start()
+        self.step = self.svc.onboard_step([k for k, _ in self.svc.steps].index("accounts"))
+        self.opened: list[str] = []
+        patch = mock.patch.object(signup, "open_page", self.opened.append)
+        patch.start()
+        self.addCleanup(patch.stop)
 
     def test_a_gmail_first_then_a_handle_each(self):
-        opened = []
-
-        async def scenario(app, screen, pilot):
-            self.assertTrue(screen.query(GmailOffer))
-            shown = [f.q.key for f in screen.fields() if not f.has_class("hidden")]
-            self.assertEqual(shown, ["handle_tiktok", "handle_youtube", "handle_instagram"])  # X wasn't picked
-            await pilot.click("#gmail")
-            await pilot.pause(0.3)
-            self.assertIsInstance(app.screen, SignupGuide)
-            await pilot.click("#guide-open")
-            await pilot.pause(0.2)
-            self.assertEqual(opened, [signup.GMAIL.url])
-            await pilot.click("#guide-done")
-            await pilot.pause(0.2)
-            self.assertIs(app.screen, screen)
-
-        with mock.patch.object(signup, "open_page", opened.append):
-            self.run_onboarding(scenario)
+        self.assertIn("Make a Gmail", self.step["gmail"]["button"])
+        shown = [f["key"] for f in self.step["fields"] if f["visible"]]
+        self.assertEqual(shown, ["handle_tiktok", "handle_youtube", "handle_instagram"])  # X wasn't picked
+        self.assertEqual({f["platform"] for f in self.step["fields"]}, set(settings.PLATFORMS))
+        guide = self.svc.signup_guide("gmail")
+        self.assertFalse(guide["account"])
+        self.assertTrue(guide["steps"][0].startswith(f"Press {signup.GMAIL.button}"))
+        self.svc.open_signup("gmail")
+        self.assertEqual(self.opened, [signup.GMAIL.url])
 
     def test_sign_up_fills_in_the_handle(self):
-        opened = []
-
-        async def scenario(app, screen, pilot):
-            await pilot.click("#signup-youtube")
-            await pilot.pause(0.3)
-            guide = app.screen
-            self.assertIsInstance(guide, SignupGuide)
-            await pilot.click("#guide-open")
-            await pilot.pause(0.2)
-            self.assertEqual(opened, ["https://www.youtube.com/create_channel"])
-            guide.query_one("#guide-handle", Input).value = "not a handle!"
-            await pilot.click("#guide-done")
-            await pilot.pause(0.2)
-            self.assertIs(app.screen, guide)  # it says what's wrong instead
-            guide.query_one("#guide-handle", Input).value = "youtube.com/@NightPhysics"
-            await pilot.click("#guide-done")
-            await pilot.pause(0.3)
-            self.assertIs(app.screen, screen)
-            self.assertEqual(screen.query_one("#w-handle_youtube", Input).value, "@NightPhysics")
-            self.assertTrue(screen.validate_step())
-            self.assertEqual(screen.answers["handle_youtube"], "@NightPhysics")
-
-        with mock.patch.object(signup, "open_page", opened.append):
-            self.run_onboarding(scenario)
+        guide = self.svc.signup_guide("youtube")
+        self.assertTrue(guide["account"])
+        self.assertEqual(guide["steps"][-1], "Type your @handle below.")
+        self.assertIn("one log-in", self.svc.signup_guide("instagram")["steps"][-1])
+        self.svc.open_signup("youtube")
+        self.assertEqual(self.opened, ["https://www.youtube.com/create_channel"])
+        self.assertIn("isn't a handle", self.svc.signup_handle("not a handle!")["error"])  # it says what's wrong
+        handle = self.svc.signup_handle("youtube.com/@NightPhysics")["handle"]
+        self.assertEqual(handle, "@NightPhysics")
+        self.svc.onboard_change("handle_youtube", handle)  # the screen puts it in its box: your answer
+        res = self.svc.onboard_next({"handle_youtube": handle})
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(self.svc.answers["handle_youtube"], "@NightPhysics")
 
     def test_a_bad_handle_stops_next(self):
-        async def scenario(app, screen, pilot):
-            screen.query_one("#w-handle_tiktok", Input).value = "two words"
-            await pilot.pause(0.2)
-            self.assertFalse(screen.validate_step())
-            self.assertIn("isn't a handle", str(screen.query_one("#e-handle_tiktok").render()))
+        res = self.svc.onboard_next({"handle_tiktok": "two words"})
+        self.assertFalse(res["ok"])
+        self.assertIn("isn't a handle", res["errors"]["handle_tiktok"])
+        self.assertEqual(self.opened, [])  # no page opens by itself
 
-        with mock.patch.object(signup, "open_page", lambda url: self.fail("no page should open")):
-            self.run_onboarding(scenario)
+    def test_a_skipped_handle_can_wait(self):
+        self.assertTrue(self.svc.onboard_next({})["ok"])
+        self.assertIn("connect it any time on ReelForge's Accounts tab", self.svc.summary())
+        self.assertIn("**Where will you post?** TikTok, YouTube Shorts, Instagram Reels\n", self.svc.summary())
+
+    def test_the_last_screen_says_to_connect_them_later(self):
+        sample = copy.deepcopy(S.DEFAULTS)
+        sample["platforms"]["enabled"] = ["tiktok", "youtube", "instagram"]
+        sample["platforms"]["handles"] = {"tiktok": "@np"}
+        with mock.patch.object(S, "load", lambda path=None: sample), \
+                mock.patch.object(self.svc.loop, "run_worker", lambda *a, **k: None):  # nothing turned on here
+            info = self.svc.done_info()
+        self.assertIn("When you've made your YouTube Shorts and Instagram Reels accounts, connect them on "
+                      "ReelForge's Accounts tab", info["login"])
+        self.assertEqual(info["tab"], "accounts")
 
 
 if __name__ == "__main__":

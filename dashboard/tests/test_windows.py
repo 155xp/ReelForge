@@ -1,6 +1,6 @@
 """Several ReelForge windows open at once, and the hourly job: one of them reads the stats at a time, a read you ask
 for in one window while another is reading waits for that one instead of reading again, and every window shows what
-any of them read, with its notifications and errors (dashboard.sync, dashboard.app).
+any of them read, with its notifications and errors (dashboard.sync, dashboard.service).
 
 "Another ReelForge" here is a second hold on the read lock (as a second process has, with its own file handle) and
 what it saves to the store; one test starts a real second process.
@@ -8,7 +8,6 @@ what it saves to the store; one test starts a real second process.
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import io
 import subprocess
@@ -20,13 +19,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from textual.widgets import TabbedContent
-
 from dashboard import config, db, demo, notify, sync
 from dashboard.__main__ import refresh as job_refresh
-from dashboard.app import WATCH_EVERY, ReelForge
 from dashboard.config import PLATFORM_KEYS
 from dashboard.platforms import Account, Platform, PlatformError, Post
+from dashboard.service import WATCH_EVERY
+from dashboard.tests.window import Window, plain
 
 ROOT = Path(__file__).resolve().parents[2]
 POSTED = "2026-10-20T10:00:00+00:00"
@@ -258,7 +256,7 @@ class RefreshTest(StoreTest):
 
 
 class WindowsTest(unittest.TestCase):
-    """The real window on demo data, with another ReelForge reading and saving next to it."""
+    """A window on demo data (its Python side), with another ReelForge reading and saving next to it."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -274,111 +272,79 @@ class WindowsTest(unittest.TestCase):
             self.addCleanup(state.clear)
         self.addCleanup(setattr, sync, "_stale", None)
 
-    def run_app(self, scenario) -> ReelForge:
-        """The window, reading nothing by itself (refresh_minutes = 0): only r, or what another ReelForge reads."""
-        app = ReelForge(self.cfg, demo.platforms(), demo=True)
-
-        async def main() -> None:
-            async with app.run_test(size=(160, 45)) as pilot:
-                await pilot.pause(0.5)
-                await scenario(app, pilot)
-
-        asyncio.run(main())
-        return app
+    def window(self) -> Window:
+        """A window reading nothing by itself (refresh_minutes = 0): only r, or what another ReelForge reads."""
+        w = Window(self.cfg, demo.platforms())
+        self.addCleanup(w.close)
+        w.pump(0.5)
+        return w
 
     @staticmethod
-    async def until(pilot, ok, seconds: float = 6) -> None:
-        end = time.monotonic() + seconds
-        while not ok() and time.monotonic() < end:
-            await pilot.pause(0.1)
-
-    @staticmethod
-    def status(app: ReelForge) -> str:
-        return app.query_one("#status").content.plain
-
-    @staticmethod
-    def toasts(app: ReelForge) -> list[str]:
-        return [n.message for n in app._notifications]
+    def status(w: Window) -> str:
+        return plain(w.view("header")["line"])
 
     def test_a_read_in_another_window_shows_here(self):
-        async def scenario(app, pilot):
-            followers = app.latest["tiktok"]["followers"] + 5_000
-            other = Other("TikTok").start()
-            await self.until(pilot, lambda: "refreshing TikTok…" in self.status(app))
-            self.assertIn("refreshing TikTok…", self.status(app))
-            other.finish({"tiktok": followers})
-            await self.until(pilot, lambda: app.latest["tiktok"]["followers"] == followers)
-            self.assertEqual(app.latest["tiktok"]["followers"], followers)
-            self.assertNotIn("refreshing", self.status(app))
-            self.assertEqual(app.changes, db.changes())
-
-        self.run_app(scenario)
+        w = self.window()
+        followers = w.svc.latest["tiktok"]["followers"] + 5_000
+        other = Other("TikTok").start()
+        self.assertTrue(w.until(lambda: "refreshing TikTok…" in self.status(w)))
+        other.finish({"tiktok": followers})
+        self.assertTrue(w.until(lambda: w.svc.latest["tiktok"]["followers"] == followers))
+        self.assertTrue(any(c["values"]["followers"] >= followers for c in w.view("cards")["cards"]
+                            if c["id"] == "tiktok"))  # the card shows it
+        self.assertNotIn("refreshing", self.status(w))
+        self.assertEqual(w.svc.changes, db.changes())
 
     def test_refresh_while_another_window_reads_waits_for_it(self):
-        async def scenario(app, pilot):
-            followers = {key: app.latest[key]["followers"] + 100 for key in app.platforms}
-            other = Other("TikTok, YouTube, Instagram, X").start()
-            await pilot.press("r")
-            await pilot.pause(1.1)
-            self.assertEqual(app.reading.count, 1)  # waiting
-            other.finish(followers)
-            await self.until(pilot, lambda: any("just read your stats" in t for t in self.toasts(app)))
-            self.assertIn("Up to date: another ReelForge window just read your stats.", self.toasts(app))
-            await self.until(pilot, lambda: app.latest["x"]["followers"] == followers["x"])
-            self.assertEqual({key: app.latest[key]["followers"] for key in app.platforms}, followers)
-
-        self.run_app(scenario)
+        w = self.window()
+        followers = {key: w.svc.latest[key]["followers"] + 100 for key in w.svc.platforms}
+        other = Other("TikTok, YouTube, Instagram, X").start()
+        w.call("refresh", False)  # r
+        w.pump(1.1)
+        self.assertEqual(w.svc.reading.count, 1)  # waiting
+        other.finish(followers)
+        self.assertTrue(w.until(lambda: any("just read your stats" in t for t in w.toasts())))
+        self.assertIn("Up to date: another ReelForge window just read your stats.", w.toasts())
+        self.assertTrue(w.until(lambda: w.svc.latest["x"]["followers"] == followers["x"]))
+        self.assertEqual({key: w.svc.latest[key]["followers"] for key in w.svc.platforms}, followers)
 
     def test_errors_from_another_windows_read_show_here(self):
-        async def scenario(app, pilot):
-            other = Other("Instagram").start()
-            other.finish(errors={"instagram": [db.now_iso(), "Log in to Instagram again"]})
-            await self.until(pilot, lambda: "instagram" in sync.last_errors)
-            self.assertEqual(sync.last_errors["instagram"][1], "Log in to Instagram again")
-            body = app.query_one("#acct-instagram .acct-body").content.plain
-            self.assertIn("last read failed: Log in to Instagram again", body)
-
-        self.run_app(scenario)
+        w = self.window()
+        other = Other("Instagram").start()
+        other.finish(errors={"instagram": [db.now_iso(), "Log in to Instagram again"]})
+        self.assertTrue(w.until(lambda: "instagram" in sync.last_errors))
+        self.assertEqual(sync.last_errors["instagram"][1], "Log in to Instagram again")
+        panel = next(p for p in w.view("accounts")["panels"] if p["key"] == "instagram")
+        self.assertIn("last read failed: Log in to Instagram again", plain(panel["body"]))
 
     def test_the_bell_follows_the_other_windows(self):
-        async def scenario(app, pilot):
-            bell = app.query_one("#bell")
-            unread = bell.unread
-            notify.add("milestone", "TikTok passed 25K followers", "You have 25,010 followers on TikTok.",
-                       key="milestone:followers:tiktok:25000")  # another window's refresh found it
-            await self.until(pilot, lambda: bell.unread == unread + 1)
-            self.assertEqual(bell.unread, unread + 1)
-            # popped up here too (on a slow machine the pop-up can land a moment after the bell)
-            await self.until(pilot, lambda: "You have 25,010 followers on TikTok." in self.toasts(app))
-            self.assertIn("You have 25,010 followers on TikTok.", self.toasts(app))
-            notify.mark_all_read()  # Mark all read, in another window
-            await self.until(pilot, lambda: bell.unread == 0)
-            self.assertEqual(bell.unread, 0)
-
-        self.run_app(scenario)
+        w = self.window()
+        unread = w.view("notes")["unread"]
+        notify.add("milestone", "TikTok passed 25K followers", "You have 25,010 followers on TikTok.",
+                   key="milestone:followers:tiktok:25000")  # another window's refresh found it
+        self.assertTrue(w.until(lambda: w.view("notes")["unread"] == unread + 1))
+        self.assertTrue(w.until(lambda: "You have 25,010 followers on TikTok." in w.toasts()))  # popped up here too
+        notify.mark_all_read()  # Mark all read, in another window
+        self.assertTrue(w.until(lambda: w.view("notes")["unread"] == 0))
 
     def test_a_new_version_another_window_found_shows_on_the_updates_tab_here_too(self):
-        async def scenario(app, pilot):
-            app.demo = False  # the demo's Updates tab shows a sample
-            info = {"current": "1.0.4", "latest": "9.9.9", "newer": True, "notes": "What's new", "url": "",
-                    "error": "", "checked": db.now_iso()}
-            db.set_meta("update_check", info)  # another window's check
-            notify.update_available("9.9.9")
-            await self.until(pilot, lambda: (app.update_info or {}).get("latest") == "9.9.9")
-            self.assertEqual(app.update_info, info)
-            self.assertIn("●", str(app.query_one(TabbedContent).get_tab("updates").label))
-
-        self.run_app(scenario)
+        w = self.window()
+        w.svc.demo = False  # the demo's Updates tab shows a sample
+        info = {"current": "1.0.4", "latest": "9.9.9", "newer": True, "notes": "What's new", "url": "",
+                "error": "", "checked": db.now_iso()}
+        db.set_meta("update_check", info)  # another window's check
+        notify.update_available("9.9.9")
+        self.assertTrue(w.until(lambda: (w.svc.update_info or {}).get("latest") == "9.9.9"))
+        self.assertEqual(w.svc.update_info, info)
+        self.assertTrue(w.view("update")["newer"])  # the tab gets its red dot
 
     def test_a_change_made_here_doesnt_reload_this_window_again(self):
-        async def scenario(app, pilot):
-            app.tell_others()
-            self.assertEqual(app.changes, db.changes())
-            with mock.patch.object(app, "load_shared") as load:
-                await pilot.pause(WATCH_EVERY + 0.5)  # a look round, at least
-            load.assert_not_called()
-
-        self.run_app(scenario)
+        w = self.window()
+        w.svc.tell_others()
+        self.assertEqual(w.svc.changes, db.changes())
+        with mock.patch.object(w.svc, "_load_shared") as load:
+            w.pump(WATCH_EVERY + 0.5)  # a look round, at least
+        load.assert_not_called()
 
 
 if __name__ == "__main__":

@@ -11,9 +11,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REPAIR = 3  # the exit code that asks the launchers to run setup
-# requirements.txt's packages by the names Python imports them as, and rich, which the first-run screens import
-# directly (tests/test_studio.py keeps this in step with requirements.txt)
-PACKAGES = ("numpy", "PIL", "jinja2", "textual", "rich", "httpx", "playwright", "certifi", "truststore")
+# requirements.txt's packages by the names Python imports them as (tests/test_studio.py keeps this in step with
+# requirements.txt)
+PACKAGES = ("numpy", "PIL", "jinja2", "httpx", "playwright", "certifi", "truststore")
 
 
 def missing() -> list[str]:

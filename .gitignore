@@ -45,3 +45,6 @@ examples/*/final/
 
 # Release builds (scripts/package.py)
 dist/
+
+# The window's packages (bun install puts them here: setup, and studio/ui.py when the window opens)
+ui/node_modules/

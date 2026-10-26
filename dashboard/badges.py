@@ -28,10 +28,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 
-from rich.text import Text
-
 from . import analytics, db, notify, trends
 from .analytics import fmt_num
+from .view import Text
 
 MIN_COMPARE = 10  # videos or days needed before a badge may say a percentage
 MIN_BEST = 3      # videos or days needed before "your best ... yet" (one or two isn't much of a record)
@@ -152,9 +151,9 @@ def account_badges(account_rows: dict, platforms: dict, now=None) -> list[Badge]
 
 def badge_text(b: Badge) -> Text:
     color = "#ffcc33" if b.tier >= 3 else "#e8eaed"
-    out = Text("★ " if b.tier == BEST else "▲ ", style=f"bold {color}")
-    out.append(b.text, style=f"bold {color}" if b.tier >= 3 else "bold")
-    out.append(f"  {b.detail}   ", style="#8b93a1")
+    out = Text("★ " if b.tier == BEST else "▲ ", f"bold {color}")
+    out.append(b.text, f"bold {color}" if b.tier >= 3 else "bold")
+    out.append(f"  {b.detail}   ", "#8b93a1")
     return out
 
 

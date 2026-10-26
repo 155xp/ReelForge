@@ -1,10 +1,9 @@
 """Best time to post (dashboard.besttime), every video's views 1, 6, 12 and 24 hours in (analytics.views_after,
 views_due, db.early_series) and compaction keeping each video's first day of readings, plus the CSV export, the Videos
-tab's Views 12h and the Publish tab's card in the real window on demo data."""
+tab's Views 12h and the Publish tab's card, from the window's Python side on demo data."""
 
 from __future__ import annotations
 
-import asyncio
 import csv
 import tempfile
 import unittest
@@ -13,10 +12,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from rich.text import Text
-
 from dashboard import analytics, besttime, db
-from dashboard.widgets import SHORT
+from dashboard.tests.window import Window, plain
+from dashboard.view import SHORT, Text
 
 PUB = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 
@@ -107,7 +105,7 @@ class TwelveHourCellTest(unittest.TestCase):
     """The Videos tab's Views 12h cell."""
 
     def cell(self, views: float | None, due: bool, age_h: float) -> str:
-        from dashboard.app import _after
+        from dashboard.service import _after
 
         return _after({"after": {12: views}, "due": {12} if due else set(), "age_h": age_h}, 12).plain
 
@@ -187,11 +185,10 @@ class BestTimeTest(unittest.TestCase):
 
 
 class AppTest(unittest.TestCase):
-    """The CSV export, the Videos tab's Views 12h and the Publish tab's card, in the real window on demo data."""
+    """The CSV export, the Videos tab's Views 12h and the Publish tab's card, on demo data."""
 
-    def demo_app(self, tab: str):
+    def demo_window(self, tab: str) -> tuple[Window, Path]:
         from dashboard import demo
-        from dashboard.app import ReelForge
         from dashboard.config import PLATFORM_KEYS
 
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -202,67 +199,41 @@ class AppTest(unittest.TestCase):
                "completed_dir": str(root / "none"), **{key: {} for key in PLATFORM_KEYS}}
         db.init(root / "demo.db")
         demo.seed()
-        return ReelForge(cfg, demo.platforms(), demo=True, tab=tab), root
+        w = Window(cfg, demo.platforms(), tab=tab)
+        self.addCleanup(w.close)
+        return w, root
+
+    @staticmethod
+    def column(view: dict, key: str) -> tuple[dict, list[tuple[str, str]]]:
+        at = [c["key"] for c in view["columns"]].index(key)
+        return view["columns"][at], [(r["key"], plain(r["cells"][at])) for r in view["rows"]]
 
     def test_videos_tab_has_each_videos_views_12_hours_in(self):
-        from textual.widgets import DataTable
+        from dashboard.service import _after
 
-        from dashboard.app import _after
-
-        app, _ = self.demo_app("videos")
-
-        async def main() -> tuple[list[tuple[str, str]], str, int]:
-            async with app.run_test(size=(200, 56)) as pilot:
-                await pilot.pause(0.3)
-                table = app.query_one("#videos-table", DataTable)
-                columns = list(table.columns.values())
-                at = [c.key.value for c in columns].index("views_12h")
-                await pilot.click("#videos-table", offset=(sum(c.get_render_width(table) for c in columns[:at]) + 2, 0))
-                await pilot.pause(0.2)
-                column = columns[at]
-                cells = [(row.key.value, table.get_cell(row.key, column.key).plain) for row in table.ordered_rows]
-                return cells, column.label.plain, column.width
-
-        cells, label, width = asyncio.run(main())
-        self.assertEqual(app.sort, ("views_12h", True))  # clicking its header sorted by it, most first
-        self.assertEqual(label, "Views 12h ▼")
-        self.assertGreaterEqual(width, len(label))  # the arrow shows
-        posts = [app._post_for(key) for key, _ in cells]
-        self.assertEqual(len(cells), len(app.posts))
+        w, _ = self.demo_window("videos")
+        w.call("sort_videos", "views_12h")  # clicking its header
+        column, cells = self.column(w.view("videos"), "views_12h")
+        self.assertEqual(w.svc.sort, ("views_12h", True))  # sorted by it, most first
+        self.assertEqual(plain(column["label"]), "Views 12h ▼")
+        self.assertGreaterEqual(column["width"], len("Views 12h ▼"))  # the arrow shows
+        posts = [w.svc._post_for(key) for key, _ in cells]
+        self.assertEqual(len(cells), len(w.svc.posts))
         self.assertEqual([text for _, text in cells], [_after(p, 12).plain for p in posts])
         known = [p["after"][12] for p in posts if p["after"][12] is not None]
         self.assertGreater(len(known), 4)  # the demo reads every hour, so every video 12 hours old has its number
         self.assertEqual(known, sorted(known, reverse=True))
         self.assertTrue(all(p["after"][12] is None for p in posts[len(known):]))  # the rest go last
 
-    def test_top_performers_have_their_views_12_hours_in_and_every_column_shows(self):
-        from textual.widgets import DataTable
+    def test_top_performers_have_their_views_12_hours_in(self):
+        from dashboard.service import _after
 
-        from dashboard.app import _after
-
-        app, _ = self.demo_app("overview")
-
-        async def main() -> tuple[list[tuple[str, str]], str, list[int]]:
-            sideways = []
-            async with app.run_test(size=(180, 50)) as pilot:  # the README's pictures: the narrowest Top performers
-                await pilot.pause(0.3)
-                top = app.query_one("#top-table", DataTable)
-                sideways.append(top.max_scroll_x)
-                columns = list(top.columns.values())
-                at = [c.key.value for c in columns].index("views_12h")
-                await pilot.click("#top-table", offset=(sum(c.get_render_width(top) for c in columns[:at]) + 2, 0))
-                await pilot.pause(0.2)
-                cells = [(row.key.value, top.get_cell(row.key, columns[at].key).plain) for row in top.ordered_rows]
-                await pilot.resize_terminal(180, 38)  # too short for all 15: a scrollbar takes 2 more cells
-                await pilot.pause(0.3)
-                sideways.append(top.max_scroll_x)
-                return cells, columns[at].label.plain, sideways
-
-        cells, label, sideways = asyncio.run(main())
-        self.assertEqual(sideways, [0, 0])  # nothing hides off to the right
-        self.assertEqual(app.top_sort, ("views_12h", True))
-        self.assertEqual(label, "12h ▼")
-        posts = [app._post_for(key) for key, _ in cells]
+        w, _ = self.demo_window("overview")
+        w.call("sort_top", "views_12h")
+        column, cells = self.column(w.view("top"), "views_12h")
+        self.assertEqual(w.svc.top_sort, ("views_12h", True))
+        self.assertEqual(plain(column["label"]), "12h ▼")
+        posts = [w.svc._post_for(key) for key, _ in cells]
         self.assertEqual([text for _, text in cells], [_after(p, 12).plain for p in posts])
         known = [p["after"][12] for p in posts if p["after"][12] is not None]
         self.assertGreater(len(known), 4)
@@ -271,19 +242,15 @@ class AppTest(unittest.TestCase):
     def test_csv_has_when_each_post_went_up_and_its_early_views(self):
         from dashboard import config, desktop
 
-        app, root = self.demo_app("publish")
-
-        async def main() -> dict[str, str]:
-            async with app.run_test(size=(200, 56)) as pilot:
-                await pilot.pause(0.3)
-                app.action_export_csv()
-                return {key: str(app.query_one(f"#best-{key}").render()) for key in app.platforms}
-
-        with mock.patch.object(config, "DATA_DIR", root), mock.patch.object(desktop, "reveal") as reveal:
-            lines = asyncio.run(main())
+        out = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        self.addCleanup(out.cleanup)
+        with mock.patch.object(config, "DATA_DIR", Path(out.name)), mock.patch.object(desktop, "reveal") as reveal:
+            w, _ = self.demo_window("publish")
+            w.call("export_csv")
+        lines = [plain([seg for part in line for seg in part[0]]) for line in w.view("best")["lines"]]
         with reveal.call_args[0][0].open(encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
-        posts = sorted(app.posts, key=lambda q: q["published_at"], reverse=True)
+        posts = sorted(w.svc.posts, key=lambda q: q["published_at"], reverse=True)
         self.assertEqual(len(rows), len(posts))
         for row, p in zip(rows, posts):
             when = p["published"].astimezone()
@@ -296,7 +263,7 @@ class AppTest(unittest.TestCase):
                 self.assertEqual(row[f"views_after_{hours}h"], "" if views is None else str(round(views)))
         known = [r["views_after_24h"] for r in rows]
         self.assertTrue(any(known) and not all(known))  # the newest videos aren't a day old yet
-        for key, text in lines.items():
+        for key, text in zip(w.svc.platforms, lines):
             self.assertTrue(text.startswith(f"● {SHORT[key]}"), text)
             self.assertTrue(any(s in text for s in ("not enough videos yet", "no clear best time yet", "next:")),
                             text)

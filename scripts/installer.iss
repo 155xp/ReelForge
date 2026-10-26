@@ -67,7 +67,7 @@ Name: "{autodesktop}\ReelForge"; Filename: "{app}\ReelForge.bat"; WorkingDir: "{
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}\bin"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}\bin'))
 
 [Run]
-Filename: "{app}\setup.bat"; WorkingDir: "{app}"; Description: "Set up ReelForge now (downloads Blender, ffmpeg and the sound effects, then a short interview)"; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\setup.bat"; WorkingDir: "{app}"; Description: "Set up ReelForge now (downloads Blender, ffmpeg, the sound effects and Bun, then a short interview)"; Flags: postinstall shellexec skipifsilent
 
 [UninstallRun]
 Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""ReelForge stats"" /F"; Flags: runhidden; RunOnceId: "RemoveStatsJob"
@@ -75,6 +75,7 @@ Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /TN ""ReelForge stats"" /F"
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\.venv"
 Type: filesandordirs; Name: "{app}\tools"
+Type: filesandordirs; Name: "{app}\ui\node_modules"
 Type: filesandordirs; Name: "{app}\assets\sfx\_cache"
 Type: filesandordirs; Name: "{app}\assets\sfx\mixkit"
 Type: files; Name: "{userdesktop}\ReelForge.lnk"

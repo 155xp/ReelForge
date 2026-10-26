@@ -1,0 +1,58 @@
+# ReelForge's window
+
+Everything ReelForge shows in a terminal after setup's first box (the ReelForge window, the first-run screens and
+onboarding) is this [OpenTUI](https://github.com/anomalyco/opentui) app: TypeScript with React, run by
+[Bun](https://bun.com). The numbers, the stats reads and every button's work stay in Python; the window starts
+`python -m studio.bridge` and talks to it in lines of JSON over stdin and stdout.
+
+```
+reelforge ──▶ studio/ui.py ──▶ bun ui/src/main.tsx dashboard '{"tab": "publish"}'
+                                        │   ▲
+                         calls (JSON)   ▼   │   views (JSON): what to draw
+                               python -m studio.bridge
+                                 ├─ dashboard/service.py      the ReelForge window
+                                 └─ studio/setup_service.py   the first-run screens and onboarding
+```
+
+The Python side sends each piece of the window as a view (`cards`, `trends`, `videos`, `notes`, …) whenever it
+changes, as styled text (`dashboard/view.py`: segments of `[text, style, action]`) and plain numbers. The window
+keeps the newest of each and draws it: the layout, the tables and lists, the charts (`src/lib/chart.ts`), fitting
+titles and cards to the room they get, the mouse, the keys and the dialogs.
+
+## Running it
+
+Setup puts Bun in `tools/bun` and the packages in `node_modules` (`python -m studio.ui install`); `studio/ui.py`
+checks both each time ReelForge opens. To work on the window, from this folder (with a Bun of your own, or
+`../tools/bun/bun`):
+
+```
+bun install                                    the packages, dev ones included
+bun src/main.tsx dashboard '{"demo": true}'    the window on made-up stats
+bun src/main.tsx setup '{"start": "onboard"}'  onboarding (it writes your answers when you press Create)
+bun x tsc --noEmit -p .                        the types
+bun test                                       the tests
+```
+
+The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`). The Python side's stderr goes to
+`dashboard/data/window-log.txt` when ReelForge opens the window.
+
+## What's where
+
+| Path | What it is |
+|---|---|
+| `src/main.tsx` | Starts the renderer and the Python side, mounts the window or the first-run screens, quits cleanly |
+| `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
+| `src/dashboard/` | The ReelForge window: `App.tsx` (header, bell, tabs, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx` |
+| `src/setup/` | The first-run screens (`App.tsx`), onboarding (`Onboard.tsx`) and the box round them (`Frame.tsx`) |
+| `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art |
+| `src/lib/` | Charts in cells, styled text, fitting parts to a width, number formats, keyboard focus |
+| `test/` | `bun test`: the charts and cards on their own, and the window and first-run screens drawn without a terminal, clicked through on demo data with the real Python side |
+| `scripts/headless.tsx` | The window on OpenTUI's test renderer (the tests and screenshots use it) |
+| `scripts/shots.tsx` | The README's screenshots as SVGs; `scripts/screenshots.py` (in the ReelForge folder) turns them into PNGs |
+
+## Keys and the mouse
+
+Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
+keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
+click on the highlighted row) opens it. In the ReelForge window 1-6 switch tabs and r / R refresh, except while a
+text field has the keyboard; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q quits.

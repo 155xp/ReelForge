@@ -59,9 +59,10 @@ You need about 15 GB of free space, Claude Code or Codex, and one of these:
    starts setup, so your browser, Windows and macOS have no download warning to show.
 3. **Say yes, then answer a few questions.** ReelForge lists what it still needs and, when you click **Set up**,
    downloads Blender, ffmpeg and the sound effects into its own folder (and Python too, if your Mac or Linux PC
-   doesn't have a recent one). Then it asks about your channel: what it's about, the format, where you post (TikTok,
-   YouTube Shorts and Instagram Reels to start), and how your videos should look and sound. No accounts yet? It helps
-   you make them, starting with a new Gmail for your channel.
+   doesn't have a recent one; Bun, which runs ReelForge's window, comes first by itself). Then it asks about your
+   channel: what it's about, the format, where you post (TikTok, YouTube Shorts and Instagram Reels to start), and how
+   your videos should look and sound. No accounts yet? It helps you make them, starting with a new Gmail for your
+   channel.
 
 <p align="center">
   <img src="docs/screenshots/first-run.png" width="49%" alt="Setup lists what ReelForge still needs and sets it all up with one click">
@@ -102,7 +103,9 @@ After that, say **make today's videos** whenever you want more.
 ## Inside ReelForge
 
 ReelForge has six tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 6`, or by name, like
-`reelforge publish`.
+`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**6** switch tabs, **Tab** moves between
+buttons and fields, **Enter** presses, **Esc** closes. ReelForge's window, setup's screens and onboarding are built
+with [OpenTUI](https://github.com/anomalyco/opentui).
 
 ### Overview
 
@@ -312,8 +315,8 @@ setup` repairs the setup.
 <br>
 
 Yes. Setup gets everything ReelForge needs into its own folder on all three, so you don't need Homebrew or a package
-manager: Blender from blender.org, ffmpeg from the builds ffmpeg.org points to, and a private Python if yours is older
-than 3.11. ReelForge reads your stats with Chrome or Edge if you have one, or with a Chromium setup downloads if you
+manager: Blender from blender.org, ffmpeg from the builds ffmpeg.org points to, Bun (for ReelForge's window) from its
+own releases, and a private Python if yours is older than 3.11. ReelForge reads your stats with Chrome or Edge if you have one, or with a Chromium setup downloads if you
 don't. On a Mac, ReelForge goes in your Applications folder (so it's in Launchpad, Spotlight and the Dock) and opens in
 Terminal; on Linux it goes in your app menu. The hourly stats job is a launchd agent on a Mac and a systemd timer (or
 a cron job) on Linux. Every change is tested on Windows, on Macs with Apple Silicon and Intel, and on Linux.
@@ -370,5 +373,5 @@ videos and stats in its folder.
 ## License
 
 ReelForge is free and open source under the [MIT license](LICENSE). Setup downloads Blender and ffmpeg from their
-official sites and the Mixkit sound effects from Mixkit; the Kenney sound effects come with it. Details are in
-[THIRD_PARTY.md](THIRD_PARTY.md).
+official sites, Bun from its GitHub releases (with the window's OpenTUI packages from npm) and the Mixkit sound
+effects from Mixkit; the Kenney sound effects come with it. Details are in [THIRD_PARTY.md](THIRD_PARTY.md).

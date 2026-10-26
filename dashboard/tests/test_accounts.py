@@ -1,27 +1,27 @@
 """Only connected platforms show anywhere in ReelForge, and the Accounts tab connects and disconnects them
-(dashboard.platforms.base.Platform.connected, dashboard.app, dashboard.widgets.AccountPanel): a platform you haven't
-connected has no card, chart key, Compare chart, Videos filter, upload button, best-time line or notification, and
-connecting it switches all of that on in place."""
+(dashboard.platforms.base.Platform.connected, dashboard.service): a platform you haven't connected has no card, chart
+key, Videos filter, upload button, best-time line or notification, and connecting it switches all of that on in place.
+The window's own Accounts tab (the Connect box, Sign up, Disconnect) is tested in ui/test/dashboard.test.tsx."""
 
 from __future__ import annotations
 
-import asyncio
 import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from textual.widgets import Button, Input
-
-from dashboard import app as app_module
 from dashboard import config, db, demo, notify, sync
-from dashboard.app import ReelForge
+from dashboard import service as service_module
 from dashboard.config import PLATFORM_KEYS
 from dashboard.platforms import Instagram, TikTok, X, YouTube, browser, build, connected
-from dashboard.widgets import AccountPanel
+from dashboard.service import NOTHING_CONNECTED, Dashboard
+from dashboard.tests.window import Window, plain
 
-SIZE = (180, 50)
+
+def text(parts: list | None) -> str:
+    """The text of (segments, importance) parts."""
+    return "".join(plain(p[0]) for p in parts or [])
 
 
 class ConnectedRule(unittest.TestCase):
@@ -56,8 +56,8 @@ class ConnectedRule(unittest.TestCase):
             self.assertIsNone(about(everyone))
 
 
-class Window(unittest.TestCase):
-    """The real window on demo data, with some platforms not connected."""
+class WindowTest(unittest.TestCase):
+    """A window's Python side on demo data, with some platforms not connected."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -78,20 +78,23 @@ class Window(unittest.TestCase):
             for table in ("account_stats", "post_stats", "posts", "uploads"):
                 c.execute(f"DELETE FROM {table} WHERE platform IN ({','.join('?' * len(keys))})", keys)
 
-    def run_app(self, platforms, scenario, tab: str | None = "overview", demo_mode: bool = True) -> ReelForge:
-        app = ReelForge(self.cfg, platforms, demo=demo_mode, tab=tab, drawer=True)
-
-        async def main() -> None:
-            async with app.run_test(size=SIZE) as pilot:
-                await pilot.pause(0.5)
-                await scenario(app, pilot)
-
-        asyncio.run(main())
-        return app
+    def open(self, platforms, tab: str | None = "overview", demo_mode: bool = True) -> Window:
+        w = Window(self.cfg, platforms, demo=demo_mode, tab=tab, drawer=True)
+        self.addCleanup(w.close)
+        return w
 
     @staticmethod
-    def shown(app: ReelForge, selector: str) -> bool:
-        return app.query_one(selector).display
+    def panel(w: Window, key: str) -> dict:
+        return next(p for p in w.view("accounts")["panels"] if p["key"] == key)
+
+    @staticmethod
+    def cards(w: Window) -> list[str]:
+        return [c["id"] for c in w.view("cards")["cards"]]
+
+    @staticmethod
+    def buttons(w: Window) -> list[str]:
+        """The platforms with upload buttons on Publish (the window draws them from this view)."""
+        return [p["key"] for p in w.view("platforms")["platforms"]]
 
     def test_only_the_connected_ones_anywhere(self):
         self.forget("instagram", "x")
@@ -99,82 +102,89 @@ class Window(unittest.TestCase):
                    key="milestone:followers:x:1000")
         notify.add("milestone", "TikTok passed 50K followers", "You have 50,000 followers on TikTok.",
                    key="milestone:followers:tiktok:50000")
-
-        async def scenario(app: ReelForge, pilot) -> None:
-            self.assertEqual(list(app.platforms), ["tiktok", "youtube"])
-            for key in ("tiktok", "youtube"):
-                for selector in (f"#card-{key}", f"#compare-{key}", f"#best-{key}", f"#open-{key}"):
-                    self.assertTrue(self.shown(app, selector), selector)
-            for key in ("instagram", "x"):
-                for selector in (f"#card-{key}", f"#compare-{key}", f"#best-{key}", f"#open-{key}"):
-                    self.assertFalse(self.shown(app, selector), selector)
-            self.assertFalse(self.shown(app, "#copy-instagram"))
-            self.assertTrue(self.shown(app, "#copy-caption-alone"))  # X's copy button is gone with it
-            self.assertEqual(str(app.query_one("#open-all", Button).label), "Open all 2 →")
-            header = app.query_one("#status").content.plain
-            self.assertIn("TikTok", header)
-            self.assertNotIn("Instagram", header)
-            key = app.query_one("#trends-bar").content.plain
-            self.assertIn("YouTube", key)
-            self.assertNotIn("Instagram", key)
-            titles = [n["title"] for n in notify.recent() if app.shows_note(n)]
-            self.assertIn("TikTok passed 50K followers", titles)
-            self.assertNotIn("X passed 1K followers", titles)
-            app.action_tab("videos")
-            await pilot.pause(0.3)
-            filters = app.query_one("#videos-hint").content.plain
-            self.assertIn("YouTube", filters)
-            self.assertNotIn("Instagram", filters)
-            self.assertEqual({p["platform"] for p in app.posts}, {"tiktok", "youtube"})
-            self.assertEqual(app.query_one("#acct-x", AccountPanel).state, "off")
-            # Without X's button, the caption has a copy button of its own.
-            app.action_tab("publish")
-            await pilot.pause(0.3)
-            app.query_one("#f-caption", Input).value = "What if your coffee doubled every 2 seconds?"
-            app.query_one("#copy-caption-alone", Button).press()  # (off to the right, beside the drawer)
-            await pilot.pause(0.2)
-            self.assertEqual(copied, ["What if your coffee doubled every 2 seconds?"])
-
+        w = self.open(demo.platforms(unconnected=("instagram", "x")))
+        self.assertEqual(list(w.svc.platforms), ["tiktok", "youtube"])
+        self.assertEqual(self.cards(w), ["total", "tiktok", "youtube"])
+        self.assertEqual(self.buttons(w), ["tiktok", "youtube"])
+        self.assertEqual(len(w.view("best")["lines"]), 2)
+        header = plain(w.view("header")["line"])
+        self.assertIn("TikTok", header)
+        self.assertNotIn("Instagram", header)
+        key = plain(w.view("trends")["legend"])
+        self.assertIn("YouTube", key)
+        self.assertNotIn("Instagram", key)
+        titles = [plain(n["title"]) for n in w.view("notes")["items"]]
+        self.assertIn("TikTok passed 50K followers", titles)
+        self.assertNotIn("X passed 1K followers", titles)
+        w.call("tab_opened", "videos")
+        filters = text(w.view("videos")["hint"])
+        self.assertIn("YouTube", filters)
+        self.assertNotIn("Instagram", filters)
+        self.assertEqual({p["platform"] for p in w.svc.posts}, {"tiktok", "youtube"})
+        self.assertEqual(self.panel(w, "x")["state"], "off")
+        self.assertIsNone(self.panel(w, "x")["disconnect"])
+        self.assertIn("Connect Instagram or X here", text(w.view("accounts")["hint"]))
+        # Without X's button, the caption has a copy button of its own.
         copied = []
-        with mock.patch.object(app_module.desktop, "copy", lambda text: copied.append(text) or True):
-            self.run_app(demo.platforms(unconnected=("instagram", "x")), scenario)
+        with mock.patch.object(service_module.desktop, "copy", lambda t: copied.append(t) or True):
+            w.call("copy_field", "copy-caption-alone", "What if your coffee doubled every 2 seconds?", "")
+        self.assertEqual(copied, ["What if your coffee doubled every 2 seconds?"])
 
     def test_everything_shows_for_four_connected_platforms(self):
-        """DJ's own ReelForge: all four connected, so nothing is hidden and Accounts has no hint."""
+        """A ReelForge with all four connected: nothing is hidden and Accounts has no hint."""
+        w = self.open(demo.platforms())
+        self.assertEqual(list(w.svc.platforms), list(PLATFORM_KEYS))
+        self.assertEqual(self.cards(w), ["total", *PLATFORM_KEYS])
+        self.assertEqual(self.buttons(w), list(PLATFORM_KEYS))
+        for key in PLATFORM_KEYS:
+            self.assertEqual(self.panel(w, key)["state"], "on")
+            self.assertTrue(self.panel(w, key)["disconnect"])
+        self.assertIsNone(w.view("accounts")["hint"])
 
-        async def scenario(app: ReelForge, pilot) -> None:
-            self.assertEqual(list(app.platforms), list(PLATFORM_KEYS))
-            for key in PLATFORM_KEYS:
-                self.assertTrue(self.shown(app, f"#card-{key}"))
-                self.assertEqual(app.query_one(f"#acct-{key}", AccountPanel).state, "on")
-            self.assertEqual(str(app.query_one("#open-all", Button).label), "Open all 4 →")
-            self.assertFalse(self.shown(app, "#copy-caption-alone"))
-            self.assertFalse(self.shown(app, "#accounts-hint"))
-            self.assertTrue(self.shown(app, "#card-total"))
-
-        self.run_app(demo.platforms(), scenario)
+    def test_one_platform_is_its_own_total(self):
+        self.forget("youtube", "instagram", "x")
+        w = self.open(demo.platforms(unconnected=("youtube", "instagram", "x")))
+        self.assertEqual(self.cards(w), ["tiktok"])
 
     def test_nothing_connected_opens_on_accounts(self):
         self.forget(*PLATFORM_KEYS)
+        w = self.open(demo.platforms(unconnected=PLATFORM_KEYS), tab=None)
+        self.assertEqual(w.init["tab"], "accounts")
+        self.assertIn("No accounts connected yet", plain(w.view("header")["line"]))
+        self.assertIn("Make a Gmail first", text(w.view("accounts")["hint"]))
+        for key in PLATFORM_KEYS:
+            panel = self.panel(w, key)
+            self.assertEqual(panel["state"], "off")
+            self.assertTrue(panel["signup"])
+        self.assertEqual(self.cards(w), ["total"])
+        self.assertIn("no accounts connected yet", plain(w.view("cards")["cards"][0]["message"]))
+        self.assertEqual(w.view("trends")["metrics"]["views"]["empty"], NOTHING_CONNECTED)
+        self.assertEqual(self.buttons(w), [])
+        for tab in ("videos", "compare", "publish", "updates"):  # every tab copes with no platform at all
+            w.call("tab_opened", tab)
 
-        async def scenario(app: ReelForge, pilot) -> None:
-            self.assertEqual(app.query_one("TabbedContent").active, "accounts")
-            self.assertIn("No accounts connected yet", app.query_one("#status").content.plain)
-            self.assertIn("Make a Gmail first", app.query_one("#accounts-hint").content.plain)
-            for key in PLATFORM_KEYS:
-                panel = app.query_one(f"#acct-{key}", AccountPanel)
-                self.assertEqual(panel.state, "off")
-                self.assertTrue(panel.query(f"#handle-{key}") and panel.query(f"#signup-{key}"))
-            app.action_tab("overview")
-            await pilot.pause(0.3)
-            self.assertIn("no accounts connected yet", str(app.query_one("#card-total .card-body").render()))
-            self.assertEqual(str(app.query_one("#views-chart .empty").render()), app_module.NOTHING_CONNECTED)
-            for tab in ("videos", "compare", "publish", "updates"):  # every tab copes with no platform at all
-                app.action_tab(tab)
-                await pilot.pause(0.3)
-            self.assertFalse(self.shown(app, "#open-all") or self.shown(app, "#copy-caption-alone"))
+    def test_hiding_every_platform_empties_the_charts(self):
+        """Every platform hidden in the chart keys: each chart says how to show one again, and showing one brings its
+        numbers back."""
+        w = self.open(demo.platforms())
+        for key in list(w.svc.platforms):
+            w.call("toggle_line", key)
+        for metric in ("views", "followers", "likes"):
+            self.assertIn("Every platform is hidden", w.view("trends")["metrics"][metric]["empty"])
+        w.call("toggle_line", "tiktok")
+        self.assertTrue(w.view("trends")["metrics"]["views"]["variants"])
 
-        self.run_app(demo.platforms(unconnected=PLATFORM_KEYS), scenario, tab=None)
+    def test_sign_up_guides(self):
+        w = self.open(demo.platforms(unconnected=("x",)))
+        guide = w.call("signup_guide", "x")
+        self.assertTrue(guide["account"])
+        self.assertTrue(guide["steps"][0].startswith("Press Open X sign-up"))
+        self.assertIn("one log-in", guide["steps"][-1])
+        self.assertFalse(w.call("signup_guide", "gmail")["account"])
+        opened = []
+        with mock.patch.object(service_module.signup, "open_page", opened.append):
+            w.call("open_signup", "x")
+        self.assertEqual(opened, ["https://x.com/i/flow/signup"])
 
     def real_platforms(self, handles: dict[str, str]):
         """TikTok, YouTube, Instagram and X as they are, on a config.toml in the scratch folder."""
@@ -182,7 +192,8 @@ class Window(unittest.TestCase):
         shutil.copy(config.APP_DIR / "config.example.toml", path)
         self.logged_in: dict[str, bool] = {}
         for patch in (mock.patch.object(config, "CONFIG_PATH", path),
-                      mock.patch.object(browser, "logged_in", lambda key: self.logged_in.get(key, False))):
+                      mock.patch.object(browser, "logged_in", lambda key: self.logged_in.get(key, False)),
+                      mock.patch.object(Dashboard, "start_updates", lambda self: None)):  # nothing asks GitHub
             patch.start()
             self.addCleanup(patch.stop)
         for key, handle in handles.items():
@@ -192,8 +203,8 @@ class Window(unittest.TestCase):
         return build(self.cfg)
 
     def test_connect_and_disconnect_in_place(self):
-        """Typing a handle and pressing Connect saves it and switches the platform on everywhere; Disconnect hides it
-        again and keeps its stats. Nothing is read from the internet here: the reads are stood in for."""
+        """A handle and Connect saves it and switches the platform on everywhere; Disconnect hides it again and keeps
+        its stats. Nothing is read from the internet here: the reads are stood in for."""
         self.forget("youtube", "instagram", "x")
         every = self.real_platforms({"tiktok": "@mine"})
         reads, logins = [], []
@@ -202,82 +213,53 @@ class Window(unittest.TestCase):
             reads.append(sorted(platforms))
             return sync.Result()
 
-        async def scenario(app: ReelForge, pilot) -> None:
-            self.assertEqual(list(app.platforms), ["tiktok"])
-            self.assertFalse(self.shown(app, "#card-total"))  # one platform: its own card is the total
-            app.action_tab("accounts")
-            await pilot.pause(0.3)
+        with mock.patch.object(sync, "refresh", no_read), \
+                mock.patch.object(Dashboard, "_browser_login", lambda self, p: logins.append(p.key)):
+            w = self.open(every, demo_mode=False)
+            self.assertEqual(list(w.svc.platforms), ["tiktok"])
+            self.assertEqual(self.cards(w), ["tiktok"])  # one platform: its own card is the total
             # A typo first: nothing is saved, and the panel says why.
-            app.query_one("#handle-youtube", Input).value = "my channel!"
-            await pilot.click("#connect-youtube")
-            await pilot.pause(0.3)
-            self.assertIn("isn't a handle", str(app.query_one("#acct-youtube .acct-error").render()))
+            self.assertIn("isn't a handle", w.call("connect", "youtube", "my channel!"))
             self.assertEqual(config.load_config()["youtube"].get("handle", ""), "")
             # A pasted link works.
-            app.query_one("#handle-youtube", Input).value = "https://www.youtube.com/@NewChannel"
-            await pilot.click("#connect-youtube")
-            for _ in range(30):
-                await pilot.pause(0.1)
-                if "youtube" in app.platforms:
-                    break
+            self.assertIsNone(w.call("connect", "youtube", "https://www.youtube.com/@NewChannel"))
+            self.assertTrue(w.until(lambda: "youtube" in w.svc.platforms))
             self.assertEqual(config.load_config()["youtube"]["handle"], "@NewChannel")
-            self.assertEqual(list(app.platforms), ["tiktok", "youtube"])
-            self.assertTrue(self.shown(app, "#card-youtube") and self.shown(app, "#open-youtube"))
-            self.assertEqual(app.query_one("#acct-youtube", AccountPanel).state, "on")
-            await pilot.pause(0.3)
-            self.assertIn(["youtube"], reads)  # its first read, straight away
+            self.assertEqual(list(w.svc.platforms), ["tiktok", "youtube"])
+            self.assertEqual(self.buttons(w), ["tiktok", "youtube"])
+            self.assertEqual(self.panel(w, "youtube")["state"], "on")
+            self.assertTrue(w.until(lambda: ["youtube"] in reads))  # its first read, straight away
             # Instagram: the handle, then its one log-in.
-            app.query_one("#handle-instagram", Input).value = "@mine"
-            await pilot.click("#connect-instagram")
-            for _ in range(30):
-                await pilot.pause(0.1)
-                if logins:
-                    break
-            self.assertEqual(logins, ["instagram"])
-            self.assertEqual(app.query_one("#acct-instagram", AccountPanel).state, "login")
-            self.assertNotIn("instagram", app.platforms)
+            self.assertIsNone(w.call("connect", "instagram", "@mine"))
+            self.assertTrue(w.until(lambda: logins == ["instagram"]))
+            self.assertEqual(self.panel(w, "instagram")["state"], "login")
+            self.assertNotIn("instagram", w.svc.platforms)
             self.logged_in["instagram"] = True  # the log-in went through
-            await app.follow_connections()
-            await pilot.pause(0.2)
-            self.assertIn("instagram", app.platforms)
-            self.assertTrue(self.shown(app, "#card-instagram"))
+            w.call("follow_connections")
+            self.assertIn("instagram", w.svc.platforms)
+            self.assertIn("instagram", self.cards(w))
             # Disconnect TikTok: hidden everywhere, its stats kept.
-            app.action_disconnect("tiktok")
-            await pilot.pause(0.3)
-            await pilot.click("#disconnect")
-            for _ in range(30):
-                await pilot.pause(0.1)
-                if "tiktok" not in app.platforms:
-                    break
+            self.assertEqual(w.call("disconnect_info", "tiktok")["title"], "DISCONNECT TIKTOK?")
+            w.call("disconnect", "tiktok")
+            self.assertTrue(w.until(lambda: "tiktok" not in w.svc.platforms))
             self.assertEqual(config.load_config()["tiktok"]["handle"], "")
-            self.assertNotIn("tiktok", app.platforms)
-            self.assertFalse(self.shown(app, "#card-tiktok") or self.shown(app, "#open-tiktok"))
-            self.assertEqual(app.query_one("#acct-tiktok", AccountPanel).state, "off")
+            self.assertNotIn("tiktok", self.cards(w))
+            self.assertNotIn("tiktok", self.buttons(w))
+            self.assertEqual(self.panel(w, "tiktok")["state"], "off")
             self.assertIn("tiktok", db.stored_platforms())
-
-        with mock.patch.object(sync, "refresh", no_read), \
-                mock.patch.object(ReelForge, "run_browser_login", lambda self, p: logins.append(p.key)):
-            self.run_app(every, scenario, demo_mode=False)
 
     def test_another_window_connecting_shows_here(self):
         """Every ReelForge window follows a platform connected (or disconnected) in another one."""
         self.forget("x")
         every = self.real_platforms({"tiktok": "@mine", "youtube": "@mine", "instagram": "@mine"})
         self.logged_in.update(instagram=True, x=True)
-
-        async def scenario(app: ReelForge, pilot) -> None:
-            self.assertNotIn("x", app.platforms)
-            config.save_handle("x", "@mine")  # as another window's Connect does
-            app.config_seen = None  # (the file's time may not have moved within this second)
-            for _ in range(40):
-                await pilot.pause(0.1)
-                if "x" in app.platforms:
-                    break
-            self.assertIn("x", app.platforms)
-            self.assertTrue(self.shown(app, "#card-x"))
-
         with mock.patch.object(sync, "refresh", lambda *a, **k: sync.Result()):
-            self.run_app(every, scenario, demo_mode=False)
+            w = self.open(every, demo_mode=False)
+            self.assertNotIn("x", w.svc.platforms)
+            config.save_handle("x", "@mine")  # as another window's Connect does
+            w.svc.config_seen = None  # (the file's time may not have moved within this second)
+            self.assertTrue(w.until(lambda: "x" in w.svc.platforms))
+            self.assertIn("x", self.cards(w))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 # ReelForge setup for Windows. Double-click setup.bat (it runs this script).
 #   setup.bat            set up everything (one list of what's missing, one yes), then onboarding
 #   setup.bat -Yes       the same without questions (for an AI setting up for you, with your OK)
-# Everything goes inside this folder (.venv, tools\); nothing is installed system-wide except Python itself, and
-# only if you agree. Once Python is found, studio\bootstrap.py draws the first-run box and does the rest.
+# Everything goes inside this folder (.venv, tools\, ui\node_modules); nothing is installed system-wide except Python
+# itself, and only if you agree. Once Python is found, studio\bootstrap.py draws the first-run box, gets the Python
+# packages and Bun (which runs ReelForge's window), and does the rest.
 param([switch]$Yes, [switch]$NoOnboard)
 
 $ErrorActionPreference = "Stop"
