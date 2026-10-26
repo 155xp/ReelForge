@@ -15,7 +15,7 @@
 
   reelforge setup [--yes]      set up or repair: Blender, ffmpeg, the sounds, the reelforge command, then your channel
   reelforge channel            your channel's questions from first-time setup, to change your answers; it
-                               writes CLAUDE.md / AGENTS.md (reelforge onboard, its old name, works too)
+                               writes CLAUDE.md / AGENTS.md
       --plain                  the same questions as plain prompts
       --questions              the questions as JSON (for an AI running the interview in chat)
       --answers FILE.json      write everything from saved answers, no questions

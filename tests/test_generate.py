@@ -41,6 +41,19 @@ class WriteAll(unittest.TestCase):
         generate.write_all(answers)
         self.assertEqual(self.created(), "2026-01-02")
 
+    def test_an_older_versions_answers_lose_ultracode_and_keep_their_reasoning(self):
+        # What 1.0.5 saved: its Quality step's answer (Max was its default) and "Use ultracode for video runs?"
+        answers = {"channel_name": "Test Channel", "about": "What-if videos with real science.", "creator": "Sam",
+                   "quality": "max", "ultracode": True}
+        generate.write_all(answers)
+        saved = json.loads(P.ANSWERS.read_text(encoding="utf-8"))
+        self.assertNotIn("ultracode", saved)
+        self.assertEqual(saved["quality"], "max")
+        settings = P.SETTINGS.read_text(encoding="utf-8")
+        self.assertEqual(tomllib.loads(settings)["ai"], {"assistant": "claude", "quality": "max"})
+        for text in (settings, (P.ROOT / "CLAUDE.md").read_text(encoding="utf-8")):
+            self.assertNotIn("ultracode", text.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

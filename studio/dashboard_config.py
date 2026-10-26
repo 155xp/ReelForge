@@ -17,6 +17,9 @@ from . import settings as S
 
 KEY = re.compile(r"^(\s*)([A-Za-z0-9_]+)(\s*=\s*)(.*)$")
 SECTION = re.compile(r"^\s*\[([^\]]+)\]\s*(#.*)?$")
+# Notes an older config.example.toml put into config.toml, in today's words (what was onboarding is first-time setup).
+REWORDED = (("it runs, and onboarding\n# fills that one in", "it runs, and first-time\n# setup fills that one in"),
+            ("# (onboarding fills this in;", "# (first-time setup fills this in;"))
 
 
 def _comment_part(rest: str) -> str:
@@ -54,7 +57,8 @@ def _value(v) -> str:
 
 def set_keys(text: str, values: dict[str, dict]) -> str:
     """values = {"": {top-level key: value}, "section": {key: value}}. Replaces existing keys in place (keeping
-    their comments) and adds missing ones at the end of their section (adding the section if needed)."""
+    their comments) and adds missing ones at the end of their section (adding the section if needed). Notes from an
+    older version come out in today's words (REWORDED)."""
     lines = text.splitlines()
     pending = {sec: dict(kv) for sec, kv in values.items()}
     out: list[str] = []
@@ -90,7 +94,10 @@ def set_keys(text: str, values: dict[str, dict]) -> str:
             out.append(f"[{sec}]")
             for k, v in kv.items():
                 out.append(f"{k} = {_value(v)}")
-    return "\n".join(out) + "\n"
+    text = "\n".join(out) + "\n"
+    for old, new in REWORDED:
+        text = text.replace(old, new)
+    return text
 
 
 def wanted(s: dict) -> dict[str, dict]:
