@@ -223,7 +223,10 @@ class WhatsNewTest(unittest.TestCase):
         for word in ("onboarding", "ultracode"):
             self.assertNotIn(word, shown.lower())
         for line in shown.splitlines():
-            self.assertLessEqual(len(line), 120, line)
+            # Each bullet on one line, a bold lead first: the Updates tab before 1.0.6 (which people read these notes
+            # in until they've updated) shows a bullet's wrapped lines as loose lines at the left edge.
+            self.assertRegex(line, r"^(|## What's new in .+|- \*\*[^*]+\*\* .+|  - \S.+|Already have ReelForge\? .+)$")
+            self.assertLessEqual(len(line), 140, line)
 
 
 if __name__ == "__main__":
