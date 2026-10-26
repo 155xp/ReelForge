@@ -1,5 +1,11 @@
 ## What's new in 1.0.6
 
+- **A new look.** ReelForge's window is calm and dark, with panels instead of boxes and each platform in its own
+  colour, so your numbers stand out.
+  - Each platform's followers in big numbers that count up, with its views hour by hour under them.
+  - Charts grow in, the tabs slide, and the bell shows how many notifications are new.
+  - The bar along the bottom shows each platform, when your stats were read and the keys.
+  - In a small window the Overview's panels stack and scroll instead of squeezing.
 - **Run more than one channel.** Each channel is a profile with its own accounts, stats, notifications and videos.
   - Switch with the channel button at the top left, or press **p**. A red dot means another one has news.
   - **New profile** asks a few questions about the channel, then opens its Accounts tab.
@@ -18,8 +24,8 @@
   - **Factory reset** puts your settings, logins and stats in a backup, then first-time setup again. Videos stay.
   - **Uninstall** removes ReelForge and keeps your videos in a folder beside it. `reelforge uninstall` does it too.
   - Both ask you to type your channel's name, never delete anything for good, and never stop half-way.
-- **The setup box fits any window.** It stays whole in a small window or one you resize, and the hints on its bottom
-  edge are gone.
+- **First-time setup fits any window.** Its screens sit on the same calm dark as the window, stay whole in a small
+  window or one you resize, and the hints along their bottom edge are gone.
 - **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops
   when it's all ready. On the Updates tab he hammers while an update installs, and he naps where there's nothing yet.
 
