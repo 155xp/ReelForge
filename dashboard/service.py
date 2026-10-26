@@ -88,9 +88,11 @@ HELP = [
                     "in each of 2 parts of the day, with one clearly ahead."),
     ("Accounts (5)", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere "
                      "else. TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No "
-                     "account yet? Sign up opens the platform's own sign-up page, and Disconnect hides one again (its "
-                     "stats stay saved). Each panel says where that platform's stats come from and when they were "
-                     "last read; Type in stats lets you enter the numbers by hand for one ReelForge can't read yet."),
+                     "account yet? Sign up opens the platform's own sign-up page (with more than one profile, in a "
+                     "private window of your browser, so your other channel stays logged in), and Disconnect hides "
+                     "one again (its stats stay saved). Each panel says where that platform's stats come from and when "
+                     "they were last read; Type in stats lets you enter the numbers by hand for one ReelForge can't "
+                     "read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
@@ -101,7 +103,8 @@ HELP = [
     ("Profiles", "One profile for each channel you run, each with its own accounts, log-ins, stats, notifications, "
                  "Publish list and settings. The button with your channel's name at the top left switches between "
                  "them (a red dot on it: another profile has unread notifications), adds a new one (the same short "
-                 "interview as the first) or changes this one's settings. The hourly job reads every profile."),
+                 "interview as the first, which helps you make the new channel's accounts) or changes this one's "
+                 "settings. The hourly job reads every profile."),
     ("Several windows", "Open ReelForge as many times as you like (one on the Overview and one on Publish, say, or one "
                         "for each profile). Windows on the same profile take turns reading its stats, and as soon as "
                         "one of them (or the hourly job) has read them, every window shows the new numbers, "
@@ -1528,6 +1531,8 @@ class Dashboard(Service):
         waiting for its log-in; or not connected, with a box for its @handle, Connect and Sign up."""
         fresh_since = (analytics.now() - timedelta(days=2)).isoformat(timespec="seconds")
         pretend = self.demo and self.screenshots  # the README's pictures show the demo as a set-up account looks
+        others = self.other_channels()
+        private = None  # the browser a second channel's sign-ups open a private window of, worked out once it's needed
         panels = []
         for p in self.every.values():
             state = self.account_state(p)
@@ -1535,10 +1540,13 @@ class Dashboard(Service):
                      "disconnect": chip("Disconnect", act("disconnect", p.key)).json() if state != "off" else None}
             if state == "off":
                 then = "" if p.public_stats else ", then log in once in ReelForge's own browser window"
+                if private is None:
+                    private = signup.private_name(others) if signup is not None and others else ""
                 panel.update(
                     status=Text("○ not connected", f"bold {MUTED}").json(), status_short=None,
                     body=Text(f"Type your @handle and press Connect to see {p.name} in ReelForge{then}. No account "
-                              "yet? Sign up makes one.", MUTED).json(),
+                              "yet? Sign up makes one" + (f", in a private {private} window." if private else "."),
+                              MUTED).json(),
                     note=Text(p.setup_note, MUTED).json(), signup=signup is not None)
                 panels.append(panel)
                 continue
@@ -1601,7 +1609,8 @@ class Dashboard(Service):
         if not self.platforms:
             hint = parts([
                 (Text("Connect the platforms you post to: ReelForge only shows the ones you've connected.  ", MUTED), 1),
-                (Text("Starting from scratch? ", "bold"), 0), (chip("Make a Gmail first", act("gmail")), 0),
+                (Text("New channel? " if others else "Starting from scratch? ", "bold"), 0),
+                (chip("Make a Gmail first", act("gmail")), 0),
                 (Text("  it's your YouTube login, and the others can sign up with the same email.", MUTED), 2)])
         elif missing:
             hint = parts([(Text(f"Only connected platforms show up in ReelForge. Connect {_either(missing)} here any "
@@ -1689,23 +1698,30 @@ class Dashboard(Service):
     @rpc
     def signup_guide(self, key: str) -> dict | None:
         """No account yet: the platform's sign-up guide (or the channel's Gmail, "gmail"), as its dialog shows it: a
-        few steps, the button that opens the platform's own sign-up page, and for an account a box for the @handle
-        you end up with, which Connect takes from there."""
+        few steps, with examples from the channel's name, the button that opens the platform's own sign-up page (in a
+        private window for a second channel), and for an account a box for the @handle you end up with, which Connect
+        takes from there."""
         if signup is None:
             return None
-        g = signup.GMAIL if key == "gmail" else signup.GUIDES[key]
-        account = g.key != "gmail"
-        steps = [f"Press {g.button}: the page opens in your browser.", *g.steps]
-        if account:
-            steps.append("Type your @handle below and press Connect." + (
-                " ReelForge then opens its own browser window for the one log-in." if g.logs_in else ""))
-        return {"key": g.key, "title": g.title.upper(), "why": g.why, "steps": steps, "button": f"{g.button} →",
-                "account": account}
+        channel = self.profile.channel_name if self.profile is not None and not self.demo else ""
+        view = signup.guide_view(key, channel, self.other_channels())
+        if view["account"]:
+            view["steps"].append("Type your @handle below and press Connect." + (
+                " ReelForge then opens its own browser window for the one log-in." if signup.GUIDES[key].logs_in
+                else ""))
+        return {**view, "title": view["title"].upper()}
 
     @rpc
-    def open_signup(self, key: str) -> None:
-        if signup is not None:
-            signup.open_page((signup.GMAIL if key == "gmail" else signup.GUIDES[key]).url)
+    def open_signup(self, key: str) -> str | None:
+        """Open a guide's page; what to say under its button."""
+        return signup.open_guide(key, self.other_channels()) if signup is not None else None
+
+    def other_channels(self) -> list[str]:
+        """The names of this ReelForge's other channels, whose accounts are probably logged in in your browser: while
+        there are any, this one's sign-ups open in a private window (studio/signup.py). The demo has none."""
+        if profiles is None or self.profile is None or self.demo:
+            return []
+        return profiles.others(self.profile)
 
     @rpc
     def disconnect_info(self, key: str) -> dict | None:

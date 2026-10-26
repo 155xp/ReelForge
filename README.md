@@ -175,11 +175,13 @@ new Gmail for your channel first). Disconnect hides a platform again without los
 Run more than one channel from one ReelForge. Each channel is a profile, with its own accounts, logins, stats,
 notifications, Publish list and settings. The button with your channel's name at the top left switches between them
 (or press **p**), and a red dot on it means another profile has something unread. **New profile** asks the same short
-questions as your first channel did, right in the window. Your first channel stays in the ReelForge folder itself, and
-each one you add gets its own folder in `profiles`, with its own notes for your AI. Tell your AI about a new channel
-the way you did the first: "here's <its name>" and a file about it. The hourly stats job reads every profile, and
-`reelforge -p "Channel name"` opens ReelForge on one. "Make today's videos" makes every channel's, except one you set
-to post **Only when I ask** (a channel you're only trying out, say).
+questions as your first channel did, right in the window, and helps you make the new channel's accounts: a Gmail
+first, then each platform's sign-up page, in a private window of your browser so your first channel stays logged in.
+Your first channel stays in the ReelForge folder itself, and each one you add gets its own folder in `profiles`, with
+its own notes for your AI. Tell your AI about a new channel the way you did the first: "here's <its name>" and a file
+about it. The hourly stats job reads every profile, and `reelforge -p "Channel name"` opens ReelForge on one. "Make
+today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
+out, say).
 
 ![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
 
@@ -287,10 +289,10 @@ reads show up in them too.
 <br>
 
 Yes. Add a profile for each one: click the button with your channel's name at the top left, then **New profile** (or
-run `reelforge profiles new`). It asks the same questions as your first channel did, and its accounts, logins, stats,
-notifications and settings are its own. Your AI works on all of them from the ReelForge folder: say which channel a
-video is for, like "make a video for Cool Epic Facts". Each channel's notes are in its folder (`profiles/<name>/CLAUDE.md`),
-and the main `CLAUDE.md` lists them.
+run `reelforge profiles new`). It asks the same questions as your first channel did and helps you make the new
+channel's accounts. Its accounts, logins, stats, notifications and settings are its own. Your AI works on all of them
+from the ReelForge folder: say which channel a video is for, like "make a video for Cool Epic Facts". Each channel's
+notes are in its folder (`profiles/<name>/CLAUDE.md`), and the main `CLAUDE.md` lists them.
 
 </details>
 

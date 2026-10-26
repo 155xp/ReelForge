@@ -242,28 +242,39 @@ class Setup(Service):
             self.answers = defaults_for(self.answers)
             out["fields"] = [self.field(q) for q in self.step_questions(key)]
         if key == "accounts":  # the box at the top: a Gmail just for the channel first, for someone starting from scratch
-            out["gmail"] = {"title": "Starting from scratch? Make a Gmail for your channel first.",
-                            "why": signup.GMAIL.why, "button": "Make a Gmail →"}
+            name = str(self.answers.get("channel_name") or "").strip()
+            title = f"A new channel needs its own accounts: make a Gmail for {name} first." if self.new and name else \
+                "Starting from scratch? Make a Gmail for your channel first."
+            out["gmail"] = {"title": title, "why": signup.GMAIL.why, "button": "Make a Gmail →"}
+            if how := signup.where(self.others()):  # a second channel: its sign-ups open in a private window
+                out["blurb"] = (f"Type your @handle on each, or press Sign up to make the account now. Each sign-up "
+                                f"page opens {how}; ReelForge never sees your passwords. No rush: you can connect any "
+                                "of them later on ReelForge's Accounts tab.")
         return out
 
     # ---------------------------------------------------------------- making accounts
 
-    @rpc
-    def signup_guide(self, key: str) -> dict:
-        """How to make one account (or the channel's Gmail, "gmail"): its steps, the button that opens the official
-        sign-up page in your own browser, and for an account a box for the @handle you end up with."""
-        g = signup.GMAIL if key == "gmail" else signup.GUIDES[key]
-        steps = [f"Press {g.button}: the page opens in your browser.", *g.steps]
-        if g.key != "gmail":
-            steps.append("Type your @handle below." + (" It also needs one log-in in ReelForge, so ReelForge can read "
-                                                       "your stats: it asks for it when you open ReelForge."
-                                                       if g.logs_in else ""))
-        return {"key": g.key, "title": g.title, "why": g.why, "steps": steps, "button": f"{g.button} →",
-                "account": g.key != "gmail"}
+    def others(self) -> list[str]:
+        """The names of the other channels, whose accounts are probably logged in in your browser: while there are
+        any, this channel's sign-ups open in a private window (see studio/signup.py)."""
+        return profiles.others(None if self.new else self.profile, self.made)
 
     @rpc
-    def open_signup(self, key: str) -> None:
-        signup.open_page((signup.GMAIL if key == "gmail" else signup.GUIDES[key]).url)
+    def signup_guide(self, key: str) -> dict:
+        """How to make one account (or the channel's Gmail, "gmail"): its steps, with examples from the channel's name,
+        the button that opens the official sign-up page in your own browser (a private window of it for a second
+        channel), and for an account a box for the @handle you end up with."""
+        view = signup.guide_view(key, str(self.answers.get("channel_name") or ""), self.others())
+        if view["account"]:
+            view["steps"].append("Type your @handle below." + (
+                " It also needs one log-in in ReelForge, so ReelForge can read your stats: it asks for it when you "
+                "open ReelForge." if signup.GUIDES[key].logs_in else ""))
+        return view
+
+    @rpc
+    def open_signup(self, key: str) -> str:
+        """Open a guide's page; what to say under its button."""
+        return signup.open_guide(key, self.others())
 
     @rpc
     def signup_handle(self, typed: str) -> dict:

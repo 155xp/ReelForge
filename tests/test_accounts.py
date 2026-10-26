@@ -46,6 +46,124 @@ class Handles(unittest.TestCase):
         self.assertTrue(signup.GMAIL.url.startswith("https://accounts.google.com/"))
 
 
+class Suggestions(unittest.TestCase):
+    def test_names_made_from_the_channels(self):
+        self.assertEqual(signup.suggest("Cool Epic Facts"),
+                         {"gmail": "coolepicfacts@gmail.com", "handle": "@coolepicfacts"})
+        self.assertEqual(signup.suggest("Zap!"), {"gmail": "zapvideos@gmail.com", "handle": "@zap"})  # Google wants 6+
+        self.assertEqual(signup.suggest("Ünïcode Wörld"), {"gmail": "unicodeworld@gmail.com", "handle": "@unicodeworld"})
+        self.assertEqual(signup.suggest("Cool Epic Facts Every Day", 15)["handle"], "@coolepicfacts")  # words that fit X
+        self.assertEqual(signup.suggest("Supercalifragilisticexpialidocious", 15)["handle"], "@supercalifragil")
+        self.assertEqual((signup.suggest(""), signup.suggest("!!!")), ({}, {}))
+
+    def test_the_steps_use_them(self):
+        self.assertIn("like @coolepicfacts:", signup.GUIDES["x"].steps_for("Cool Epic Facts")[-1])
+        self.assertIn("like Cool Epic Facts and @coolepicfacts.", signup.GUIDES["youtube"].steps_for("Cool Epic Facts")[-1])
+        self.assertIn("like coolepicfacts@gmail.com.", signup.GMAIL.steps_for("Cool Epic Facts")[0])
+        self.assertIn("like nightphysics@gmail.com.", signup.GMAIL.steps_for()[0])  # no name yet: the usual example
+        self.assertEqual(signup.GUIDES["tiktok"].steps_for()[-1], "Pick a username that matches your channel: that's "
+                                                                  "your @handle. You can change it later in Edit profile.")
+        for guide in (signup.GMAIL, *signup.GUIDES.values()):
+            for channel in ("", "Cool Epic Facts"):
+                self.assertFalse(any("{" in step or "}" in step for step in guide.steps_for(channel)))
+
+
+CHROME = signup.Private("Chrome", ("chrome.exe", "--incognito"))
+
+
+class PrivateWindows(unittest.TestCase):
+    """A second channel signs up in a private window of your usual browser. Nothing opens here: the browser found and
+    started are stand-ins (the ways of finding one are tested with what each system keeps)."""
+
+    def test_windows_finds_the_browser_from_its_open_command(self):
+        for command, name, switch in (
+                (r'"C:\Program Files\Google\Chrome\Application\chrome.exe" --single-argument %1', "Chrome", "--incognito"),
+                (r'"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --single-argument %1', "Edge",
+                 "--inprivate"),
+                (r'"C:\Program Files\Mozilla Firefox\firefox.exe" -osint -url "%1"', "Firefox", "-private-window"),
+                (r'"C:\Users\Sam\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe" --single-argument %1',
+                 "Brave", "--incognito"),
+                (r"C:\Vivaldi\Application\vivaldi.exe %1", "Vivaldi", "--incognito")):
+            found = signup.from_command(command)
+            self.assertEqual((found.name, found.command[1:]), (name, (switch,)), command)
+            self.assertTrue(found.command[0].lower().endswith(".exe"))
+        # One it doesn't know, even in a folder named like one it does (Windows then uses Edge).
+        self.assertIsNone(signup.from_command(r'"C:\Users\Chrome Fan\AppData\Local\Programs\Opera\launcher.exe" "%1"'))
+        self.assertIsNone(signup.from_command(""))
+
+    def test_a_mac_opens_the_chrome_based_ones(self):
+        handlers = [{"LSHandlerURLScheme": "mailto", "LSHandlerRoleAll": "com.apple.mail"},
+                    {"LSHandlerURLScheme": "https", "LSHandlerRoleAll": "com.google.Chrome"}]
+        self.assertEqual(signup.mac_default(handlers), "com.google.chrome")
+        self.assertEqual(signup.mac_default([]), "com.apple.safari")  # never picked one
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "Google Chrome.app").mkdir()
+            found = signup.from_bundle("com.google.chrome", [Path(tmp)])
+            self.assertEqual((found.name, found.command),
+                             ("Chrome", ("open", "-na", str(Path(tmp) / "Google Chrome.app"), "--args", "--incognito")))
+            self.assertIsNone(signup.from_bundle("com.microsoft.edgemac", [Path(tmp)]))  # not installed
+        self.assertIsNone(signup.from_bundle("com.apple.safari", []))  # Safari can't be told
+
+    def test_linux_reads_the_browsers_desktop_file(self):
+        chrome = signup.from_desktop("google-chrome.desktop",
+                                     "[Desktop Entry]\nName=Google Chrome\nExec=/usr/bin/google-chrome-stable %U\n\n"
+                                     "[Desktop Action new-window]\nExec=/usr/bin/google-chrome-stable --new-window\n")
+        self.assertEqual((chrome.name, chrome.command), ("Chrome", ("/usr/bin/google-chrome-stable", "--incognito")))
+        snap = signup.from_desktop("firefox_firefox.desktop", "[Desktop Entry]\nExec=env BAMF_DESKTOP_FILE_HINT=/var/lib/"
+                                   "snapd/desktop/applications/firefox_firefox.desktop /snap/bin/firefox %u\n")
+        self.assertEqual(snap.command[-2:], ("/snap/bin/firefox", "-private-window"))
+        flatpak = signup.from_desktop("org.mozilla.firefox.desktop", "[Desktop Entry]\nExec=/usr/bin/flatpak run "
+                                      "--command=firefox --file-forwarding org.mozilla.firefox @@u %u @@\n")
+        self.assertEqual(flatpak.command[-2:], ("org.mozilla.firefox", "-private-window"))
+        self.assertIsNone(signup.from_desktop("org.gnome.Epiphany.desktop", "[Desktop Entry]\nExec=epiphany %U\n"))
+
+    def test_opening_one(self):
+        launched = []
+        with mock.patch.object(signup, "private_browser", lambda: CHROME), \
+                mock.patch.object(signup, "launch", launched.append):
+            self.assertEqual(signup.open_private("https://x.com/i/flow/signup"), "Chrome")
+        self.assertEqual(launched, [["chrome.exe", "--incognito", "https://x.com/i/flow/signup"]])
+
+        def gone(command):
+            raise FileNotFoundError(command[0])
+
+        with mock.patch.object(signup, "private_browser", lambda: CHROME), mock.patch.object(signup, "launch", gone):
+            self.assertIsNone(signup.open_private("https://x.com/"))
+        with mock.patch.object(signup, "private_browser", lambda: None):
+            self.assertIsNone(signup.open_private("https://x.com/"))
+
+    def test_a_second_channels_guides(self):
+        opened, launched = [], []
+        with mock.patch.object(signup, "private_browser", lambda: CHROME), \
+                mock.patch.object(signup, "launch", launched.append), mock.patch.object(signup, "open_page", opened.append):
+            tiktok = signup.guide_view("tiktok", "Cool Epic Facts", ["Rendered Wrong"])
+            self.assertEqual(tiktok["steps"][0], "Press Open TikTok sign-up: it opens in a private Chrome window, so "
+                                                 "you sign up fresh while Rendered Wrong stays logged in.")
+            self.assertIn("like @coolepicfacts", tiktok["steps"][-1])
+            gmail = signup.guide_view("gmail", "Cool Epic Facts", ["Rendered Wrong", "Tiny Worlds"])
+            self.assertIn("while Rendered Wrong and Tiny Worlds stay logged in", gmail["steps"][0])
+            self.assertIn("Keep the private window open", gmail["steps"][-1])
+            self.assertIn("your other channel stays", signup.guide_view("x", "", [""])["steps"][0])  # one with no name
+            self.assertEqual(signup.open_guide("tiktok", ["Rendered Wrong"]),
+                             "Opened in a private Chrome window. Come back here when you're done.")
+            self.assertEqual((opened, launched), ([], [["chrome.exe", "--incognito", "https://www.tiktok.com/signup"]]))
+            # One channel: your usual window, as before.
+            self.assertEqual(signup.guide_view("tiktok")["steps"][0],
+                             "Press Open TikTok sign-up: the page opens in your browser.")
+            self.assertEqual(len(signup.guide_view("gmail")["steps"]), 4)
+            self.assertEqual(signup.open_guide("tiktok"), "Opened in your browser. Come back here when you're done.")
+            self.assertEqual(opened, ["https://www.tiktok.com/signup"])
+        with mock.patch.object(signup, "private_browser", lambda: None), \
+                mock.patch.object(signup, "open_page", opened.append):
+            # A browser ReelForge can't open a private window of: the usual one, and what to do about the log-in.
+            first = signup.guide_view("x", "Cool Epic Facts", ["Rendered Wrong"])["steps"][0]
+            self.assertIn("Logged in to Rendered Wrong there? Log out first, or open the page in a private window.",
+                          first)
+            self.assertIn("can't open a private window", signup.open_guide("x", ["Rendered Wrong"]))
+            self.assertEqual(opened[-1], "https://x.com/i/flow/signup")
+            self.assertEqual(signup.where(["Rendered Wrong"]), "")
+
+
 class PlatformQuestions(unittest.TestCase):
     def test_three_recommended_and_ticked(self):
         q = questions.BY_KEY["platforms"]
@@ -68,7 +186,12 @@ class PlatformQuestions(unittest.TestCase):
         items = {i["key"]: i for i in questions.describe()}
         self.assertEqual(items["handle_youtube"]["signup"]["page"], signup.GUIDES["youtube"].url)
         self.assertEqual(items["handle_tiktok"]["gmail"]["page"], signup.GMAIL.url)  # offered once, first
+        self.assertIn("private window", items["handle_tiktok"]["gmail"]["another_channel"])
         self.assertNotIn("gmail", items["handle_youtube"])
+        steps = [s for i in items.values() for s in i.get("signup", {}).get("steps", []) + i.get("gmail", {}).get(
+            "steps", [])]
+        self.assertTrue(steps)
+        self.assertFalse(any("{" in s for s in steps))  # the steps' examples filled in
         json.dumps(list(items.values()))
 
 

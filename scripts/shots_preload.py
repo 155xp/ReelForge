@@ -7,7 +7,8 @@ changes: it only swaps what ReelForge would find here for the same things on a f
   - The first-run screens show a neutral folder (C:\\Users\\you\\ReelForge) and what a computer with nothing installed
     sees, and the last screen a new channel's (Night Physics) with nothing turned on here.
   - The channel's questions start from a sample channel's answers, so its later steps can be shown.
-  - A sign-up guide's button opens nothing: no browser ever opens from a picture or a test.
+  - A sign-up guide's button opens nothing: no browser ever opens from a picture or a test (and a second channel's
+    private window is always Chrome's).
 """
 
 from __future__ import annotations
@@ -114,9 +115,13 @@ def _list_modules() -> None:
 
 
 def _no_browser() -> None:
+    """Sign-up pages open nothing, and a second channel's private window is Chrome's on every computer (so the pictures
+    and tests say the same everywhere)."""
     from studio import signup
 
     signup.open_page = lambda url: None
+    signup.launch = lambda command: None
+    signup.private_browser = lambda: signup.Private("Chrome", ("chrome", "--incognito"))
 
 
 atexit.register(_list_modules)

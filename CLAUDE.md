@@ -38,7 +38,9 @@ their answers (their channel, format, platforms, style, caption rules and qualit
 4. `.venv\Scripts\python -m studio doctor` checks everything at any time; `--render-test` also renders a frame.
 5. **More channels later?** Each one is a profile with its own folder in `profiles/`: `reelforge profiles new` runs the
    same interview for it (or, interviewing them in chat, `--new --answers FILE.json`). The CLAUDE.md first-time
-   setup writes then lists every channel and where its notes are.
+   setup writes then lists every channel and where its notes are. A new channel's accounts are best made in a
+   private window of their browser, so their first channel stays logged in: the `gmail` item's `another_channel`
+   says how.
 
 ## Always
 

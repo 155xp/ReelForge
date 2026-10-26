@@ -98,6 +98,26 @@ describe("onboarding", () => {
     expect(h.exits).toEqual([])
   })
 
+  test("a new profile's Your accounts: a Gmail for it first, and its sign-ups open in a private window", async () => {
+    open = await headless("setup", { start: "onboard", preview: true, new: true }, 140, 46, PRELOAD)
+    const h = open
+    await h.settle(2000)
+    await clickText(h, "  Next  ", 4)
+    expect(frame(h)).toContain("2/8  Your channel")
+    await clickText(h, "Night Physics", 2) // the empty name's example
+    await h.t.mockInput.typeText("Cool Epic Facts")
+    await clickText(h, "Mind-bending", 2)
+    await h.t.mockInput.typeText("Mind-blowing facts.")
+    for (let step = 0; step < 3; step++) await clickText(h, "  Next  ", 4)
+    expect(frame(h)).toContain("5/8  Your accounts")
+    expect(frame(h)).toContain("make a Gmail for Cool Epic Facts first")
+    await clickText(h, "No account? Sign up", 2) // TikTok's
+    expect(frame(h)).toContain("like @coolepicfacts")
+    await clickText(h, "Open TikTok sign-up →", 2)
+    expect(frame(h)).toContain("Opened in a private Chrome window.") // a stand-in: nothing opens
+    expect(h.exits).toEqual([])
+  })
+
   test("Esc asks first; Keep going stays, Leave leaves", async () => {
     const h = await screen("onboard", [140, 46])
     await press(h, "ESCAPE")

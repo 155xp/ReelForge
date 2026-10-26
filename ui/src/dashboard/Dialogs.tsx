@@ -212,17 +212,18 @@ function EpisodePicker({ data, close }: { data: EpisodeData; close: () => void }
 }
 
 /** Making an account you don't have yet (or the channel's Gmail): a few steps, a button that opens the platform's own
- * sign-up page in your usual browser, and a box for the @handle you end up with, which Connect connects. ReelForge
- * never makes the account, fills in a form or sees a password. */
+ * sign-up page in your usual browser (a private window of it for a second channel, so the other one stays logged in),
+ * and a box for the @handle you end up with, which Connect connects. ReelForge never makes the account, fills in a
+ * form or sees a password. */
 function SignUp({ data, close }: { data: SignupData; close: () => void }) {
   const s = useDash()
   const focus = useFocusManager()
-  const [opened, setOpened] = useState(false)
+  const [opened, setOpened] = useState("") // what opened, said under the button: a private window, for a second channel
   const [handle, setHandle] = useState(s.handles[data.key] ?? "")
   const [problem, setProblem] = useState("")
-  const open = () => {
-    s.bridge.send("open_signup", data.key)
-    setOpened(true)
+  const open = async () => {
+    const said = await s.bridge.call<string | null>("open_signup", data.key)
+    setOpened(said || "Opened in your browser. Come back here when you're done.")
     setTimeout(() => focus.focus(data.account ? "su-handle" : "su-done"), 30)
   }
   const done = (typed = handle) => {
@@ -249,11 +250,11 @@ function SignUp({ data, close }: { data: SignupData; close: () => void }) {
         ))}
       </box>
       <box flexDirection="row" height={3} marginTop={1} marginLeft={4} flexShrink={0}>
-        <Button id="su-open" label={data.button} variant="primary" autoFocus onPress={open} />
+        <Button id="su-open" label={data.button} variant="primary" autoFocus onPress={() => void open()} />
       </box>
       {opened ? (
-        <text fg={DASH.good} marginLeft={4} flexShrink={0}>
-          ✓ Opened in your browser. Come back here when you're done.
+        <text fg={DASH.good} marginLeft={4} wrapMode="word" flexShrink={0}>
+          {`✓ ${opened}`}
         </text>
       ) : null}
       {data.account ? (

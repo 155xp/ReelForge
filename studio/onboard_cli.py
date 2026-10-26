@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from . import KIT_NAME, signup
+from . import KIT_NAME, profiles, signup
 from .questions import QUESTIONS, STEPS, coerce, defaults_for, validate
 
 
@@ -30,6 +30,9 @@ def ask(answers: dict | None = None, inp=input, out=print) -> dict:
         out(f"\n== {label} ==")
         if step == "accounts":
             out(f"\nStarting from scratch? {signup.GMAIL.title} first: {signup.GMAIL.url}\n  {signup.GMAIL.why}")
+            if profiles.several():  # probably logged in to another channel in your browser
+                out("  Logged in to another channel in your browser? Open these pages in a private window (Ctrl+Shift+N "
+                    "in Chrome and Edge, Ctrl+Shift+P in Firefox), so you sign up fresh.")
         for q in QUESTIONS:
             if q.step != step or not q.visible(a):
                 continue

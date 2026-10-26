@@ -4,6 +4,8 @@
   - Switch with the channel button at the top left, or press **p**. A red dot means another one has news.
   - **New profile** asks a few questions about the channel, then opens its Accounts tab.
   - Your first channel stays exactly where it is.
+- **Sign up without logging out.** New profile helps you make the channel's accounts, starting with a Gmail.
+  Sign-up pages open in a private browser window, so your other channel stays logged in.
 - **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their
   channel's rules. "Make today's videos" makes every channel's, except one set to post **Only when I ask**.
 - **Tell your AI about your channel.** Drag a file about it into the chat (or paste a description) and say
