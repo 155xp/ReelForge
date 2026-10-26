@@ -190,10 +190,11 @@ out, say).
 
 This channel's answers from first-time setup (**Change your answers** asks the questions again), how hard your AI
 reasons on each video (**Max**, **High**, the standard, or **Fast**), and what ReelForge set up on your computer: the
-hourly stats read, the `reelforge` command and the icon, each with a button to turn it on or off. At the bottom, the
-danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time setup
-again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
-anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac).
+hourly stats read, the `reelforge` command and the icon, each with a button to turn it on or off. Across the bottom,
+the danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time
+setup again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
+anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac). Neither stops half-way either:
+if something can't be moved (another ReelForge window has it open, say), nothing changes.
 
 ![The Settings tab: the channel's answers, your AI's reasoning, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
 
@@ -421,12 +422,13 @@ browser, so it never asks.
 Run `reelforge uninstall`, or click **Uninstall…** at the bottom of the **Settings** tab. It lists what it removes and
 asks you to type your channel's name, then:
 
+- moves your videos and each channel's answers to **ReelForge videos and channels**, a folder beside ReelForge's
+  (add `--remove-videos` to let them go with the rest). If one can't be moved, it stops there and nothing changes.
 - turns off the hourly stats read and the `reelforge` command, and puts ReelForge's icon (and on Windows its Windows
   Terminal profile) in the Recycle Bin or the Trash
-- moves your videos and each channel's answers to **ReelForge videos and channels**, a folder beside ReelForge's
-  (add `--remove-videos` to let them go with the rest)
 - puts the ReelForge folder in the Recycle Bin or the Trash: the app, Blender, ffmpeg, Bun, your stats, logins and
-  settings. Restore it from there if you change your mind, or empty the bin to get the space back.
+  settings. On Windows a small window does this once ReelForge has closed, and says when it's done. Restore it from
+  the bin if you change your mind, or empty the bin to get the space back.
 
 Nothing is deleted for good, and videos kept outside the ReelForge folder aren't touched.
 
@@ -439,7 +441,9 @@ Nothing is deleted for good, and videos kept outside the ReelForge folder aren't
 
 Run `reelforge reset`, or click **Factory reset…** on the **Settings** tab. It moves every channel's settings, logins
 and stats into a backup in `backups` and starts first-time setup again. Your videos stay where they are, and so do
-Blender, ffmpeg and the sounds, so nothing is downloaded again. To undo it, move the backup's files back.
+Blender, ffmpeg and the sounds, so nothing is downloaded again. If you have more than one channel, the others go into
+the backup whole, videos included. If something can't be moved (another ReelForge window has it open, say), nothing
+changes. To undo a reset, move the backup's files back.
 
 </details>
 
