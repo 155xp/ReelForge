@@ -1,29 +1,32 @@
 """Starting over, and leaving: factory reset and uninstall (the Settings tab's danger zone, or the commands).
 
   reelforge reset [--yes]                     every channel's settings, log-ins and stats back to brand-new, then
-                                              first-time setup again; your videos stay where they are
+                                              first-time setup again; your first channel's videos stay where they are
   reelforge uninstall [--yes] [--remove-videos]
                                               remove ReelForge from this computer; your videos and channels are kept
                                               in a folder beside it unless you say otherwise
 
-Neither deletes anything for good:
+Neither deletes anything for good, and neither stops half-way: when something can't be moved (a file another
+ReelForge window has open, say), the moves already made are put back and nothing has changed.
 
   Factory reset moves what it clears into backups/factory-reset-<date>/ in the ReelForge folder (move it back to
-  undo; delete it once you're sure). Blender, ffmpeg, the sounds and the window's packages stay, so nothing is
-  downloaded again.
+  undo; delete it once you're sure): the first channel's settings, log-ins and stats, and your other channels whole,
+  videos included. Blender, ffmpeg, the sounds and the window's packages stay, so nothing is downloaded again.
 
-  Uninstall turns off the hourly stats read and the reelforge command, puts ReelForge's icon (and on Windows its
-  Windows Terminal profile and the installer's Start menu folder) in the Recycle Bin or the Trash, moves your videos
-  and channel answers to "ReelForge videos and channels" beside the ReelForge folder, then puts the ReelForge folder
-  in the Recycle Bin or the Trash: the app, Blender, ffmpeg, Bun, its Python, your stats, log-ins and settings.
+  Uninstall first moves your videos and channel answers to "ReelForge videos and channels" beside the ReelForge
+  folder (if they can't all go, it stops there). Then it turns off the hourly stats read and the reelforge command,
+  puts ReelForge's icon (and on Windows its Windows Terminal profile and the installer's Start menu folder) in the
+  Recycle Bin or the Trash, and last puts the ReelForge folder there: the app, Blender, ffmpeg, Bun, its Python, your
+  stats, log-ins and settings.
 
 ReelForge has its own files open while it runs (the stats database, the browser log-ins, its Python), so the window
-only asks for either (PENDING) and quits with exit code 75; the launcher, starting ReelForge again, does it before
-anything opens them. On Windows the last step, the folder itself, runs in a small PowerShell window of its own once
-ReelForge has closed: a running program's folder can't be moved there. It renames the folder into the Recycle Bin and
-writes the bin's record of it ($I) itself, because Windows' own delete calls quietly delete a folder too big for the
-bin for good. A test copy (TEST-COPY.txt) or STUDIO_DRY_SYSTEM=1 leaves the computer's settings alone; a git copy of
-ReelForge (one you work on) can't be uninstalled from inside.
+only asks for either (PENDING) and quits with exit code 75; the launcher, starting ReelForge again at once, does it
+before anything opens them. One asked for more than FRESH seconds before is dropped instead: nothing started
+ReelForge again straight away, and it mustn't happen by surprise later. On Windows the last step, the folder itself,
+runs in a small PowerShell window of its own once ReelForge has closed: a running program's folder can't be moved
+there. It renames the folder into the Recycle Bin and writes the bin's record of it ($I) itself, because Windows' own
+delete calls quietly delete a folder too big for the bin for good. A test copy (TEST-COPY.txt) or STUDIO_DRY_SYSTEM=1
+leaves the computer's settings alone; a git copy of ReelForge (one you work on) can't be uninstalled from inside.
 
 Standard library only.
 """
@@ -33,8 +36,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import secrets
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -49,6 +50,7 @@ from . import paths as P
 
 ROOT = P.ROOT
 PENDING = ROOT / ".reelforge-pending.json"   # {"do": "reset"} or {"do": "uninstall", "keep": true}
+FRESH = 120                                  # seconds a reset or uninstall the window asked for stays to be done
 BACKUPS = ROOT / "backups"
 KEEP_NAME = f"{KIT_NAME} videos and channels"
 BIN = "Recycle Bin" if P.WINDOWS else "Trash"
@@ -114,12 +116,42 @@ def _move(src: Path, dst: Path, wait: float = 10) -> str | None:
             time.sleep(0.5)
 
 
-def _free(folder: Path, name: str) -> Path:
-    """folder/name, or folder/name 2, 3 ... so nothing already there is replaced."""
+def _prune(folder: Path) -> None:
+    """Remove the empty folders under folder, and folder itself if it ends up empty. Never a file."""
+    for dirpath, _, _ in sorted(os.walk(folder), key=lambda w: len(w[0]), reverse=True):   # the deepest first
+        try:
+            os.rmdir(dirpath)
+        except OSError:   # something's in it
+            pass
+
+
+def _move_all(moves: list[tuple[Path, Path]], made: Path) -> tuple[list[str], bool]:
+    """Rename each (from, to) in turn, all or nothing: when one can't be done, the ones already done go back where
+    they were and the empty folders made for them under `made` are removed. Returns (what went wrong, whether
+    everything is where it was before)."""
+    done: list[tuple[Path, Path]] = []
+    for src, dst in moves:
+        err = _move(src, dst)
+        if err is None:
+            done.append((src, dst))
+            continue
+        problems = [f"{P.rel(src)} is in use ({err})"]
+        for back, now in reversed(done):
+            if _move(now, back, wait=30):
+                problems.append(f"{P.rel(back)} couldn't be put back: it's in {now}")
+        _prune(made)
+        return problems, len(problems) == 1
+    return [], True
+
+
+def _free(folder: Path, name: str, taken: set[str] | None = None) -> Path:
+    """folder/name, or folder/name 2, 3 ... so nothing already there (or already picked: taken) is replaced."""
     n, candidate = 1, folder / name
-    while candidate.exists():
+    while candidate.exists() or (taken is not None and os.path.normcase(str(candidate)) in taken):
         n += 1
         candidate = folder / f"{name} {n}"
+    if taken is not None:
+        taken.add(os.path.normcase(str(candidate)))
     return candidate
 
 
@@ -151,7 +183,7 @@ def reset_items() -> list[tuple[Path, str]]:
         (main.config, "ReelForge's settings and your connected accounts"),
         (main.data, "your stats, notifications and log-ins"),
         (ROOT / ".claude" / "settings.local.json", "Claude Code's settings for this folder"),
-        (profiles.FOLDER, "your other channels' profiles, with their videos"),
+        (profiles.FOLDER, "your other channels, whole: their settings, log-ins, stats and videos"),
     ]
     for name in ("CLAUDE.md", "AGENTS.md"):
         f = ROOT / name
@@ -165,6 +197,15 @@ def reset_items() -> list[tuple[Path, str]]:
     if research.is_dir():
         items += [(f, "your AI's research") for f in sorted(research.iterdir()) if f.name not in EMPTY]
     return [(p, what) for p, what in items if p.exists()]
+
+
+def reset_keeps() -> tuple[str, str]:
+    """What a factory reset leaves where it is, the dialog's and the command's last word on it: (the gist, the rest)."""
+    rest = " (episodes and completed videos), and so do Blender, ffmpeg and the sounds, so nothing is downloaded again."
+    if profiles.extra():
+        return "Your first channel's videos stay where they are", rest + (" Your other channels go into the backup "
+                                                                          "whole, videos included.")
+    return "Your videos stay where they are", rest
 
 
 def bootstrap_note(when: str, backup: str) -> str:
@@ -182,27 +223,70 @@ def bootstrap_note(when: str, backup: str) -> str:
             f"Their old settings, notes and stats are in `{backup}` (move them back to undo the reset).\n")
 
 
+def _reading(lock: Path) -> bool:
+    """Whether a ReelForge is reading stats into a store right now: its lock file (dashboard/sync.py ReadLock) is
+    taken. A quick try, let go of at once."""
+    try:
+        fd = os.open(lock, os.O_RDWR)
+    except OSError:
+        return False
+    try:
+        if P.WINDOWS:
+            import msvcrt
+
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    except OSError:
+        return True
+    finally:
+        os.close(fd)
+
+
+def _wait_for_reads(say, wait: float = 120) -> None:
+    """Give a stats read under way (the window that just closed finishing one, or the hourly job) a chance to finish:
+    it has the stats open, which can't be moved until it's done."""
+    locks = [p.data / "stats.refresh.lock" for p in profiles.every()]
+    end, told = time.monotonic() + wait, False
+    while any(_reading(lock) for lock in locks) and time.monotonic() < end:
+        if not told:
+            say(f"  Waiting for a stats read to finish (at most {wait / 60:g} minutes)...")
+            told = True
+        time.sleep(1)
+
+
 @dataclass
 class Done:
     """What a factory reset or an uninstall did, for the window's notice or the terminal."""
     lines: list[str] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
     where: Path | None = None   # the backup (reset) or the kept videos (uninstall)
+    unchanged: bool = False     # it stopped before changing anything (or put back what it had moved)
 
 
 def factory_reset(say=print) -> Done:
-    """Move every channel's settings, log-ins and stats into backups/factory-reset-<date>/ and turn off the hourly
-    stats read (first-time setup turns it on again). Your videos stay."""
+    """Move every channel's settings, log-ins and stats into backups/factory-reset-<date>/, all or nothing, and turn
+    off the hourly stats read (first-time setup turns it on again). The first channel's videos stay."""
     done = Done()
     items = reset_items()
-    dest = BACKUPS / f"factory-reset-{_stamp()}"
-    done.where = dest
+    dest = _free(BACKUPS, f"factory-reset-{_stamp()}")
     for path, what in items:
-        rel = path.relative_to(ROOT)
-        say(f"  {rel}: {what}")
-        err = _move(path, dest / rel)
-        if err:
-            done.problems.append(f"{rel} ({err})")
+        say(f"  {P.rel(path)}: {what}")
+    _wait_for_reads(say)
+    done.problems, done.unchanged = _move_all([(p, dest / p.relative_to(ROOT)) for p, _ in items], dest)
+    if done.problems:
+        try:
+            BACKUPS.rmdir()   # when this made it for the backup, and it's empty again
+        except OSError:
+            pass
+        return done
+    done.where = dest
     if any(p.name in ("CLAUDE.md", "AGENTS.md") for p, _ in items):
         note = bootstrap_note(datetime.now().strftime("%d %B %Y"), f"backups/{dest.name}")
         for name in ("CLAUDE.md", "AGENTS.md"):
@@ -282,28 +366,41 @@ def keep_plan() -> list[Keep]:
                 outside.append(f)
         if _has_files(p.my_studio):
             inside.append(p.my_studio)
-        k = Keep(p, inside, outside)
-        for f in inside:
+        out.append(Keep(p, inside, outside))
+    # a folder inside another one that moves (a video folder set inside episodes/, say) moves with it
+    moving = [f for k in out for f in k.folders]
+    for k in out:
+        k.folders = [f for f in k.folders if not any(f != g and _inside(f, g) for g in moving)]
+        for f in k.folders:
             n, b = _size(f)
             k.files += n
             k.bytes += b
-        if inside or outside:
-            out.append(k)
-    return out
+    return [k for k in out if k.folders or k.outside]
 
 
 def keep_folder() -> Path:
     return _free(ROOT.parent, KEEP_NAME)
 
 
-def system_items() -> list[str]:
-    """The parts of ReelForge outside its folder that uninstall turns off or bins."""
-    out = ["the hourly stats read", "the reelforge command"]
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def system_items() -> tuple[list[str], list[str]]:
+    """The parts of ReelForge outside its folder: what uninstall turns off, and what it puts in the bin."""
+    off = ["the hourly stats read", "the reelforge command"]
     if P.WINDOWS:
-        out += ["the desktop icon", "ReelForge's Windows Terminal profile"]
-    else:
-        out.append("ReelForge in Applications" if P.MAC else "ReelForge in your app menu")
-    return out
+        return off, ["the desktop icon", "ReelForge's Windows Terminal profile"]
+    return off, ["ReelForge in Applications" if P.MAC else "ReelForge in your app menu"]
+
+
+def system_sentence() -> str:
+    """What uninstall does outside the ReelForge folder, in a sentence."""
+    off, binned = system_items()
+    if P.dry_system():
+        return (f"A test copy leaves {_and(off + binned)} alone: they belong to your main {KIT_NAME}."
+                if P.test_copy() else f"(STUDIO_DRY_SYSTEM) {_and(off + binned)} are left alone.")
+    return f"It turns off {_and(off)}, and puts {_and(binned)} in the {BIN}."
 
 
 def uninstall_info() -> dict:
@@ -311,7 +408,7 @@ def uninstall_info() -> dict:
     plan = keep_plan()
     return {
         "root": str(ROOT), "bin": BIN, "keep_to": str(keep_folder()), "git": git_copy(),
-        "test": P.test_copy(), "system": system_items(),
+        "test": P.test_copy(), "system": system_sentence(),
         "videos": sum(k.files for k in plan), "videos_size": fmt_size(sum(k.bytes for k in plan)),
         "outside": [str(f) for k in plan for f in k.outside],
         "channels": [{"name": k.profile.name, "folders": [P.rel(f) for f in k.folders]} for k in plan if k.folders],
@@ -328,17 +425,16 @@ def keep_videos(say=print) -> Done:
         done.lines.append("There were no videos or channel answers in the ReelForge folder to keep.")
         return done
     dest = keep_folder()
-    done.where = dest
+    moves, taken = [], set()
     for k in plan:
-        channel = dest / _folder_name(k.profile.name)
+        channel = _free(dest, _folder_name(k.profile.name), taken)   # two channels never share a folder
         for f in k.folders:
-            target = _free(channel, f.name)
-            say(f"  {k.profile.name}: {P.rel(f)} -> {target}")
-            err = _move(f, target)
-            if err:
-                done.problems.append(f"{P.rel(f)} ({err})")
-    if not dest.is_dir():   # nothing could be moved
+            moves.append((f, _free(channel, f.name, taken)))
+            say(f"  {k.profile.name}: {P.rel(f)} -> {moves[-1][1]}")
+    done.problems, done.unchanged = _move_all(moves, dest)
+    if done.problems:
         return done
+    done.where = dest
     (dest / "README.txt").write_text(
         f"Kept when {KIT_NAME} was uninstalled on {datetime.now():%d %B %Y at %H:%M}: each channel's videos (episodes, "
         f"completed videos) and its answers from first-time setup (my-studio). {KIT_NAME} itself went to the {BIN}.\n"
@@ -361,8 +457,7 @@ def system_off(say=print) -> list[str]:
     """Turn off everything ReelForge set up outside its folder. Returns what couldn't be done."""
     problems: list[str] = []
     if P.dry_system():
-        say("  A test copy leaves the computer's settings alone (the command, the hourly job, the icon)."
-            if P.test_copy() else "  (dry run) would turn off the hourly job and the command, and bin the icon")
+        say("  " + system_sentence())
         return problems
     from . import command, shortcut, stats_schedule
 
@@ -435,6 +530,7 @@ $Host.UI.RawUI.WindowTitle = 'Uninstalling ReelForge'
 function Done($code) {
   Write-Host ''
   if (-not $NoPause) { Read-Host 'Press Enter to close this window' | Out-Null }
+  try { [IO.File]::Delete($PSCommandPath) } catch {}   # this script, written to the temp folder for this one run
   exit $code
 }
 Write-Host "Uninstalling ReelForge: $Root"
@@ -506,11 +602,17 @@ def bin_folder(kept: Path | None, say=print) -> str | None:
     kept_s = str(kept) if kept else ""
     if P.WINDOWS:
         script = Path(tempfile.gettempdir()) / f"reelforge-uninstall-{_stamp()}.ps1"
-        script.write_text(WINDOWS_BIN, encoding="utf-8-sig")
         flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-        subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
-                          "-Root", str(ROOT), "-Kept", kept_s], cwd=tempfile.gettempdir(), creationflags=flags,
-                         stdin=subprocess.DEVNULL, close_fds=True)
+        try:
+            script.write_text(WINDOWS_BIN, encoding="utf-8-sig")
+            # No stdin/stdout/stderr: the window reads and writes its own console. Handing it any of this one's would
+            # hand it all three, and it would write into a terminal about to close and never wait for Enter.
+            subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
+                              "-Root", str(ROOT), "-Kept", kept_s], cwd=tempfile.gettempdir(), creationflags=flags,
+                             close_fds=True)
+        except OSError as e:
+            return (f"the window that puts {ROOT} in the Recycle Bin couldn't start ({e}): close {KIT_NAME} and put "
+                    "the folder in the Recycle Bin yourself")
         say(f"A small window finishes the job once {KIT_NAME} has closed: it puts the {KIT_NAME} folder in the "
             f"Recycle Bin and says when it's done.")
         return None
@@ -526,21 +628,20 @@ def bin_folder(kept: Path | None, say=print) -> str | None:
 
 
 def uninstall(keep: bool = True, say=print) -> Done:
-    """Everything uninstall does, in order: the computer's settings, the videos you're keeping, then the folder."""
+    """Everything uninstall does, in order: the videos you're keeping (when they can't all be moved out, it stops
+    there and nothing has changed), the computer's settings, then the folder."""
     done = Done()
-    say(f"Turning off {', '.join(system_items())}...")
-    done.problems += system_off(say)
     if keep:
         say("Keeping your videos and channels...")
         kept = keep_videos(say)
-        done.problems += kept.problems
         done.lines += kept.lines
-        done.where = kept.where
         if kept.problems:   # never bin a video that couldn't be moved out
-            done.problems.append(f"{KIT_NAME}'s folder was left where it is, because some videos couldn't be moved "
-                                 "out of it")
+            done.problems, done.unchanged = kept.problems, kept.unchanged
             return done
-    PENDING.unlink(missing_ok=True)
+        done.where = kept.where
+    off, binned = system_items()
+    say(f"Turning off {_and(off)}, and putting {_and(binned)} in the {BIN}...")
+    done.problems += system_off(say)
     err = bin_folder(done.where, say)
     if err:
         done.problems.append(err)
@@ -550,7 +651,7 @@ def uninstall(keep: bool = True, say=print) -> Done:
 # ---------------------------------------------------------------- asked for by the window
 
 def request(what: str, keep: bool = True) -> None:
-    """The window asks for a factory reset or an uninstall; the launcher does it when it starts ReelForge again."""
+    """The window asks for a factory reset or an uninstall; the launcher does it as it starts ReelForge again."""
     data = {"do": what, "keep": bool(keep), "asked": datetime.now().isoformat(timespec="seconds")}
     PENDING.write_text(json.dumps(data) + "\n", encoding="utf-8")
 
@@ -563,20 +664,68 @@ def pending() -> dict | None:
     return data if isinstance(data, dict) and data.get("do") in ("reset", "uninstall") else None
 
 
+def take_pending() -> dict | None:
+    """The reset or uninstall the window just asked for, taken (its file goes, so it's done once). One asked for more
+    than FRESH seconds ago is dropped with a note: nothing started ReelForge again straight after the window closed,
+    and it mustn't happen by surprise later."""
+    job = pending()
+    try:
+        age = time.time() - PENDING.stat().st_mtime
+        PENDING.unlink()
+    except FileNotFoundError:   # there's none, or another launcher took it
+        return None
+    except OSError:
+        return None
+    if job is None:
+        return None
+    if not -FRESH <= age <= FRESH:
+        what = "factory reset" if job["do"] == "reset" else "uninstall"
+        try:
+            when = f" at {datetime.fromisoformat(job['asked']):%H:%M on %d %B}"
+        except (KeyError, TypeError, ValueError):
+            when = ""
+        print(f"The {what} asked for{when} wasn't done, because {KIT_NAME} didn't start again straight after. Ask "
+              "for it again on the Settings tab if you still want it.\n")
+        return None
+    return job
+
+
 def _report(done: Done, title: str) -> None:
     for line in done.lines:
         print(line)
-    if done.problems:
-        print(f"\n{title} didn't finish. These couldn't be moved:")
-        for p in done.problems:
-            print(f"  {p}")
+    if not done.problems:
+        return
+    if done.unchanged:
+        print(f"\n{title} didn't happen, and nothing was changed:")
+    else:
+        print(f"\n{title} didn't finish:")
+    for p in done.problems:
+        print(f"  {p}")
+    if done.unchanged:
         print(f"Close every other {KIT_NAME} window (and wait for a stats read to finish), then try again.")
 
 
-def finish_pending() -> int | None:
-    """What the launcher does first: a factory reset or an uninstall the window asked for. None: carry on opening
-    ReelForge (after a reset: first-time setup), else the exit code to stop with."""
-    job = pending()
+def _interactive() -> bool:
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _open_again() -> list[str] | int:
+    """After a reset or an uninstall that changed nothing: ReelForge opens again on the Settings tab, once you've read
+    why (in a terminal)."""
+    if not _interactive():
+        return 1
+    try:
+        input(f"\nPress Enter to open {KIT_NAME} again...")
+    except EOFError:
+        return 1
+    return ["settings"]
+
+
+def finish_pending() -> list[str] | int | None:
+    """What the launcher does first: a factory reset or an uninstall the window just asked for. None: there wasn't
+    one. A list: open ReelForge with these arguments (none after a reset: first-time setup; the Settings tab when
+    nothing could be changed). Otherwise the exit code to stop with."""
+    job = take_pending()
     if job is None:
         return None
     if job["do"] == "reset":
@@ -584,14 +733,14 @@ def finish_pending() -> int | None:
         done = factory_reset()
         _report(done, "The factory reset")
         if done.problems:
-            return 1                # PENDING stays: the next start tries again
-        PENDING.unlink(missing_ok=True)
+            return _open_again() if done.unchanged else 1
         print("\nStarting first-time setup...\n")
-        return None
+        return []
     print(f"Uninstalling {KIT_NAME} ({ROOT}).")
     done = uninstall(bool(job.get("keep", True)))
     _report(done, "Uninstalling")
-    PENDING.unlink(missing_ok=True)
+    if done.unchanged:
+        return _open_again()
     return 1 if done.problems else 0
 
 
@@ -615,7 +764,7 @@ def reset_main(argv: list[str]) -> int:
         print(f"  {P.rel(p)}: {what}")
     if not items:
         print("  (nothing: it's brand-new already)")
-    print("Your videos (episodes, completed videos) stay where they are. Close every other ReelForge window first.\n")
+    print("".join(reset_keeps()) + f" Close every other {KIT_NAME} window first.\n")
     if not yes:
         if not sys.stdin.isatty():
             print("Run it in a terminal to confirm, or add --yes.")
@@ -627,7 +776,7 @@ def reset_main(argv: list[str]) -> int:
     _report(done, "The factory reset")
     if done.problems:
         return 1
-    if sys.stdin.isatty() and sys.stdout.isatty():
+    if _interactive():
         from .__main__ import first_run
 
         return first_run("onboard")
@@ -645,8 +794,7 @@ def uninstall_main(argv: list[str]) -> int:
         return 2
     print(f"Uninstalling removes {KIT_NAME} from this computer:")
     print(f"  {ROOT} goes to the {BIN}: the app, Blender, ffmpeg, Bun, its Python, your stats, log-ins and settings")
-    things = ", ".join(info["system"][:-1]) + " and " + info["system"][-1]
-    print(f"  {things[:1].upper() + things[1:]} are turned off" + (" (not in a test copy)" if info["test"] else ""))
+    print(f"  {info['system']}")
     if info["channels"]:
         if keep:
             print(f"Your videos and channels ({info['videos']} files, {info['videos_size']}) are kept first, in")
@@ -666,4 +814,7 @@ def uninstall_main(argv: list[str]) -> int:
             return 1
     done = uninstall(keep)
     _report(done, "Uninstalling")
+    if P.WINDOWS and not done.unchanged and _inside(Path.cwd(), ROOT):
+        print(f"\nThis terminal is in the {KIT_NAME} folder, which keeps it from going to the Recycle Bin: close the "
+              "terminal, or cd out of the folder.")
     return 1 if done.problems else 0

@@ -29,7 +29,7 @@
   reelforge publish-check episodes/<id>         is this video ready in the Publish tab (tab 4)?
 
   reelforge reset [--yes]      factory reset: every channel's settings, log-ins and stats back to brand-new (into a
-                               backup in backups/), then first-time setup again; your videos stay
+                               backup in backups/), then first-time setup again; your first channel's videos stay
   reelforge uninstall [--yes] [--remove-videos]
                                remove ReelForge from this computer: the folder goes to the Recycle Bin (Trash), and
                                your videos and channels are kept in a folder beside it unless you say otherwise
@@ -351,9 +351,11 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     P.keep_runnable()
     from . import reset
-    if reset.pending():   # a factory reset or an uninstall the window asked for (it quit so this can do it)
-        code = reset.finish_pending()
-        return open_app([]) if code is None else code   # after a reset: first-time setup
+    done = reset.finish_pending()   # a factory reset or an uninstall the window just asked for (it quit for this)
+    if isinstance(done, list):
+        return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
+    if done is not None:
+        return done
     argv, word = take_profile(argv)
     if word is not None:
         chosen = profiles.find(word)

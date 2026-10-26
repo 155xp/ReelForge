@@ -1,7 +1,8 @@
-// The Settings tab (7): this channel's answers from first-time setup, how hard your AI reasons, what ReelForge set up
-// on this computer, and the danger zone at the bottom: factory reset and uninstall, each behind a dialog where you
-// type the channel's name. Neither deletes anything: what they clear goes to a backup or the Recycle Bin (Trash).
-// dashboard/settings_tab.py sends the "settings" view and does the work (with studio/reset.py).
+// The Settings tab (7): this channel's answers from first-time setup and how hard your AI reasons side by side, what
+// ReelForge set up on this computer under them, and the danger zone across the bottom: factory reset and uninstall,
+// each behind a dialog where you type the channel's name. Neither deletes anything: what they clear goes to a backup
+// or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work (with
+// studio/reset.py).
 
 import { TextAttributes } from "@opentui/core"
 import { useEffect, useState } from "react"
@@ -73,10 +74,9 @@ export function Settings() {
         <Reasoning v={v} />
       </box>
       <box height={1} flexShrink={0} />
-      <box flexDirection="row" gap={2} flexShrink={0}>
-        <Computer v={v} />
-        <DangerZone v={v} />
-      </box>
+      <Computer v={v} />
+      <box height={1} flexShrink={0} />
+      <DangerZone v={v} />
     </Scroll>
   )
 }
@@ -148,18 +148,19 @@ function Reasoning({ v }: { v: SettingsView }) {
   )
 }
 
-/** What ReelForge set up on this computer, each with its button. */
+/** What ReelForge set up on this computer, each with its button (all as wide as the widest, lined up on the right). */
 function Computer({ v }: { v: SettingsView }) {
   const s = useDash()
+  const width = Math.max(0, ...(v.computer ?? []).map((row) => row.button.length)) + 4
   return (
-    <Panel title="ON THIS COMPUTER" titleColor={DASH.good} flexGrow={1} flexShrink={1}>
+    <Panel title="ON THIS COMPUTER" titleColor={DASH.good} flexShrink={0}>
       {v.computer === null ? (
         <text fg={DASH.muted} flexShrink={0}>
           Looking…
         </text>
       ) : (
         v.computer.map((row) => (
-          <box key={row.key} flexDirection="row" height={3} flexShrink={0} alignItems="center">
+          <box key={row.key} flexDirection="row" height={3} flexShrink={0} alignItems="center" gap={1}>
             <box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="center">
               <text attributes={TextAttributes.BOLD} wrapMode="none">
                 {row.label}
@@ -168,7 +169,7 @@ function Computer({ v }: { v: SettingsView }) {
                 {row.value}
               </text>
             </box>
-            {row.button ? <Button id={`settings-${row.key}`} label={row.button} flexShrink={0} onPress={() => s.bridge.send("settings_toggle", row.key)} /> : null}
+            {row.button ? <Button id={`settings-${row.key}`} label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("settings_toggle", row.key)} /> : null}
           </box>
         ))
       )}
@@ -176,7 +177,7 @@ function Computer({ v }: { v: SettingsView }) {
   )
 }
 
-/** Factory reset and uninstall: red, at the bottom, each opening a dialog that asks for the channel's name. */
+/** Factory reset and uninstall: red, across the bottom, each opening a dialog that asks for the channel's name. */
 function DangerZone({ v }: { v: SettingsView }) {
   const s = useDash()
   const item = (id: string, title: string, what: string, label: string, onPress: () => void) => (
@@ -189,15 +190,17 @@ function DangerZone({ v }: { v: SettingsView }) {
           {what}
         </text>
       </box>
-      <Button id={id} label={label} variant="error" flexShrink={0} onPress={onPress} />
+      <Button id={id} label={label} variant="error" minWidth={18} flexShrink={0} onPress={onPress} />
     </box>
   )
   return (
-    <Panel title="DANGER ZONE" titleColor={DANGER} borderColor={mix(DANGER, DASH.bg, 0.35)} flexGrow={1} flexShrink={1}>
+    <Panel title="DANGER ZONE" titleColor={DANGER} borderColor={mix(DANGER, DASH.bg, 0.35)} flexShrink={0}>
       {item(
         "settings-reset",
         "Factory reset",
-        `${v.several ? "Every channel's" : "Your"} settings, log-ins and stats go to a backup, then first-time setup starts again. Your videos stay.`,
+        v.several
+          ? "Every channel goes to a backup (your first channel's videos stay), then first-time setup starts again."
+          : "Your settings, log-ins and stats go to a backup, then first-time setup starts again. Your videos stay.",
         "Factory reset…",
         () => void s.openDialog("factory_reset", s.bridge.call("reset_info")),
       )}

@@ -196,9 +196,10 @@ class SettingsTab:
             note.append(f"  {what}\n", MUTED)
         if not items:
             note.append("  nothing: it's brand-new already\n", MUTED)
-        note.append("\nYour videos stay where they are", "bold")
-        note.append(" (episodes and completed videos), and so do Blender, ffmpeg and the sounds. Close any other "
-                    "ReelForge window first.", MUTED)
+        keeps, rest = reset.reset_keeps()
+        note.append("\n" + keeps, "bold")
+        note.append(rest + " If anything can't be moved, nothing changes. Close any other ReelForge window first.",
+                    MUTED)
         return {"note": note.json(), "word": reset.confirm_word()}
 
     @rpc
@@ -230,11 +231,7 @@ class SettingsTab:
         note.append("Removes ReelForge from this computer.", "bold")
         note.append(f"\n  {info['root']}", "bold")
         note.append(f" goes to the {info['bin']}: the app, Blender, ffmpeg, Bun, its Python, your stats, log-ins and "
-                    "settings. You can put it back from there.\n  ", MUTED)
-        things = info["system"]
-        listed = ", ".join(things[:-1]) + " and " + things[-1]
-        note.append(listed[:1].upper() + listed[1:], "bold")
-        note.append(" are turned off" + (" (not in a test copy)." if info["test"] else "."), MUTED)
+                    f"settings. You can put it back from there.\n  {info['system']}", MUTED)
         for f in info["outside"]:
             note.append(f"\n\nVideos outside the ReelForge folder stay where they are: {f}", MUTED)
         return {"note": note.json(), "word": info["word"], "bin": info["bin"], "keep_to": info["keep_to"],
