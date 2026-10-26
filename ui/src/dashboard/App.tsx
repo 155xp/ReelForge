@@ -6,7 +6,7 @@
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext } from "../lib/focus"
 import { cellLen, segsLen, type Segs } from "../lib/styled"
@@ -14,7 +14,7 @@ import { DASH, mix } from "../theme"
 import { Cells } from "../ui/Cells"
 import { bell, BELL_WIDTH, logoCells, shade, widthOf } from "../ui/Graphics"
 import { ActionContext, Line } from "../ui/Line"
-import { useTween } from "../ui/Motion"
+import { useProgress, useTween } from "../ui/Motion"
 import { ToastStack, toasts } from "../ui/Panels"
 import { Accounts } from "./Accounts"
 import { Compare } from "./Compare"
@@ -80,18 +80,37 @@ function Window({ focus }: { focus: FocusManager }) {
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={DASH.bg}>
       <Header />
-      <box flexDirection="column" flexGrow={1} paddingLeft={1} paddingRight={1}>
-        {s.tab === "overview" && <Overview />}
-        {s.tab === "videos" && <Videos />}
-        {s.tab === "compare" && <Compare />}
-        {s.tab === "publish" && <Publish />}
-        {s.tab === "accounts" && <Accounts />}
-        {s.tab === "updates" && <Updates />}
-      </box>
+      <TabContent />
       <StatusBar />
       <Drawer />
       <Dialogs />
       <ToastStack />
+    </box>
+  )
+}
+
+/** The open tab. A tab you switch to slides in a few columns from the side you moved towards and comes up out of the
+ * window's colour. */
+function TabContent() {
+  const s = useDash()
+  const i = Math.max(TABS.indexOf(s.tab), 0)
+  const last = useRef(i)
+  const dir = i >= last.current ? 1 : -1
+  useEffect(() => {
+    last.current = i
+  }, [i])
+  const p = useProgress(s.tab, { ms: 220, ease: "outQuad" })
+  const shift = Math.round((1 - p) * 3) * dir
+  const veil = Math.round((1 - p) * 0xd0)
+  return (
+    <box flexDirection="column" flexGrow={1} paddingLeft={1 + Math.max(shift, 0)} paddingRight={1 + Math.max(-shift, 0)}>
+      {s.tab === "overview" && <Overview />}
+      {s.tab === "videos" && <Videos />}
+      {s.tab === "compare" && <Compare />}
+      {s.tab === "publish" && <Publish />}
+      {s.tab === "accounts" && <Accounts />}
+      {s.tab === "updates" && <Updates />}
+      {veil > 8 ? <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={20} backgroundColor={DASH.bg + veil.toString(16).padStart(2, "0")} /> : null}
     </box>
   )
 }

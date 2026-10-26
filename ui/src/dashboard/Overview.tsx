@@ -7,7 +7,7 @@ import { TextAttributes, type Renderable } from "@opentui/core"
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { useView } from "../bridge"
 import { bars, clockLabels, type Drawn } from "../lib/chart"
-import { fmtDelta, fmtNum, sigNum } from "../lib/format"
+import { fmtDelta, fmtNum, shortNum, sigNum } from "../lib/format"
 import { cellLen, lines, segsLen, type Parts, type Segs } from "../lib/styled"
 import { DASH, mix } from "../theme"
 import { Chart } from "../ui/Chart"
@@ -35,10 +35,14 @@ export function Overview() {
   const [width, setWidth] = useState(0)
   const all = cards?.cards ?? []
   const side = width >= SIDE_BY_SIDE
+  // Every tile fits its numbers to the narrowest one, so they all show the big numbers or none do.
+  const tileW = all.length ? Math.floor((width - (side ? 0 : 1) - (all.length - 1)) / all.length) : 0 // 1: the scrollbar
+  const pad = tileW < 24 ? 1 : 2
+  const room = Math.max(tileW - 2 * pad, 0) // the left edge and the padding
   const tiles = (
     <box flexDirection="row" height={TILE_ROWS} marginTop={1} flexShrink={0} gap={1}>
       {all.map((c) => (
-        <Tile key={c.id} card={c} picked={s.picked === `card-${c.id}`} others={all} />
+        <Tile key={c.id} card={c} picked={s.picked === `card-${c.id}`} others={all} room={room} pad={pad} />
       ))}
     </box>
   )
@@ -96,8 +100,9 @@ export function Overview() {
  * views and likes with their changes; views per hour as a sparkline (the platforms stacked on All platforms). Too
  * narrow for the big numbers, it shows the three lines the old cards did, shortened to fit (cards.ts). Nothing on a tile
  * is ever cut off. */
-function Tile({ card, picked, others }: { card: CardView; picked: boolean; others: CardView[] }) {
-  const [inner, setInner] = useState(0)
+function Tile({ card, picked, others, room, pad }: { card: CardView; picked: boolean; others: CardView[]; room: number; pad: number }) {
+  const [measured, setInner] = useState(0)
+  const inner = Math.min(measured || room, room || measured)
   const total = card.id === "total"
   const color = total ? DASH.text : card.color
   const values = card.values
@@ -117,7 +122,7 @@ function Tile({ card, picked, others }: { card: CardView; picked: boolean; other
   else if (big) body = [subLine(shown, changes, inner)]
   else body = cardLines(shown, changes, inner)
   return (
-    <Panel flexGrow={1} height={TILE_ROWS} paddingX={2} picked={picked}>
+    <Panel flexGrow={1} height={TILE_ROWS} paddingX={pad} picked={picked}>
       <box
         flexDirection="column"
         flexGrow={1}
@@ -167,23 +172,23 @@ function Tile({ card, picked, others }: { card: CardView; picked: boolean; other
   )
 }
 
-/** Views and likes under the big number, each with its change, shortened to fit `width`: the likes go first. */
+/** Views and likes under the big number, each with its change, shortened to fit `width`: the numbers get shorter,
+ * then the likes go, then the views' change. */
 function subLine(values: Record<string, number | null>, changes: Record<string, number | null | undefined>, width: number): Segs {
-  const part = (k: "views" | "likes", short: boolean): Segs => {
+  const part = (k: "views" | "likes", short: boolean, change = true): Segs => {
     const n = changes[k]
     const out: Segs = [[short ? sigNum(values[k]) : fmtNum(values[k]), `bold ${DASH.text}`], [` ${k}`, DASH.faint]]
-    if (n) out.push([` ${fmtDelta(n)}`, n > 0 ? DASH.good : DASH.bad])
+    if (n && change) out.push([` ${n > 0 ? "+" : "−"}${short ? shortNum(Math.abs(n)) : fmtNum(Math.abs(n))}`, n > 0 ? DASH.good : DASH.bad])
     return out
   }
-  for (const short of [false, true]) {
-    const both = [...part("views", short), ["   ", ""], ...part("likes", short)] as Segs
-    if (segsLen(both) <= width) return both
-  }
-  for (const short of [false, true]) {
-    const views = part("views", short)
-    if (segsLen(views) <= width) return views
-  }
-  return [[sigNum(values.views), `bold ${DASH.text}`]]
+  const options: Segs[] = [
+    [...part("views", false), ["   ", ""], ...part("likes", false)],
+    [...part("views", true), ["   ", ""], ...part("likes", true)],
+    part("views", false),
+    part("views", true),
+    part("views", true, false),
+  ]
+  return options.find((o) => segsLen(o) <= width) ?? [[sigNum(values.views), `bold ${DASH.text}`]]
 }
 
 // ---------------------------------------------------------------- the charts
