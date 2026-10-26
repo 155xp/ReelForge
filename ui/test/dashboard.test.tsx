@@ -43,6 +43,11 @@ async function press(h: Headless, key: string) {
   await h.settle(300)
 }
 
+/** Wait (up to 5 s) for what a click asked the Python side for: a slow computer takes longer than one settle. */
+async function until(h: Headless, text: string) {
+  for (let i = 0; i < 25 && !frame(h).includes(text); i++) await h.settle(200)
+}
+
 describe("the Overview fits", () => {
   for (const [w, hh, drawer] of [
     [110, 40, false],
@@ -132,6 +137,7 @@ describe("accounts", () => {
     await press(h, "return") // Enter connects
     expect(frame(h)).toContain("That isn't a handle")
     await clickText(h, " Sign up → ", 2)
+    await until(h, "MAKE YOUR X ACCOUNT")
     expect(frame(h)).toContain("MAKE YOUR X ACCOUNT")
     expect(frame(h)).toContain("Pick a username that matches your channel")
     await press(h, "escape")
@@ -143,6 +149,7 @@ describe("accounts", () => {
     expect(activeTab(h)).toBe("Accounts")
     expect(frame(h)).toContain("No accounts connected yet")
     await clickText(h, " Make a Gmail first ", 2)
+    await until(h, "MAKE A GMAIL FOR YOUR CHANNEL")
     expect(frame(h)).toContain("MAKE A GMAIL FOR YOUR CHANNEL")
     expect(frame(h)).not.toContain("Your @handle")
   })
@@ -313,9 +320,11 @@ describe("profiles", () => {
       expect(activeTab(h)).toBe("Accounts") // nothing connected yet
       expect(frame(h)).toContain("New channel?")
       await clickText(h, " Sign up → ", 2) // TikTok's
+      await until(h, "MAKE YOUR TIKTOK ACCOUNT")
       expect(frame(h)).toContain("MAKE YOUR TIKTOK ACCOUNT")
       expect(frame(h)).toContain("like @alpha")
       await clickText(h, "Open TikTok sign-up →", 2)
+      await until(h, "Opened in a private Chrome window.")
       expect(frame(h)).toContain("Opened in a private Chrome window.") // a stand-in: nothing opens
     } finally {
       await open?.close()

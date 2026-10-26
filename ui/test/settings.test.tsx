@@ -12,6 +12,7 @@ import { ROOT } from "../src/bridge"
 import { typedMatches } from "../src/dashboard/Settings"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
+const BIN = process.platform === "win32" ? "Recycle Bin" : "Trash" // what dashboard/desktop.py calls it here
 setDefaultTimeout(30_000)
 let open: Headless | null = null
 
@@ -92,6 +93,11 @@ describe("the danger zone on a channel that's set up", () => {
     for (let i = 0; i < 25 && !h.exits.length; i++) await h.settle(200)
   }
 
+  /** Wait (up to 5 s) for a dialog the Python side fills in: a slow computer takes longer than one settle. */
+  async function until(h: Headless, text: string) {
+    for (let i = 0; i < 25 && !frame(h).includes(text); i++) await h.settle(200)
+  }
+
   /** Click text in the dialog: the first time it's on screen below `under` (the tab behind has the same words). */
   async function clickBelow(h: Headless, under: string, text: string, dx = 2) {
     const top = find(h, under)
@@ -104,7 +110,7 @@ describe("the danger zone on a channel that's set up", () => {
   test("factory reset does nothing until the channel's name is typed, then asks for it and closes ReelForge", async () => {
     const h = await settings()
     await clickText(h, "Factory reset…")
-    await h.settle(800)
+    await until(h, "FACTORY RESET")
     expect(frame(h)).toContain("FACTORY RESET")
     expect(frame(h)).toContain("Type Night Physics to confirm")
     expect(frame(h)).toContain("Your videos stay where they are")
@@ -127,7 +133,7 @@ describe("the danger zone on a channel that's set up", () => {
   test("uninstall says where the videos go, can let them go too, and asks once the name is typed", async () => {
     const h = await settings()
     await clickText(h, "Uninstall…")
-    await h.settle(800)
+    await until(h, "UNINSTALL REELFORGE")
     const f = frame(h)
     expect(f).toContain("UNINSTALL REELFORGE")
     expect(f).toContain("Moved first to")
@@ -137,12 +143,12 @@ describe("the danger zone on a channel that's set up", () => {
     expect(frame(h)).not.toContain("UNINSTALL REELFORGE")
     expect(asked()).toBeNull()
     await clickText(h, "Uninstall…")
-    await h.settle(800)
+    await until(h, "UNINSTALL REELFORGE")
     await h.t.mockInput.typeText("night physics")
     await h.settle(300)
     await clickText(h, "▐█▌", 0) // Keep them: off
     await h.settle(300)
-    expect(frame(h)).toContain("They go to the Recycle Bin with the rest")
+    expect(frame(h)).toContain(`They go to the ${BIN} with the rest`)
     await clickBelow(h, "Type Night Physics", "Uninstall ReelForge")
     await closed(h)
     expect(asked()).toMatchObject({ do: "uninstall", keep: false })
