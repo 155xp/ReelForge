@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import closing, redirect_stdout
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -442,37 +443,201 @@ class Switcher(Scratch):
 
 
 
-class Menu(Scratch):
-    def test_the_menu_lists_every_profile_and_removing_one_sends_it_to_the_bin(self):
-        from dashboard import db, desktop, service
-        from dashboard.platforms import build
-        from dashboard.tests.window import Window
+class Deleting(Scratch):
+    """Taking a channel you added out of ReelForge (studio/profiles.py delete) and bringing it back (restore)."""
+
+    def window_on(self, p: profiles.Profile) -> "ReadLock":
+        """A ReelForge window showing this profile, as far as the others can tell: its lock, held."""
+        from dashboard.sync import ReadLock
+
+        profiles.windows(p).mkdir(parents=True, exist_ok=True)
+        lock = ReadLock(profiles.windows(p) / "4242.lock")
+        self.assertTrue(lock.acquire())
+        self.addCleanup(lock.release)
+        return lock
+
+    def test_a_deleted_profile_is_kept_whole_in_backups_and_restore_puts_it_back(self):
+        a = profiles.create("Cool Epic Facts")
+        video = a.episodes / "ep01_duck" / "final" / "ep01_duck.mp4"
+        video.parent.mkdir(parents=True)
+        video.write_bytes(b"a video")
+        gone = profiles.delete(a)
+        self.assertFalse(a.folder.exists())
+        self.assertEqual(profiles.every(), [profiles.main()])
+        self.assertEqual(gone.backup.parent, self.root / "backups")
+        self.assertTrue(gone.backup.name.startswith("deleted-profile-cool-epic-facts-"))
+        self.assertEqual((gone.backup / "cool-epic-facts" / "episodes" / "ep01_duck" / "final" / "ep01_duck.mp4")
+                         .read_bytes(), b"a video")
+        self.assertIn('reelforge profiles restore "Cool Epic Facts"',
+                      (gone.backup / "README.txt").read_text(encoding="utf-8"))
+        self.assertEqual([(d.name, d.backup) for d in profiles.deleted()], [("Cool Epic Facts", gone.backup)])
+        self.assertLess(abs((datetime.now() - profiles.deleted()[0].when).total_seconds()), 60)
+        self.assertGreater(profiles.size(gone.backup), len(b"a video"))
+        self.assertEqual(profiles.find_deleted("cool epic facts"), gone)
+        self.assertEqual(profiles.find_deleted("1"), gone)
+        back = profiles.restore(gone)
+        self.assertEqual(back, a)
+        self.assertEqual(video.read_bytes(), b"a video")
+        self.assertFalse(gone.backup.exists())
+        self.assertEqual((profiles.deleted(), profiles.every()), ([], [profiles.main(), a]))
+
+    def test_never_the_first_profile_one_a_window_shows_or_one_being_read(self):
+        from dashboard.sync import ReadLock
+
+        with self.assertRaises(ValueError):
+            profiles.delete(profiles.main())
+        a = profiles.create("Cool Epic Facts")
+        window = self.window_on(a)
+        self.assertTrue(profiles.shown(a))
+        with self.assertRaises(ValueError):
+            profiles.delete(a)
+        window.release()  # that window closed: its lock file stays, but nobody holds it
+        self.assertFalse(profiles.shown(a))
+        read = ReadLock(a.data / profiles.READ_LOCK)
+        self.assertTrue(read.acquire())
+        self.addCleanup(read.release)
+        self.assertTrue(profiles.reading(a))
+        self.assertFalse(profiles.wait_for_read(a, 0.3))
+        with self.assertRaises(ValueError):
+            profiles.delete(a)
+        read.release()
+        self.assertTrue(profiles.wait_for_read(a, 0.3))
+        self.assertEqual(profiles.deleted(), [])
+        profiles.delete(a)
+        self.assertFalse(a.folder.exists())
+
+    def test_restore_never_gives_two_profiles_one_name_or_one_folder(self):
+        a = profiles.create("Cool Epic Facts")
+        gone = profiles.delete(a)
+        b = profiles.create("Cool Epic Facts")  # a new channel by the old one's name, in its old folder
+        with self.assertRaisesRegex(ValueError, "already have a profile called Cool Epic Facts"):
+            profiles.restore(gone)
+        self.assertTrue(gone.folder.exists())
+        (b.folder / profiles.MARK).write_text('name = "Tiny Worlds"\ncreated = "2026-01-01T00:00:00"\n',
+                                              encoding="utf-8")
+        back = profiles.restore(gone)
+        self.assertEqual((back.folder.name, back.name), ("cool-epic-facts-2", "Cool Epic Facts"))
+        # oldest first, as ever: the one restored keeps the date it was made
+        self.assertEqual([p.name for p in profiles.extra()], ["Tiny Worlds", "Cool Epic Facts"])
+
+    def test_the_commands_delete_and_restore_one(self):
+        from studio.__main__ import main
 
         self.onboard_main()
         a = profiles.create("Cool Epic Facts")
+        for argv, code, said in ((["profiles", "delete", "Night Physics", "--yes"], 2, "can't be deleted"),
+                                 (["profiles", "delete", "nope"], 2, "There's no profile called 'nope'"),
+                                 (["profiles", "delete", "Cool Epic Facts"], 2, "add --yes"),  # no terminal here
+                                 (["profiles", "delete", "cool epic facts", "--yes"], 0,
+                                  'reelforge profiles restore "Cool Epic Facts"'),
+                                 (["profiles", "restore"], 0, "1. Cool Epic Facts"),
+                                 (["profiles", "restore", "Tiny Worlds"], 2, "Deleted ones: Cool Epic Facts"),
+                                 (["profiles", "restore", "1"], 0, "Cool Epic Facts is back")):
+            with redirect_stdout(io.StringIO()) as out:  # not a terminal: --yes or nothing
+                self.assertEqual(main(argv), code, out.getvalue())
+            self.assertIn(said, out.getvalue())
+            if argv[1:3] == ["delete", "cool epic facts"]:
+                self.assertFalse(a.folder.exists())
+                self.assertNotIn("Cool Epic Facts", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertTrue(a.folder.exists())
+        self.assertIn("Cool Epic Facts", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.window_on(a)
+        with redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(main(["profiles", "delete", "Cool Epic Facts", "--yes"]), 1)
+        self.assertIn("open in a ReelForge window", out.getvalue())
+
+
+class Menu(Scratch):
+    def window(self):
+        from dashboard import db, service
+        from dashboard.platforms import build
+        from dashboard.tests.window import Window
+
         db.init(config.DB_PATH)
         cfg = config.load_config()
         with mock.patch.object(service, "kit_update", None):  # no update check
             w = Window(cfg, build(cfg), demo=False)
         self.addCleanup(w.close)
+        return w
+
+    def test_the_menu_lists_every_profile_and_deleting_one_keeps_it_in_backups(self):
+        from dashboard.tests.window import plain
+
+        self.onboard_main()
+        a = profiles.create("Cool Epic Facts")
+        w = self.window()
         self.assertEqual(w.init["profile"], {"key": ".", "name": "Night Physics", "main": True, "several": True,
                                              "elsewhere": 0})
         menu = w.call("profiles_menu")
         self.assertEqual([(r["number"], r["name"], r["current"], r["where"]) for r in menu["rows"]],
                          [(1, "Night Physics", True, ""), (2, "Cool Epic Facts", False, f"profiles{os.sep}cool-epic-facts")])
         self.assertEqual([t["short"] for t in menu["rows"][0]["platforms"]], ["TT"])
-        self.assertIsNone(w.call("remove_profile_info", "."))  # never the first one
-        info = w.call("remove_profile_info", a.key)
-        self.assertIn("Recycle Bin" if sys.platform == "win32" else "Trash", json.dumps(info["note"]))
+        self.assertIn("first channel", menu["rows"][0]["why"])
+        self.assertEqual(menu["rows"][1]["why"], "")
+        self.assertIsNone(w.call("delete_profile_info", "."))  # never the first one, and it says why
+        self.assertTrue(any("can't be deleted" in t for t in w.toasts()))
+        info = w.call("delete_profile_info", a.key)
+        self.assertEqual((info["name"], info["word"]), ("Cool Epic Facts", "Cool Epic Facts"))
+        self.assertIn("Nothing is deleted for good", plain(info["note"]))
+        self.assertIn("videos (none yet)", plain(info["note"]))
+        self.assertFalse(w.call("delete_profile", a.key, "Cool"))  # its name typed wrong: nothing happens
+        self.assertFalse(w.call("delete_profile", ".", "Night Physics"))
+        self.assertTrue(a.folder.exists())
+        self.assertTrue(w.call("delete_profile", a.key, " cool  epic FACTS "))
+        self.assertTrue(w.until(lambda: any(t.endswith("brings it back.") for t in w.toasts())), w.toasts())
+        self.assertFalse(a.folder.exists())
+        self.assertEqual(profiles.every(), [profiles.main()])
+        self.assertNotIn("Other channels", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        # the Settings tab lists it with when it went and how big it is, and Restore brings it back
+        w.svc.tab = "settings"
+        w.call("update_settings")
+        self.assertTrue(w.until(lambda: w.view("settings")["profiles"]["deleted"][0]["size"] != ""))
+        view = w.view("settings")["profiles"]
+        self.assertEqual([(r["name"], r["deletable"]) for r in view["rows"]], [("Night Physics", False)])
+        gone = view["deleted"][0]
+        self.assertEqual((gone["name"], gone["id"]), ("Cool Epic Facts", profiles.deleted()[0].backup.name))
+        self.assertTrue(gone["when"].startswith("deleted today at "))
+        self.assertTrue(w.call("restore_profile", gone["id"]))
+        self.assertTrue((a.folder / profiles.MARK).exists())
+        self.assertIn("Other channels", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
+        self.assertEqual(w.view("settings")["profiles"]["deleted"], [])
+        self.assertFalse(w.call("restore_profile", gone["id"]))  # it's back already
+        self.assertTrue(any("isn't in backups any more" in t for t in w.toasts()))
+
+    def test_a_profile_another_window_shows_isnt_deleted_and_this_window_holds_its_own(self):
+        from dashboard.sync import ReadLock
+
+        self.onboard_main()
+        a = profiles.create("Cool Epic Facts")
+        w = self.window()
+        self.assertTrue(profiles.shown(profiles.main()))  # this window's own lock
+        profiles.windows(a).mkdir(parents=True)
+        other = ReadLock(profiles.windows(a) / "4242.lock")
+        self.assertTrue(other.acquire())
+        self.addCleanup(other.release)
+        self.assertIn("another ReelForge window", w.call("profiles_menu")["rows"][1]["why"])
+        self.assertIsNone(w.call("delete_profile_info", a.key))
+        self.assertTrue(any("is open in another ReelForge window" in t for t in w.toasts()))
+        self.assertFalse(w.call("delete_profile", a.key, "Cool Epic Facts"))
+        other.release()
+        self.assertEqual(w.call("profiles_menu")["rows"][1]["why"], "")
+        w.close()
+        self.assertFalse(profiles.shown(profiles.main()))
+        self.assertEqual(list(profiles.windows(profiles.main()).glob("*.lock")), [])
+
+    def test_move_to_the_bin_frees_a_deleted_profiles_space(self):
+        from dashboard import desktop
+
+        self.onboard_main()
+        gone = profiles.delete(profiles.create("Cool Epic Facts"))
+        w = self.window()
         bin_ = self.root / "bin"
         bin_.mkdir()
         with mock.patch.object(desktop, "recycle", lambda path: shutil.move(str(path), str(bin_ / path.name)) and True):
-            self.assertTrue(w.call("remove_profile", a.key))
-        self.assertTrue((bin_ / "cool-epic-facts" / "profile.toml").exists())
-        self.assertEqual(profiles.every(), [profiles.main()])
-        self.assertNotIn("Other channels", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
-        self.assertTrue(any("is in the" in t for t in w.toasts()))
-        self.assertFalse(w.call("remove_profile", "."))
+            self.assertTrue(w.call("discard_profile", gone.backup.name))
+            self.assertTrue(w.until(lambda: any("backup is in the" in t for t in w.toasts())), w.toasts())
+        self.assertTrue((bin_ / gone.backup.name / "cool-epic-facts" / profiles.MARK).exists())
+        self.assertEqual(profiles.deleted(), [])
 
 
 if __name__ == "__main__":

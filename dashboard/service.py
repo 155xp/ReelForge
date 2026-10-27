@@ -10,8 +10,10 @@ results back to the loop, so the window never waits on a slow site.
 from __future__ import annotations
 
 import functools
+import os
 import sqlite3
 import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import mean, median
@@ -67,6 +69,17 @@ WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (an
 # Demo mode's profiles (and the README's picture of the menu): (name, connected platforms, unread notifications).
 DEMO_PROFILES = [("Night Physics", ("tiktok", "youtube", "instagram", "x"), 0),
                  ("Tiny Worlds", ("tiktok", "youtube"), 3)]
+DEMO_DELETED = ("Old Experiments", 1, "212.4 MB")  # ... and a deleted one on the Settings tab: (name, days ago, size)
+# Why a window can't delete a profile (Dashboard.cant_delete): the pop-up's words, and the Settings tab's note beside it.
+CANT_DELETE = {
+    "gone": ("That profile isn't there any more.", ""),
+    "main": ("{name} is your first channel: it lives in the ReelForge folder itself, so it can't be deleted. Only the "
+             "channels you've added can be.", "your first channel, in the ReelForge folder itself: it stays"),
+    "here": ("This window is showing {name}. Switch to another profile first (p), then delete it from there.",
+             "this window: switch to another profile to delete it"),
+    "open": ("{name} is open in another ReelForge window. Close that window (or switch it to another profile), then "
+             "try again.", "open in another ReelForge window"),
+}
 COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
           "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
 NOTHING_CONNECTED = "Connect an account on the Accounts tab (5) to see your stats here."
@@ -102,8 +115,9 @@ HELP = [
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
     ("Settings (7)", "This channel's answers from first-time setup (Change your answers asks the questions again), an "
-                     "FAQ (click a question for its answer), and what ReelForge set up on this computer: the hourly "
-                     "stats read, the reelforge command and the icon. At the bottom, Factory reset puts every channel's "
+                     "FAQ (click a question for its answer), what ReelForge set up on this computer (the hourly stats "
+                     "read, the reelforge command and the icon) and your profiles: Delete beside one, and Restore "
+                     "beside one you deleted. At the bottom, Factory reset puts every channel's "
                      "settings, log-ins and stats in a backup and starts first-time setup again (your videos stay), "
                      f"and Uninstall removes ReelForge, keeping your videos in a folder beside it. Neither deletes "
                      f"anything: what they clear goes to a backup or the {desktop.BIN}."),
@@ -122,7 +136,10 @@ HELP = [
                  "Publish list and settings. The button with your channel's name at the top left switches between "
                  "them (a red dot on it: another profile has unread notifications), adds a new one (the same short "
                  "interview as the first, which helps you make the new channel's accounts) or changes this one's "
-                 "settings. The hourly job reads every profile."),
+                 "settings. Delete beside another profile (there, or on the Settings tab) takes it out of ReelForge "
+                 "once you type its name: its folder moves whole into backups, and Restore on the Settings tab brings "
+                 "it back. This window's own profile and your first channel can't be deleted. The hourly job reads "
+                 "every profile."),
     ("Several windows", "Open ReelForge as many times as you like (one on the Overview and one on Publish, say, or one "
                         "for each profile). Windows on the same profile take turns reading its stats, and as soon as "
                         "one of them (or the hourly job) has read them, every window shows the new numbers, "
@@ -131,7 +148,8 @@ HELP = [
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]
-KEYS = [("1-8", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
+KEYS = [("1-8", "switch tabs"), ("r / R", "refresh / force refresh"),
+        ("p", "profiles: switch, add, change or delete one"),
         ("Tab", "move between buttons, lists and fields (Enter presses, the arrows move through a list)"),
         ("Esc", "close the drawer or a dialog, or leave a text field"), ("Ctrl+Q", "quit")]
 
@@ -154,6 +172,16 @@ def minutes_setting(cfg: dict, key: str, default: float) -> float:
         return max(float(cfg.get(key, default)), 0.0)
     except (TypeError, ValueError):
         return default
+
+
+def deleted_when(when: datetime | None) -> str:
+    """When a profile was deleted, for the Settings tab: deleted today at 4:05 PM, yesterday at ..., on 3 October at ..."""
+    if when is None:
+        return "deleted"
+    today = datetime.now().date()
+    day = ("today" if when.date() == today else "yesterday" if when.date() == today - timedelta(days=1) else
+           f"on {when.day} {when:%B}")
+    return f"deleted {day} at {fmt_clock(when)}"
 
 
 class Running:
@@ -236,6 +264,8 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.last_seen = None
         self.profile = profiles.current() if profiles else None  # the channel this window shows
         self.elsewhere_unread = 0  # unread notifications in the other profiles (the dot on the profile button)
+        self.window_lock = None  # held while this window shows its profile (see hold_profile)
+        self.deleted_sizes: dict[str, str] = {}  # each deleted profile's backup: how big it is (measure_deleted)
 
     # --- starting ---------------------------------------------------------------------------
 
@@ -273,6 +303,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
         if profiles and not self.demo:
             profiles.remember(self.profile)  # ReelForge opens on it next time
+            self.hold_profile()
         self.loop.call_soon(self.started)
         return self.init_view(options)
 
@@ -331,7 +362,8 @@ class Dashboard(StatsTab, SettingsTab, Service):
     @rpc
     def profiles_menu(self) -> dict:
         """The profile button's menu: every profile (this one first is marked), each with its connected platforms and
-        unread notifications, then what can be done: a new profile, this one's settings, removing another one."""
+        unread notifications (and why it can't be deleted from here, if it can't), then what can be done: a new
+        profile, this one's settings, deleting another one."""
         from . import switcher
 
         rows = []
@@ -339,6 +371,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             for i, (name, keys, unread) in enumerate(DEMO_PROFILES):
                 rows.append({"key": "." if i == 0 else f"demo-{i}", "number": i + 1, "name": name, "current": i == 0,
                              "main": i == 0, "unread": 0 if i == 0 else unread, "where": "",
+                             "why": CANT_DELETE["main"][0].format(name=name) if i == 0 else "",
                              "platforms": [self._tag(k) for k in keys]})
             return {"rows": rows, "current": ".", "demo": True, "onboarded": True}
         for i, p in enumerate(profiles.every() if profiles else [], 1):
@@ -349,8 +382,10 @@ class Dashboard(StatsTab, SettingsTab, Service):
             else:
                 info = switcher.summary(p)
                 keys, unread = info["platforms"], info["unread"]
+            why = self.cant_delete(p)
             rows.append({"key": p.key, "number": i, "name": p.name, "current": here, "main": p.main,
                          "unread": unread, "where": "" if p.main else p.describe(),
+                         "why": CANT_DELETE[why][0].format(name=p.name) if why else "",
                          "platforms": [self._tag(k) for k in keys]})
         return {"rows": rows, "current": self.profile.key if self.profile else ".", "demo": False,
                 "onboarded": bool(self.profile and self.profile.onboarded)}
@@ -362,44 +397,205 @@ class Dashboard(StatsTab, SettingsTab, Service):
         cls = next(c for c in ORDER if c.key == key)
         return {"key": key, "short": SHORT.get(key, key), "name": cls.name, "color": cls.color}
 
-    @rpc
-    def remove_profile_info(self, key: str) -> dict | None:
-        """The dialog before removing a profile: which, and what goes with it."""
-        p = profiles.get(key) if profiles else None
-        if self.demo:
-            self.notify("Demo mode: nothing is removed.", timeout=4)
-            return None
-        if p is None or p.main or p == self.profile:
-            return None
-        note = Text()
-        note.append(p.name, "bold")
-        note.append(f"\n{p.folder}\n\n", MUTED)
-        note.append(f"Moves its folder to the {desktop.BIN}", "bold")
-        note.append(": its stats, notifications, log-ins, settings and videos in the making. You can put it back from "
-                    f"the {desktop.BIN}. Close any other ReelForge window that's showing it first.", MUTED)
-        return {"key": p.key, "name": p.name, "note": note.json(), "bin": desktop.BIN}
+    # --- deleting a profile, and bringing it back (studio/profiles.py delete and restore) ------------------------
+
+    def hold_profile(self) -> None:
+        """This window shows its profile for as long as it's open: a lock of its own in the profile's
+        dashboard/data/windows/ (the system lets go of it when the window closes, even in a crash), so no other window
+        deletes the profile under it (studio/profiles.py shown). Locks left by windows that crashed are tidied away."""
+        from .sync import ReadLock
+
+        folder = profiles.windows(self.profile)
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            for old in folder.glob("*.lock"):
+                if time.time() - old.stat().st_mtime > 60 and not profiles.held(old):
+                    old.unlink()
+        except OSError:
+            pass  # a lock that's busy, or a folder that can't be written to: nothing to tidy
+        self.window_lock = ReadLock(folder / f"{os.getpid()}.lock")
+        self.window_lock.acquire()
+
+    def let_go_of_profile(self) -> None:
+        if self.window_lock is None:
+            return
+        self.window_lock.release()
+        try:
+            self.window_lock.path.unlink()
+        except OSError:
+            pass  # another window of this process's number has it: it's theirs now
+        self.window_lock = None
+
+    def cant_delete(self, p) -> str:
+        """Why this window can't delete a profile (a key of CANT_DELETE), or "" when it can: never the first one (the
+        ReelForge folder itself), this window's own, or one another window is showing."""
+        if p is None:
+            return "gone"
+        if p.main:
+            return "main"
+        if p == self.profile:
+            return "here"
+        return "open" if profiles.shown(p) else ""
+
+    def _deleted(self, backup: str):
+        return next((d for d in profiles.deleted() if d.backup.name == backup), None) if profiles else None
 
     @rpc
-    def remove_profile(self, key: str) -> bool:
-        """Remove another profile: its folder goes to the Recycle Bin (or the Trash). False when it didn't."""
+    def delete_profile_info(self, key: str) -> dict | None:
+        """The dialog before deleting a profile: which, everything that goes with it, where it's kept, and the name to
+        type. None when it can't be deleted from here, with a pop-up saying why."""
+        if self.demo:
+            self.notify("Demo mode: nothing is deleted.", timeout=4)
+            return None
         p = profiles.get(key) if profiles else None
-        if self.demo or p is None or p.main or p == self.profile:
+        why = self.cant_delete(p)
+        if why:
+            self.notify(CANT_DELETE[why][0].format(name=p.name if p else ""), title="Can't delete it",
+                        severity="warning", timeout=10)
+            return None
+        from studio import reset
+
+        try:
+            episodes = sum(1 for d in p.episodes.iterdir() if d.is_dir())
+        except OSError:
+            episodes = 0
+        outside = [f for f in reset.video_folders(p) if f.is_dir() and not reset._inside(f, p.folder)]
+        note = Text()
+        note.append(p.name, "bold")
+        note.append(f"\n{p.describe()}\n\n", MUTED)
+        note.append("Deleting it takes it out of ReelForge", "bold")
+        videos = f"{episodes} episode{'s' * (episodes != 1)}" if episodes else "none yet"
+        note.append(f": its accounts and log-ins, its stats and notifications, its settings, your AI's notes on it and "
+                    f"its videos ({videos}).\n\n", MUTED)
+        note.append("Nothing is deleted for good.", "bold")
+        note.append(" Its folder moves, whole, into backups in the ReelForge folder, and Restore on the Settings tab "
+                    "brings it back.", MUTED)
+        for f in outside:
+            note.append(f"\n\nVideos kept outside its folder stay where they are: {f}", MUTED)
+        return {"key": p.key, "name": p.name, "note": note.json(), "word": p.name}
+
+    @rpc
+    def delete_profile(self, key: str, typed: str) -> bool:
+        """Delete another profile, asked for with its name typed: a worker moves its folder into a backup (waiting
+        for a stats read of it under way to finish first), then says how it went. False when it can't be deleted."""
+        p = profiles.get(key) if profiles and not self.demo else None
+        if self.cant_delete(p) or " ".join(str(typed or "").split()).casefold() != " ".join(p.name.split()).casefold():
             return False
+        self.loop.run_worker(self._delete_profile, p, group="profiles")
+        return True
+
+    def _delete_profile(self, p) -> None:
         name = p.name
-        if not desktop.recycle(p.folder) or p.folder.exists():
-            self.notify(f"Couldn't move {name} to the {desktop.BIN}: close any ReelForge window showing it (and wait "
-                        "for its stats read to finish), then try again.", severity="error", timeout=12)
-            return False
+        say = lambda line: self.loop.call_soon(lambda: self.notify(line, timeout=8))  # noqa: E731
+        problem = ""
+        if not profiles.wait_for_read(p, 90, say):
+            problem = f"{name}'s stats are still being read. Try again in a minute."
+        else:
+            try:
+                gone = profiles.delete(p)
+            except (ValueError, OSError) as e:
+                problem = f"{e} Close any ReelForge window showing it, then try again."
+        if problem:
+            self.loop.call_soon(lambda: self.notify(problem, title="Not deleted", severity="error", timeout=12))
+            return
+        self.write_guides()  # your AI's notes no longer list it
+
+        def done() -> None:
+            self.notify(f"{name} is kept whole in {gone.where}. Restore on the Settings tab brings it back.",
+                        title="Profile deleted", timeout=12)
+            self.update_profile()
+            if self.tab == "settings":
+                self.update_settings()
+
+        self.loop.call_soon(done)
+
+    @staticmethod
+    def write_guides() -> None:
+        """The first channel's notes for your AI list every channel: write them again once one goes or comes back."""
         try:
             from studio import generate
 
-            generate.write_guides(profiles.main())  # your AI's notes no longer list it
+            generate.write_guides(profiles.main())
         except Exception:
-            pass
-        self.notify(f"{name} is in the {desktop.BIN}. Restore it from there to bring it back.",
-                    title="Profile removed", timeout=10)
+            pass  # notes for your AI, which `reelforge channel --regenerate` writes again too
+
+    @rpc
+    def restore_profile(self, backup: str) -> bool:
+        """Restore on the Settings tab: a deleted profile back in profiles/, with everything it had."""
+        if self.demo:
+            self.notify("Demo mode: nothing is changed.", timeout=4)
+            return False
+        d = self._deleted(backup)
+        try:
+            if d is None:
+                raise ValueError("That deleted profile isn't in backups any more.")
+            p = profiles.restore(d, wait=2)
+        except (ValueError, OSError) as e:
+            self.notify(str(e), title="Not restored", severity="error", timeout=12)
+            self.update_settings()
+            return False
+        self.write_guides()
+        self.notify(f"{p.name} is back, as it was. Switch to it with the button at the top left (p).",
+                    title="Profile restored", timeout=10)
         self.update_profile()
+        self.update_settings()
         return True
+
+    @rpc
+    def discard_profile(self, backup: str) -> bool:
+        """Move to Recycle Bin on the Settings tab: a deleted profile's backup goes to the Recycle Bin (or the Trash),
+        to free its space. A worker does it: a big one takes a moment."""
+        if self.demo:
+            self.notify("Demo mode: nothing is changed.", timeout=4)
+            return False
+        d = self._deleted(backup)
+        if d is None:
+            self.update_settings()
+            return False
+
+        def work() -> None:
+            name = d.name
+            ok = desktop.recycle(d.backup) and not d.backup.exists()
+            msg = (f"{name}'s backup is in the {desktop.BIN}." if ok else
+                   f"Couldn't move {name}'s backup ({d.backup}) to the {desktop.BIN}: delete that folder yourself.")
+            self.loop.call_soon(lambda: (self.notify(msg, severity="information" if ok else "error", timeout=10),
+                                         self.update_settings()))
+
+        self.loop.run_worker(work, group="profiles")
+        return True
+
+    def profiles_settings(self) -> dict:
+        """The Settings tab's Profiles panel: every profile, each with whether this window can delete it (and if not,
+        why not), then the deleted ones kept in backups/, the newest first, each with when and how big."""
+        if self.demo:
+            rows = [{"key": "." if i == 0 else f"demo-{i}", "number": i + 1, "name": name, "current": i == 0,
+                     "main": i == 0, "deletable": i > 0,
+                     "note": CANT_DELETE["main"][1] if i == 0 else f"profiles{os.sep}{profiles.slug_for(name)}"}
+                    for i, (name, _, _) in enumerate(DEMO_PROFILES)] if profiles else []
+            name, days, size = DEMO_DELETED
+            when = datetime.now().replace(hour=21, minute=12, second=0) - timedelta(days=days)
+            slug = profiles.slug_for(name) if profiles else "old-experiments"
+            gone = [{"id": "demo", "name": name, "when": deleted_when(when), "size": size,
+                     "where": os.path.join("backups", f"deleted-profile-{slug}-{when:%Y-%m-%d-%H%M%S}")}]
+            return {"rows": rows, "deleted": gone}
+        if profiles is None:
+            return {"rows": [], "deleted": []}
+        rows = []
+        for i, p in enumerate(profiles.every(), 1):
+            why = self.cant_delete(p)
+            rows.append({"key": p.key, "number": i, "name": p.name, "current": p == self.profile, "main": p.main,
+                         "deletable": not why, "note": CANT_DELETE[why][1] if why else p.describe()})
+        gone = [{"id": d.backup.name, "name": d.name, "when": deleted_when(d.when), "where": d.where,
+                 "size": self.deleted_sizes.get(d.backup.name, "")} for d in profiles.deleted()]
+        return {"rows": rows, "deleted": gone}
+
+    def measure_deleted(self) -> None:
+        """How big each deleted profile's backup is, for the Settings tab (on a worker: a big one takes a moment)."""
+        if profiles is None or self.demo:
+            return
+        from studio.reset import fmt_size
+
+        self.deleted_sizes = {d.backup.name: fmt_size(profiles.size(d.backup)) for d in profiles.deleted()}
 
     def started(self) -> None:
         self.update_profile()
@@ -424,6 +620,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
     def stop(self) -> None:
         for w in self.loop.workers.values():
             w.is_cancelled = True
+        self.let_go_of_profile()
 
     def show_platforms(self) -> None:
         """Only the connected platforms show anywhere: the window's own parts (the Publish buttons) follow this view,

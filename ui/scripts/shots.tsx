@@ -40,11 +40,11 @@ export const SHOTS: Record<string, Shot> = {
   "app-publish": { screen: "dashboard", options: demo("publish"), size: GUIDE, folder: "docs/screenshots", then: pickFirstVideo },
   // X left unconnected, so Accounts shows its Connect box
   "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
-  // the profile button's menu: the demo's two channels, New profile and this one's settings
+  // the profile button's menu: the demo's two channels (Delete beside the other one), New profile and this one's settings
   "app-profiles": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openProfiles },
-  // the Settings tab: the channel's answers, the FAQ with its first answer open, this computer, and the danger zone
-  // (tall enough for all of it)
-  "app-settings": { screen: "dashboard", options: demo("settings"), size: [180, 62], folder: "docs/screenshots", then: openFirstAnswer },
+  // the Settings tab: the channel's answers, the FAQ with its first answer open, this computer, the profiles (with the
+  // demo's deleted one), and the danger zone (tall enough for all of it)
+  "app-settings": { screen: "dashboard", options: demo("settings"), size: [180, 82], folder: "docs/screenshots", then: openFirstAnswer },
   // the Stats tab: followers and likes added up across the platforms, each with its breakdown
   "app-stats": { screen: "dashboard", options: demo("totals"), size: APP, folder: "docs/screenshots" },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },

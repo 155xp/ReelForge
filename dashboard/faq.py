@@ -111,7 +111,9 @@ def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channe
          "a": "Yes. Press **p** (or click your channel's name at the top left), then **New profile**. It asks a few "
               "questions about the new channel and helps you make its accounts, in a private window of your browser "
               "so this channel stays logged in. Each channel has its own accounts, stats, notifications and videos, "
-              "and your AI makes them all from the ReelForge folder."},
+              "and your AI makes them all from the ReelForge folder. To stop running one you added, **Delete** it "
+              "there (or under **Profiles** on this tab): it moves whole into a backup, and **Restore** brings it "
+              "back."},
         {"q": "How do I update ReelForge?",
          "a": "**Updates** (tab 6) checks for a new version every few hours while ReelForge is open, and the bell tells "
               "you when one is out. **Update and restart** installs it, and your channel, videos, stats and settings "

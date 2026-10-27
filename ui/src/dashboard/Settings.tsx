@@ -1,8 +1,9 @@
 // The Settings tab (7): this channel's answers from first-time setup and the FAQ side by side (one under the other in a
-// narrow window), what ReelForge set up on this computer under them, and the danger zone across the bottom: factory
-// reset and uninstall, each behind a dialog where you type the channel's name. Neither deletes anything: what they
-// clear goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the
-// work (with studio/reset.py); dashboard/faq.py writes the FAQ.
+// narrow window), what ReelForge set up on this computer under them, your profiles (Delete beside each one this window
+// can delete, Restore beside each one deleted), and the danger zone across the bottom: factory reset and uninstall,
+// each behind a dialog where you type the channel's name. None of them deletes anything: what they clear goes to a
+// backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work (with
+// studio/reset.py, and dashboard/service.py and studio/profiles.py for the profiles); dashboard/faq.py writes the FAQ.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useState } from "react"
@@ -38,6 +39,21 @@ export interface SettingsView {
   demo: boolean
   bin: string
   several: boolean
+  profiles: ProfilesSettings
+}
+
+/** The Profiles panel (dashboard/service.py profiles_settings): every profile, then the deleted ones kept in backups. */
+export interface ProfilesSettings {
+  rows: { key: string; number: number; name: string; current: boolean; main: boolean; deletable: boolean; note: string }[]
+  deleted: DeletedProfile[]
+}
+
+export interface DeletedProfile {
+  id: string // its backup's folder name
+  name: string
+  when: string // "deleted today at 4:05 PM"
+  size: string // "" until it's added up
+  where: string // its backup, from the ReelForge folder
 }
 
 /** Narrower than this, the FAQ goes under the channel's answers instead of beside them. */
@@ -94,6 +110,8 @@ export function Settings() {
       </box>
       <box height={1} flexShrink={0} />
       <Computer v={v} />
+      <box height={1} flexShrink={0} />
+      <ProfilesPanel v={v} />
       <box height={1} flexShrink={0} />
       <DangerZone v={v} />
     </Scroll>
@@ -220,6 +238,99 @@ function Computer({ v }: { v: SettingsView }) {
   )
 }
 
+/** Every profile, with Delete… beside each one this window can delete (and why not beside the others) and New profile
+ * under them, then the deleted ones kept in backups, each with Restore and Move to the Recycle Bin. */
+function ProfilesPanel({ v }: { v: SettingsView }) {
+  const s = useDash()
+  const p = v.profiles
+  const demo = () => s.bridge.emit("toast", { title: "Demo mode", body: "Profiles can't be added, deleted or restored in the demo.", severity: "information", timeout: 5 })
+  const discard = `Move to the ${v.bin}`
+  return (
+    <Panel title="PROFILES" sub={<text fg={DASH.faint} wrapMode="none">one for each channel: its own accounts, stats and log-ins</text>} flexShrink={0}>
+      {p.rows.map((row) => (
+        <box key={row.key} flexDirection="row" height={3} flexShrink={0} alignItems="center" gap={1}>
+          <box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="center">
+            <text wrapMode="none">
+              <span fg={DASH.good} attributes={TextAttributes.BOLD}>{row.current ? "● " : "  "}</span>
+              <span fg={DASH.faint}>{`${row.number}  `}</span>
+              <span fg={DASH.text} attributes={TextAttributes.BOLD}>
+                {row.name}
+              </span>
+            </text>
+            <text fg={DASH.muted} wrapMode="none">{`     ${row.note}`}</text>
+          </box>
+          {row.deletable ? (
+            <Button
+              id={`settings-delete-${row.number}`}
+              label="Delete…"
+              variant="error"
+              minWidth={18}
+              flexShrink={0}
+              onPress={() => (v.demo ? demo() : void s.openDialog("delete_profile", s.bridge.call("delete_profile_info", row.key)))}
+            />
+          ) : null}
+        </box>
+      ))}
+      <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
+        <Button id="settings-new-profile" label="+ New profile" onPress={() => (v.demo ? demo() : s.nav.onboard("new", "settings"))} />
+      </box>
+      {p.deleted.length ? (
+        <text wrapMode="none" marginTop={2} flexShrink={0}>
+          <span fg={DASH.text} attributes={TextAttributes.BOLD}>
+            DELETED
+          </span>
+          <span fg={DASH.faint}>{"   kept whole in backups until you restore them"}</span>
+        </text>
+      ) : null}
+      {p.deleted.map((d, i) => (
+        <box key={d.id} flexDirection="row" height={3} flexShrink={0} alignItems="center" gap={1}>
+          <box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="center">
+            <text fg={DASH.text} attributes={TextAttributes.BOLD} wrapMode="none">
+              {`     ${d.name}`}
+            </text>
+            <text fg={DASH.muted} wrapMode="none">{`     ${[d.when, d.size, d.where].filter(Boolean).join(" · ")}`}</text>
+          </box>
+          <Button id={`settings-restore-${i}`} label="Restore" variant="primary" flexShrink={0} onPress={() => (v.demo ? demo() : s.bridge.send("restore_profile", d.id))} />
+          <Button
+            id={`settings-discard-${i}`}
+            label={discard}
+            flexShrink={0}
+            onPress={() => (v.demo ? demo() : s.set({ dialog: { kind: "discard_profile", data: { ...d, bin: v.bin } } }))}
+          />
+        </box>
+      ))}
+    </Panel>
+  )
+}
+
+/** Are you sure? A deleted profile's backup goes to the Recycle Bin (Trash) to free its space: Restore can't bring it
+ * back after that. */
+export function DiscardProfile({ data, close }: { data: DeletedProfile & { bin: string }; close: () => void }) {
+  const s = useDash()
+  return (
+    <Modal name="discard-profile" title={`MOVE ${data.name.toUpperCase()} TO THE ${data.bin.toUpperCase()}`}>
+      <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
+        <span fg={DASH.text} attributes={TextAttributes.BOLD}>
+          {data.name}
+        </span>
+        {`'s backup (${[data.size, data.where].filter(Boolean).join(", in ")}) goes to the ${data.bin} to free its space. Restore can't bring it back after that.`}
+      </text>
+      <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
+        <Button id="db-cancel" label="Cancel" autoFocus onPress={close} />
+        <Button
+          id="db-discard"
+          label={`Move to the ${data.bin}`}
+          variant="error"
+          onPress={() => {
+            close()
+            s.bridge.send("discard_profile", data.id)
+          }}
+        />
+      </box>
+    </Modal>
+  )
+}
+
 /** Factory reset and uninstall: red, across the bottom, each opening a dialog that asks for the channel's name. */
 function DangerZone({ v }: { v: SettingsView }) {
   const s = useDash()
@@ -259,8 +370,8 @@ function DangerZone({ v }: { v: SettingsView }) {
   )
 }
 
-/** The box for the channel's name, under its instruction. */
-function Confirm({ id, word, typed, setTyped, onSubmit }: { id: string; word: string; typed: string; setTyped: (t: string) => void; onSubmit: () => void }) {
+/** The box for the channel's name, under its instruction (here, and before deleting a profile: Profiles.tsx). */
+export function Confirm({ id, word, typed, setTyped, onSubmit }: { id: string; word: string; typed: string; setTyped: (t: string) => void; onSubmit: () => void }) {
   return (
     <>
       <text marginTop={1} flexShrink={0} wrapMode="word">

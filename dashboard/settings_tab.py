@@ -1,6 +1,7 @@
 """The Settings tab (7): this channel's answers from first-time setup, an FAQ (dashboard/faq.py), what ReelForge set up
-on this computer (the hourly stats read, the reelforge command, the icon), and the danger zone: factory reset and
-uninstall (studio/reset.py does both, and neither deletes anything for good).
+on this computer (the hourly stats read, the reelforge command, the icon), your profiles (deleting one and restoring it:
+dashboard/service.py profiles_settings), and the danger zone: factory reset and uninstall (studio/reset.py does both,
+and neither deletes anything for good).
 
 A mixin of the window's service (dashboard/service.py): the tab calls these, and "settings" is the view it draws.
 """
@@ -53,6 +54,7 @@ class SettingsTab:
 
     def _look_up_computer(self) -> None:
         rows = self.computer_rows()
+        self.measure_deleted()
         self.loop.call_soon(lambda: self.emit("settings", self.settings_view(rows)))
 
     def settings_view(self, computer: list[dict] | None) -> dict:
@@ -72,7 +74,8 @@ class SettingsTab:
             rows = []
         several = bool(p and not self.demo and self._several())
         return {"name": name, "onboarded": onboarded, "rows": rows, "faq": self._faq(assistant, name, several),
-                "computer": computer, "demo": self.demo, "bin": desktop.BIN, "several": several}
+                "computer": computer, "demo": self.demo, "bin": desktop.BIN, "several": several,
+                "profiles": self.profiles_settings()}
 
     def _faq(self, assistant: str, name: str, several: bool) -> list[dict]:
         """The FAQ's questions and answers, for this channel (dashboard/faq.py)."""

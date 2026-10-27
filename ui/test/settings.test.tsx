@@ -17,7 +17,7 @@ const BIN = process.platform === "win32" ? "Recycle Bin" : "Trash" // what dashb
 setDefaultTimeout(30_000)
 let open: Headless | null = null
 
-async function window(size: [number, number] = [150, 45]): Promise<Headless> {
+async function window(size: [number, number] = [150, 72]): Promise<Headless> {
   open = await headless("dashboard", { demo: true, only_demos: true, tab: "settings" }, size[0], size[1], PRELOAD)
   await open.settle(3000)
   return open
@@ -42,7 +42,7 @@ describe("the Settings tab", () => {
   })
 
   test("7 opens it", async () => {
-    open = await headless("dashboard", { demo: true, only_demos: true, tab: "overview" }, 150, 45, PRELOAD)
+    open = await headless("dashboard", { demo: true, only_demos: true, tab: "overview" }, 150, 72, PRELOAD)
     await open.settle(2500)
     open.t.mockInput.pressKey("7")
     await open.settle(1500)
@@ -144,7 +144,7 @@ describe("the danger zone on a channel that's set up", () => {
 
   async function settings(): Promise<Headless> {
     tmp = mkdtempSync(join(tmpdir(), "reelforge-settings-"))
-    open = await headless("dashboard", { tab: "settings" }, 150, 45, {
+    open = await headless("dashboard", { tab: "settings" }, 150, 64, {
       REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "settings_preload.py"),
       REELFORGE_TEST_ROOT: tmp,
     })
@@ -158,9 +158,13 @@ describe("the danger zone on a channel that's set up", () => {
     for (let i = 0; i < 25 && !h.exits.length; i++) await h.settle(200)
   }
 
-  /** Wait (up to 5 s) for a dialog the Python side fills in: a slow computer takes longer than one settle. */
+  /** Wait (up to 5 s) for a dialog the Python side fills in: a slow computer takes longer than one settle. Each look
+   * comes after a settle, so the frame is never read while the window is still drawing it. */
   async function until(h: Headless, text: string) {
-    for (let i = 0; i < 25 && !frame(h).includes(text); i++) await h.settle(200)
+    for (let i = 0; i < 25; i++) {
+      await h.settle(200)
+      if (frame(h).includes(text)) return
+    }
   }
 
   /** Click text in the dialog: the first time it's on screen below `under` (the tab behind has the same words). */

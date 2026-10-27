@@ -31,7 +31,8 @@ export type Dialog =
   | { kind: "signup"; data: SignupData }
   | { kind: "disconnect"; data: { key: string; title: string; note: import("../lib/styled").Segs } }
   | { kind: "profiles"; data: ProfilesMenu }
-  | { kind: "remove_profile"; data: { key: string; name: string; note: import("../lib/styled").Segs; bin: string } }
+  | { kind: "delete_profile"; data: import("./Profiles").DeleteProfileData }
+  | { kind: "discard_profile"; data: import("./Settings").DeletedProfile & { bin: string } }
   | { kind: "factory_reset"; data: import("./Settings").ResetData }
   | { kind: "uninstall"; data: import("./Settings").UninstallData }
 
@@ -152,7 +153,7 @@ export class DashState {
   }
 
   async openDialog(
-    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "remove_profile" | "factory_reset" | "uninstall",
+    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "delete_profile" | "factory_reset" | "uninstall",
     call: Promise<any>,
   ) {
     const data = await call

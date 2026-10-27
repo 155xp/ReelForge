@@ -1,7 +1,8 @@
 // Profiles: one for each channel (studio/profiles.py). The button at the top left shows this window's profile (with a
 // red dot when another one has unread notifications); its menu lists every profile, with the platforms each has
-// connected and its unread notifications, and offers a new profile, this one's settings, and removing another one.
-// Picking a profile shows it in this window: ui/src/root.tsx starts the Python side again on it.
+// connected and its unread notifications, and offers a new profile, this one's settings, and deleting another one
+// (the Settings tab's Profiles panel deletes them too, and restores them). Picking a profile shows it in this window:
+// ui/src/root.tsx starts the Python side again on it.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useState } from "react"
@@ -12,6 +13,7 @@ import { DASH, mix } from "../theme"
 import { Button } from "../ui/Button"
 import { Line } from "../ui/Line"
 import { Modal, Wrapped } from "../ui/Panels"
+import { Confirm, typedMatches } from "./Settings"
 import { useDash } from "./state"
 import type { ProfileRow, ProfilesMenu, ProfileView } from "./types"
 
@@ -56,7 +58,7 @@ function rowSegs(row: ProfileRow, width: number, highlighted: boolean): Segs {
   for (const p of row.platforms) tags.push([`${p.short} `, `bold ${p.color}`])
   if (!row.platforms.length) tags.push(["nothing connected ", DASH.muted])
   const unread: Segs = row.unread ? [[`${row.unread} new `, `bold ${DASH.bad}`]] : []
-  const remove: Segs = !row.current && !row.main ? [[" Remove ", highlighted ? `${DASH.text} on ${mix(DASH.cursor, "#ffffff", 0.08)}` : DASH.faint]] : []
+  const remove: Segs = !row.current && !row.main ? [[" Delete ", highlighted ? `${DASH.text} on ${mix(DASH.bad, DASH.cursor, 0.55)}` : DASH.faint]] : []
   const right = [...tags, ...unread, ...(remove.length ? [[" ", ""] as [string, string]] : []), ...remove]
   const used = cellLen(out.map((x) => x[0]).join("")) + cellLen(right.map((x) => x[0]).join("")) + 2
   let name = row.name
@@ -86,10 +88,15 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
   const [index, setIndex] = useState(Math.max(data.rows.findIndex((r) => r.current), 0))
   const width = MENU_WIDTH - 4
   const run = (item: Item | undefined, remove = false) => {
-    if (!item) return
+    if (!item || (remove && item.kind !== "profile")) return
+    if (remove && item.kind === "profile" && item.row.why) {
+      // this window's own profile, the first one, or one open in another window: say why, and stay in the menu
+      s.bridge.emit("toast", { title: "Can't delete it", body: item.row.why, severity: "warning", timeout: 10 })
+      return
+    }
     if (data.demo) {
       close()
-      s.bridge.emit("toast", { title: "Demo mode", body: "Profiles can't be switched, added or removed in the demo.", severity: "information", timeout: 5 })
+      s.bridge.emit("toast", { title: "Demo mode", body: "Profiles can't be switched, added or deleted in the demo.", severity: "information", timeout: 5 })
       return
     }
     if (item.kind === "new") {
@@ -100,10 +107,7 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       close()
       return s.nav.onboard("settings", s.tab)
     }
-    if (remove) {
-      if (item.row.current || item.row.main) return
-      return void s.openDialog("remove_profile", s.bridge.call("remove_profile_info", item.row.key))
-    }
+    if (remove) return void s.openDialog("delete_profile", s.bridge.call("delete_profile_info", item.row.key))
     s.showProfile(item.row.key)
   }
   const { ref } = useFocus("profile-menu", {
@@ -112,7 +116,7 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       if (key.name === "up") setIndex((i) => (i - 1 + items.length) % items.length)
       else if (key.name === "down") setIndex((i) => (i + 1) % items.length)
       else if (key.name === "return" || key.name === "enter" || key.name === "space") run(items[index])
-      else if (key.name === "delete") run(items[index], true)
+      else if (key.name === "delete" || key.name === "backspace") run(items[index], true) // a Mac's delete is backspace
       else if (/^[1-9]$/.test(key.name) && Number(key.name) <= data.rows.length) run(items[Number(key.name) - 1])
       else if (key.name === "p") close()
       else return false
@@ -193,31 +197,40 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       {action(" +  New profile", data.rows.length)}
       {current ? action(` ›  ${data.onboarded ? "Settings for" : "Set up"} ${current.name}`, data.rows.length + 1) : null}
       <text fg={DASH.faint} wrapMode="none" flexShrink={0} marginTop={1}>
-        {"  ↑↓ pick   Enter opens   Delete removes   Esc closes"}
+        {"  ↑↓ pick   Enter opens   Del deletes   Esc closes"}
       </text>
     </box>
   )
 }
 
-/** Are you sure? Removing a profile moves its folder to the Recycle Bin (or the Trash): you can put it back. */
-export function RemoveProfile({ data, close }: { data: { key: string; name: string; note: Segs; bin: string }; close: () => void }) {
+/** What the dialog before deleting a profile shows (dashboard/service.py delete_profile_info). */
+export interface DeleteProfileData {
+  key: string
+  name: string
+  note: Segs
+  word: string // what to type: its name
+}
+
+/** Are you sure? Deleting a profile takes it out of ReelForge once you type its name: its folder moves whole into
+ * backups, and Restore on the Settings tab puts it back. */
+export function DeleteProfile({ data, close }: { data: DeleteProfileData; close: () => void }) {
   const s = useDash()
+  const [typed, setTyped] = useState("")
+  const ok = typedMatches(typed, data.word)
+  const go = () => {
+    if (!ok) return
+    close()
+    void s.bridge.call<boolean>("delete_profile", data.key, typed)
+  }
   return (
-    <Modal name="remove-profile" title={`REMOVE ${data.name.toUpperCase()}`}>
+    <Modal name="delete-profile" title={`DELETE ${data.name.toUpperCase()}`} width={84}>
       {lines(data.note).map((l, i) => (
         <Wrapped key={i} segs={l.length ? l : [[" ", ""]]} flexGrow={0} />
       ))}
+      <Confirm id="dp-word" word={data.word} typed={typed} setTyped={setTyped} onSubmit={go} />
       <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
-        <Button id="rp-cancel" label="Cancel" autoFocus onPress={close} />
-        <Button
-          id="rp-remove"
-          label={`Move to ${data.bin}`}
-          variant="error"
-          onPress={() => {
-            close()
-            void s.bridge.call<boolean>("remove_profile", data.key)
-          }}
-        />
+        <Button id="dp-cancel" label="Cancel" onPress={close} />
+        <Button id="dp-delete" label={`Delete ${data.name}`} variant="error" disabled={!ok} onPress={go} />
       </box>
     </Modal>
   )

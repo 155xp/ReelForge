@@ -191,19 +191,27 @@ about it. The hourly stats job reads every profile, and `reelforge -p "Channel n
 today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
 out, say).
 
-![The profile menu: each channel with its platforms and unread notifications, New profile and this one's settings](docs/screenshots/app-profiles.png)
+Done with a channel you added? **Delete** beside it in the menu (or the Delete key, or **Delete…** under **Profiles**
+on the Settings tab) asks you to type its name, then takes it out of ReelForge. Nothing is deleted for good: its whole
+folder, with its accounts, logins, stats, settings and videos, moves into `backups` in the ReelForge folder, and
+**Restore** on the Settings tab puts it back as it was. ReelForge never deletes the profile the window is showing
+(switch to another one first), one open in another ReelForge window, or your first channel, which is the ReelForge
+folder itself.
+
+![The profile menu: each channel with its platforms and unread notifications, Delete beside the other channel, New profile and this one's settings](docs/screenshots/app-profiles.png)
 
 ### Settings
 
 This channel's answers from first-time setup (**Change your answers** asks the questions again), an FAQ beside them
 (click a question and its answer opens under it), and what ReelForge set up on your computer: the hourly stats read,
-the `reelforge` command and the icon, each with a button to turn it on or off. Across the bottom,
-the danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time
+the `reelforge` command and the icon, each with a button to turn it on or off. Under them, **Profiles** lists your
+channels, with **Delete…** beside each one you can delete and **New profile**, then the ones you've deleted, each with
+**Restore** and **Move to the Recycle Bin** (to free its space for good). Across the bottom, the danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time
 setup again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
 anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac). Neither stops half-way either:
 if something can't be moved (another ReelForge window has it open, say), nothing changes.
 
-![The Settings tab: the channel's answers, the FAQ with its first answer open, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
+![The Settings tab: the channel's answers, the FAQ with its first answer open, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
 
 ### Stats
 
@@ -327,6 +335,20 @@ notes are in its folder (`profiles/<name>/CLAUDE.md`), and the main `CLAUDE.md` 
 </details>
 
 <details>
+<summary><b>How do I delete a channel I added?</b></summary>
+
+<br>
+
+Open the profile menu (click your channel's name at the top left, or press **p**), then click **Delete** beside it
+(or pick it and press the Delete key). It's under **Profiles** on the Settings tab too. Type its name to confirm. Its
+whole folder moves into `backups` in the ReelForge folder, so nothing is lost: **Restore** beside it on the Settings
+tab puts it back as it was, and **Move to the Recycle Bin** there frees its space once you're sure. You can't delete
+the channel the window is showing (switch to another one first) or your first channel, which is the ReelForge folder
+itself. From a terminal: `reelforge profiles delete "Channel name"` and `reelforge profiles restore "Channel name"`.
+
+</details>
+
+<details>
 <summary><b>My AI doesn't know about my channel.</b></summary>
 
 <br>
@@ -431,6 +453,8 @@ or point `STUDIO_BLENDER` at it.
 - `reelforge 1` to `reelforge 8` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates, Settings, Stats.
 - `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
+- `reelforge profiles delete "Channel name"` deletes one you added (it's kept in `backups`), and
+  `reelforge profiles restore` brings it back.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.
 - `reelforge doctor` checks everything.

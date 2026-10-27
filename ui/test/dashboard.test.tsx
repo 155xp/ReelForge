@@ -61,9 +61,13 @@ async function press(h: Headless, key: string) {
   await h.settle(300)
 }
 
-/** Wait (up to 5 s) for what a click asked the Python side for: a slow computer takes longer than one settle. */
+/** Wait (up to 5 s) for what a click asked the Python side for: a slow computer takes longer than one settle. Each look
+ * comes after a settle, as in clickText, so the frame is never read while the window is still drawing it. */
 async function until(h: Headless, text: string) {
-  for (let i = 0; i < 25 && !frame(h).includes(text); i++) await h.settle(200)
+  for (let i = 0; i < 25; i++) {
+    await h.settle(200)
+    if (frame(h).includes(text)) return
+  }
 }
 
 describe("the Overview fits", () => {

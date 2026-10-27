@@ -39,8 +39,12 @@ function activeTab(h: Headless): string {
   return lit?.text.trim() ?? ""
 }
 
+/** Wait (up to 5 s) until ok(): each look comes after a settle, so the frame is never read mid-draw. */
 async function until(h: Headless, ok: () => boolean) {
-  for (let i = 0; i < 25 && !ok(); i++) await h.settle(200)
+  for (let i = 0; i < 25; i++) {
+    await h.settle(200)
+    if (ok()) return
+  }
 }
 
 describe("the Stats tab", () => {

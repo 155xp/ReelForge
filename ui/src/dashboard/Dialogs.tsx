@@ -1,5 +1,6 @@
 // Dialogs over the window: how ReelForge works, typing in stats, removing a video, which video a post is, making an
-// account (or the channel's Gmail), disconnecting one, and the profile button's menu (Profiles.tsx).
+// account (or the channel's Gmail), disconnecting one, the profile button's menu and deleting a profile (Profiles.tsx),
+// and the Settings tab's (Settings.tsx).
 
 import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
@@ -10,8 +11,8 @@ import { RadioSet, TextField } from "../ui/Fields"
 import { OptionList } from "../ui/Lists"
 import { Modal, Scroll, Wrapped } from "../ui/Panels"
 import { useFocusManager } from "../lib/focus"
-import { ProfileMenu, RemoveProfile } from "./Profiles"
-import { FactoryReset, Uninstall } from "./Settings"
+import { DeleteProfile, ProfileMenu } from "./Profiles"
+import { DiscardProfile, FactoryReset, Uninstall } from "./Settings"
 import { useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
@@ -25,7 +26,8 @@ export function Dialogs() {
   if (d.kind === "signup") return <SignUp data={d.data} close={close} />
   if (d.kind === "disconnect") return <Disconnect data={d.data} close={close} />
   if (d.kind === "profiles") return <ProfileMenu data={d.data} close={close} />
-  if (d.kind === "remove_profile") return <RemoveProfile data={d.data} close={close} />
+  if (d.kind === "delete_profile") return <DeleteProfile data={d.data} close={close} />
+  if (d.kind === "discard_profile") return <DiscardProfile data={d.data} close={close} />
   if (d.kind === "factory_reset") return <FactoryReset data={d.data} close={close} />
   if (d.kind === "uninstall") return <Uninstall data={d.data} close={close} />
   return <EpisodePicker data={d.data} close={close} />

@@ -10,6 +10,9 @@
 
   reelforge profiles           your profiles: one for each channel, with its own accounts, stats and settings
   reelforge profiles new       add one (the same interview as your first channel's)
+  reelforge profiles delete NAME [--yes]
+                               take one you added out of ReelForge: its folder moves whole into backups/
+  reelforge profiles restore [NAME]    bring a deleted one back (with no name: the deleted ones)
   reelforge -p NAME ...        any command, for one profile: its name, the start of it, or its number in the list
                                (the window opens on the one you had open last; everything else works on the first)
 
@@ -211,11 +214,16 @@ def first_run(start: str, new: bool = False) -> int:
 
 
 def list_profiles(argv: list[str]) -> int:
-    """reelforge profiles [new]: every profile, or the interview that adds one."""
+    """reelforge profiles [new | delete NAME | restore [NAME]]: every profile, the interview that adds one, or taking
+    one out of ReelForge and bringing it back."""
     if argv and argv[0] in ("new", "add"):
         return first_run("onboard", new=True) if _interactive() else onboard(["--new", *argv[1:]])
+    if argv and argv[0] in ("delete", "remove"):
+        return delete_profile(argv[1:])
+    if argv and argv[0] == "restore":
+        return restore_profile(argv[1:])
     if argv:
-        print("usage: reelforge profiles [new]")
+        print("usage: reelforge profiles [new | delete NAME | restore [NAME]]")
         return 2
     here = profiles.current() if profiles.get(os.environ.get(profiles.ENV)) else profiles.last()
     print("Your profiles (one for each channel):")
@@ -223,6 +231,86 @@ def list_profiles(argv: list[str]) -> int:
         mark = "*" if p == here else " "
         print(f"  {mark} {i}. {p.name:<28} {p.describe()}")
     print("\nreelforge -p NAME opens one (the name, the start of it, or its number); reelforge profiles new adds one.")
+    return 0
+
+
+def delete_profile(argv: list[str]) -> int:
+    """reelforge profiles delete NAME [--yes]: take a channel you added out of ReelForge, once you've typed its name
+    (or said --yes). Its folder moves whole into backups/, so nothing is deleted; restore brings it back."""
+    yes = "--yes" in argv or "-y" in argv
+    words = [a for a in argv if a not in ("--yes", "-y")]
+    if not words:
+        print("usage: reelforge profiles delete NAME [--yes]   (NAME: its name, the start of it, or its number)")
+        return 2
+    p = profiles.find(" ".join(words))
+    if p is None:
+        names = ", ".join(f"{i}. {q.name}" for i, q in enumerate(profiles.every(), 1))
+        print(f"There's no profile called {' '.join(words)!r}. Your profiles: {names}")
+        return 2
+    if p.main:
+        print(f"{p.name} is your first channel: it lives in the ReelForge folder itself, so it can't be deleted. Only "
+              "the channels you've added can be.")
+        return 2
+    if profiles.shown(p):
+        print(f"{p.name} is open in a ReelForge window: close that window (or switch it to another profile) first.")
+        return 1
+    print(f"Deleting {p.name} ({p.describe()}) takes it out of ReelForge: its accounts and log-ins, its stats and "
+          "notifications, its settings, your AI's notes on it and its videos.\nNothing is deleted for good: its "
+          "folder moves, whole, into backups/ in the ReelForge folder, and reelforge profiles restore brings it back.")
+    if not yes:
+        if not _interactive():
+            print("Run it in a terminal to confirm, or add --yes.")
+            return 2
+        try:
+            typed = input(f'Type "{p.name}" to confirm (anything else stops): ')
+        except EOFError:
+            typed = ""
+        if " ".join(typed.split()).casefold() != " ".join(p.name.split()).casefold():
+            print("Nothing was changed.")
+            return 1
+    if not profiles.wait_for_read(p, 90, print):
+        print(f"{p.name}'s stats are still being read. Try again in a minute; nothing was changed.")
+        return 1
+    try:
+        gone = profiles.delete(p)
+    except (ValueError, OSError) as e:
+        print(f"{e} Close any ReelForge window showing it, then try again.")
+        return 1
+    from . import generate
+
+    generate.write_guides(profiles.main())   # your AI's notes no longer list it
+    print(f"{p.name} is deleted. It's kept whole in {gone.where}: reelforge profiles restore "
+          f"\"{p.name}\" brings it back.")
+    return 0
+
+
+def restore_profile(argv: list[str]) -> int:
+    """reelforge profiles restore [NAME]: bring a deleted profile back, or list the deleted ones."""
+    gone = profiles.deleted()
+    if not argv:
+        if not gone:
+            print("There are no deleted profiles in backups/.")
+            return 0
+        print("Deleted profiles (kept in backups/, the newest first):")
+        for i, d in enumerate(gone, 1):
+            when = f"deleted {d.when:%d %B %Y at %H:%M}" if d.when else "deleted"
+            print(f"  {i}. {d.name:<28} {when}  ({d.where})")
+        print('\nreelforge profiles restore NAME brings one back (its name, or its number here).')
+        return 0
+    d = profiles.find_deleted(" ".join(argv))
+    if d is None:
+        print(f"There's no deleted profile called {' '.join(argv)!r}"
+              + (f". Deleted ones: {', '.join(x.name for x in gone)}" if gone else ": there are none in backups/."))
+        return 2
+    try:
+        p = profiles.restore(d)
+    except (ValueError, OSError) as e:
+        print(e)
+        return 1
+    from . import generate
+
+    generate.write_guides(profiles.main())   # your AI's notes list it again
+    print(f"{p.name} is back ({p.describe()}), as it was. Open it with: reelforge -p {p.slug}")
     return 0
 
 

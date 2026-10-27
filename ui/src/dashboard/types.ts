@@ -59,6 +59,7 @@ export interface ProfileRow {
   main: boolean
   unread: number
   where: string // its folder (profiles/<name>), or "" for the ReelForge folder's own
+  why: string // why this window can't delete it (its own, the first one, open in another window), or ""
   platforms: { key: string; short: string; name: string; color: string }[]
 }
 
