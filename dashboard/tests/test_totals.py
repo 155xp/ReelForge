@@ -152,7 +152,7 @@ class WindowTest(unittest.TestCase):
         return w
 
     def test_the_tab_has_a_number_and_a_name_but_not_stats(self):
-        self.assertEqual(tab_for("8"), "totals")
+        self.assertEqual(tab_for("5"), "totals")  # Stats is 5th by default
         self.assertEqual(tab_for("totals"), "totals")
         self.assertIsNone(tab_for("stats"))  # reelforge stats is the hourly job
 

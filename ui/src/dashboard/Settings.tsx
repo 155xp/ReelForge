@@ -214,7 +214,8 @@ function Faq({ items, grow }: { items: FaqItem[]; grow: boolean }) {
 
 /** The tabs along the top, in their order, each with the number that opens it. Drag one to another place, or pick one
  * (click it, or ← → while the row has the keyboard) and move it with the arrows (the buttons, or Shift+← →). Each move
- * is kept at once, for every profile; Reset to default puts Updates and Settings back at the far left. */
+ * is kept at once, for every profile; Reset to default puts them back in the default order (Overview first, Settings
+ * and Updates last). */
 function TabOrder() {
   const s = useDash()
   const [picked, setPicked] = useState<Tab | null>(null)

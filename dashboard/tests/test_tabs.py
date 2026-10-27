@@ -1,5 +1,5 @@
-"""The order of the tabs (dashboard/tabs.py): Updates and Settings at the far left until you pick another order on the
-Settings tab, the order you pick kept for every profile and made whole whatever its file says, the numbers after
+"""The order of the tabs (dashboard/tabs.py): Overview first and Settings and Updates last until you pick another order
+on the Settings tab, the order you pick kept for every profile and made whole whatever its file says, the numbers after
 reelforge following it, and the window's Python side keeping a new order, showing one another window kept, and keeping
 nothing in the demo. Moving the tabs on screen is tested in ui/test/settings.test.tsx."""
 
@@ -36,10 +36,10 @@ class Folder(unittest.TestCase):
 
 
 class OrderTest(Folder):
-    def test_updates_and_settings_start_at_the_far_left_and_1_to_8_follow_the_order(self):
+    def test_overview_starts_at_the_far_left_and_1_to_8_follow_the_order(self):
         self.assertEqual(tabs.order(), tabs.DEFAULT_ORDER)
-        self.assertEqual(tabs.DEFAULT_ORDER, ("updates", "settings", "overview", "videos", "compare", "publish",
-                                              "accounts", "totals"))
+        self.assertEqual(tabs.DEFAULT_ORDER, ("overview", "videos", "compare", "publish", "totals", "accounts",
+                                              "settings", "updates"))  # DJ's pick, 2026-10-27
         self.assertEqual(sorted(tabs.DEFAULT_ORDER), sorted(tabs.TAB_IDS))
         self.assertEqual([tabs.tab_for(str(i)) for i in range(1, 9)], list(tabs.DEFAULT_ORDER))
 
@@ -69,14 +69,14 @@ class OrderTest(Folder):
             self.assertEqual(tabs.order(), tabs.DEFAULT_ORDER, text)
         tabs.order_file().write_text(json.dumps({"order": ["totals", "publish", "totals", "nope", 7]}),
                                      encoding="utf-8")
-        self.assertEqual(tabs.order(), ("updates", "settings", "overview", "videos", "compare", "totals", "publish",
-                                        "accounts"))
+        self.assertEqual(tabs.order(), ("overview", "videos", "compare", "totals", "accounts", "settings", "updates",
+                                        "publish"))
 
     def test_a_tab_a_later_version_adds_goes_after_the_one_it_follows_by_default(self):
-        older = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings"]  # before Stats
-        self.assertEqual(tabs.tidy(older), ("overview", "videos", "compare", "publish", "accounts", "totals",
-                                            "updates", "settings"))
-        self.assertEqual(tabs.tidy(["accounts"])[:2], ("updates", "settings"))
+        older = ["updates", "settings", "overview", "videos", "compare", "publish", "accounts"]  # before Stats
+        self.assertEqual(tabs.tidy(older), ("updates", "settings", "overview", "videos", "compare", "publish", "totals",
+                                            "accounts"))
+        self.assertEqual(tabs.tidy(tabs.DEFAULT_ORDER[1:]), tabs.DEFAULT_ORDER)  # nothing before it: first
 
 
 class Side(SettingsTab):

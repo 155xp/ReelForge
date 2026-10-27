@@ -137,7 +137,7 @@ export class DashState {
     if (keep) this.bridge.send("set_tab_order", order)
   }
 
-  /** The default order (Updates and Settings at the far left, then the rest), as the Python side has it. */
+  /** The default order (Overview first, Settings and Updates last), as the Python side has it. */
   get defaultOrder(): Tab[] {
     return tabOrder(this.init.default_order)
   }

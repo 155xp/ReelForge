@@ -3,11 +3,11 @@ one (reelforge publish, reelforge 4 ...). Standard library only, so the reelforg
 commands without opening anything. The Stats tab's id is "totals": `reelforge stats` is the hourly job's command, so
 `reelforge totals` opens the tab.
 
-You pick the order on the Settings tab (Tab order). Until you do, Updates and Settings sit at the far left and the rest
-follow (DEFAULT_ORDER). 1-8 open the tabs in the order they're shown, in the window and after reelforge: reelforge 1
-opens the one at the far left. The order you pick is kept for every profile in the ReelForge folder's
-dashboard/data/tab-order.json, which updates leave alone and a factory reset puts in its backup. Going back to the
-default order removes the file, so a later version's default applies again."""
+You pick the order on the Settings tab (Tab order). Until you do, they sit in DEFAULT_ORDER: Overview, Videos, Compare,
+Publish, Stats, Accounts, Settings and Updates. 1-8 open the tabs in the order they're shown, in the window and after
+reelforge: reelforge 1 opens the one at the far left. The order you pick is kept for every profile in the ReelForge
+folder's dashboard/data/tab-order.json, which updates leave alone and a factory reset puts in its backup. Going back
+to the default order removes the file, so a later version's default applies again."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 TAB_IDS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals")
-DEFAULT_ORDER = ("updates", "settings", "overview", "videos", "compare", "publish", "accounts", "totals")
+DEFAULT_ORDER = ("overview", "videos", "compare", "publish", "totals", "accounts", "settings", "updates")
 HERE = Path(__file__).resolve().parent  # the window's code, with the first profile's data/ in it
 # A tab's id, or another word for it. A number opens the tab in that place (tab_for).
 TABS: dict[str, str] = {
@@ -74,7 +74,7 @@ def save_order(tabs: object, folder: Path | None = None) -> tuple[str, ...]:
 
 
 def tab_for(word: str) -> str | None:
-    """The tab a word opens ("publish", "post" -> "publish"; "1" -> the one at the far left), or None if it isn't one."""
+    """The tab a word opens ("post" -> "publish"; "1" -> the one at the far left), or None if it isn't one."""
     word = (word or "").strip().lower()
     if word.isascii() and word.isdigit():
         tabs = order()

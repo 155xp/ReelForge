@@ -108,11 +108,11 @@ channel change.
 
 ## Inside ReelForge
 
-ReelForge has eight tabs: Updates and Settings at the far left, then Overview, Videos, Compare, Publish, Accounts and
-Stats. Put them in any order you like on the Settings tab. Open one straight from a terminal by name, like
-`reelforge publish`, or by where it sits, from `reelforge 1` at the far left to `reelforge 8`. Everything works with
-the mouse or the keyboard: **1**-**8** open the tabs in the order they're shown, **r** refreshes your stats, **p**
-opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and **Esc** closes.
+ReelForge has eight tabs: Overview, Videos, Compare, Publish, Stats, Accounts, Settings and Updates. Put them in any
+order you like on the Settings tab. Open one straight from a terminal by name, like `reelforge publish`, or by where
+it sits, from `reelforge 1` at the far left to `reelforge 8`. Everything works with the mouse or the keyboard:
+**1**-**8** open the tabs in the order they're shown, **r** refreshes your stats, **p** opens your profiles, **?** the
+help, **Tab** moves between buttons and fields, **Enter** presses and **Esc** closes.
 
 The window is calm and dark, so your numbers stand out: each platform keeps its own colour (TikTok cyan, YouTube red,
 Instagram purple, X white), green and red show what went up and down, and amber marks where each video went up.
@@ -166,6 +166,17 @@ their views in their first day, and when it next comes round, once there are eno
 
 ![The Publish tab](docs/screenshots/app-publish.png)
 
+### Stats
+
+Your followers and your likes added up across your platforms, over time. **Add up** at the top ticks the platforms
+the totals count: click one to leave it out, and again to bring it back. Pick 24H, 48H, 7D, 30D or ALL at the right.
+Each chart draws the total from ReelForge's own readings, with a mark where each video went up, and a stretch when
+your computer was off stays empty. Point at a chart to see the totals then, with each platform's part. Beside each
+chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
+its share of the total. `reelforge totals` opens it (`reelforge stats` is the hourly stats job).
+
+![The Stats tab: followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
+
 ### Accounts
 
 The platforms you post to, each connected with your @handle. ReelForge shows only the ones you've connected, so
@@ -215,20 +226,9 @@ if something can't be moved (another ReelForge window has it open, say), nothing
 **Tab order**, under the FAQ, puts the tabs along the top in the order you like: drag a tab where you want it, or
 click one and move it with **← Move left** and **Move right →** (or Shift and the arrow keys). The number keys follow
 the new order, and so does `reelforge 1` to `reelforge 8`. It's kept for every channel, and **Reset to default** puts
-Updates and Settings back at the far left.
+them back as they started, with Settings and Updates at the far right.
 
 ![The Settings tab: the channel's answers, the FAQ with its first answer open, the tab order, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
-
-### Stats
-
-Your followers and your likes added up across your platforms, over time. **Add up** at the top ticks the platforms
-the totals count: click one to leave it out, and again to bring it back. Pick 24H, 48H, 7D, 30D or ALL at the right.
-Each chart draws the total from ReelForge's own readings, with a mark where each video went up, and a stretch when
-your computer was off stays empty. Point at a chart to see the totals then, with each platform's part. Beside each
-chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
-its share of the total. `reelforge totals` opens it (`reelforge stats` is the hourly stats job).
-
-![The Stats tab: followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
 
 ## Updates
 

@@ -3,7 +3,7 @@
   reelforge                    open ReelForge (the first time: first-time setup)
   reelforge publish            open a tab by name: overview, videos, compare, publish, accounts, updates, settings,
                                totals (the Stats tab: reelforge stats is the hourly job)
-  reelforge 1 .. 8             ... or by where it sits along the top: 1 is the one at the far left (Updates, unless
+  reelforge 1 .. 8             ... or by where it sits along the top: 1 is the one at the far left (Overview, unless
                                you've moved the tabs on the Settings tab)
   reelforge --demo             try ReelForge on made-up stats
   reelforge refresh            read every profile's stats once and exit

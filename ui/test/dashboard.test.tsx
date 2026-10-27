@@ -131,9 +131,9 @@ describe("keys", () => {
   test("1-8 open the tabs in the order they're shown, but not while you type; Esc leaves the field", async () => {
     const h = await window()
     expect(activeTab(h)).toBe("Overview")
-    await press(h, "4") // Updates and Settings come first
+    await press(h, "2")
     expect(activeTab(h)).toBe("Videos")
-    await press(h, "6")
+    await press(h, "4")
     expect(activeTab(h)).toBe("Publish")
     for (let i = 0; i < 30 && !find(h, "What if everyone"); i++) await h.settle(100) // the picked video's caption
     await h.t.mockMouse.click(find(h, "What if everyone")![0] + 3, find(h, "What if everyone")![1])
@@ -144,7 +144,7 @@ describe("keys", () => {
     expect(activeTab(h)).toBe("Publish")
     expect(frame(h)).toContain("time? 3")
     await press(h, "escape")
-    await press(h, "5")
+    await press(h, "3")
     expect(activeTab(h)).toBe("Compare")
   })
 

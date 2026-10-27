@@ -34,7 +34,7 @@ afterEach(async () => {
 
 const frame = (h: Headless) => h.t.captureCharFrame()
 const NAMES = Object.values(TAB_NAMES) as string[]
-const DEFAULT = ["Updates", "Settings", "Overview", "Videos", "Compare", "Publish", "Accounts", "Stats"]
+const DEFAULT = ["Overview", "Videos", "Compare", "Publish", "Stats", "Accounts", "Settings", "Updates"]
 
 /** The tabs along the top, left to right. */
 function header(h: Headless): string[] {
@@ -66,16 +66,16 @@ describe("the Settings tab", () => {
     for (const gone of ["REASONING", "Max", "High", "Fast", "the standard"]) expect(f).not.toContain(gone)
   })
 
-  test("Updates and Settings are the first two tabs, so 2 opens it", async () => {
+  test("Settings and Updates are the last two tabs, so 7 opens it", async () => {
     open = await headless("dashboard", { demo: true, only_demos: true, tab: "overview" }, 150, 72, PRELOAD)
     await open.settle(2500)
     expect(header(open)).toEqual(DEFAULT)
-    open.t.mockInput.pressKey("2")
+    open.t.mockInput.pressKey("7")
     await open.settle(1500)
     expect(frame(open)).toContain("DANGER ZONE")
     expect(activeTab(open)).toBe("Settings")
     expect(strip(open)).toEqual(DEFAULT)
-    open.t.mockInput.pressKey("1")
+    open.t.mockInput.pressKey("8")
     await open.settle(800)
     expect(activeTab(open)).toBe("Updates")
   })
@@ -167,65 +167,65 @@ describe("the tab order", () => {
   test("a click picks a tab and the arrows move it: the header, the numbers and the help follow", async () => {
     const h = await window()
     expect(frame(h)).toContain("TAB ORDER")
-    await clickText(h, "6 Publish", 3)
+    await clickText(h, "6 Accounts", 3)
     for (let i = 0; i < 5; i++) await clickText(h, "← Move left", 3)
-    const moved = ["Publish", "Updates", "Settings", "Overview", "Videos", "Compare", "Accounts", "Stats"]
+    const moved = ["Accounts", "Overview", "Videos", "Compare", "Publish", "Stats", "Settings", "Updates"]
     expect(strip(h)).toEqual(moved)
     expect(header(h)).toEqual(moved)
     expect(frame(h)).toContain("Demo mode: this order isn't kept.")
     await clickText(h, "← Move left", 3) // at the far left already: nothing moves
     expect(strip(h)).toEqual(moved)
     await clickText(h, "Move right →", 3)
-    expect(strip(h).slice(0, 3)).toEqual(["Updates", "Publish", "Settings"])
+    expect(strip(h).slice(0, 3)).toEqual(["Overview", "Accounts", "Videos"])
     h.t.mockInput.pressKey("2")
     await h.settle(800)
-    expect(activeTab(h)).toBe("Publish")
+    expect(activeTab(h)).toBe("Accounts")
     await h.t.mockInput.typeText("?")
     await h.settle(500)
     const help = frame(h)
-    expect(help).toContain("Publish (2)")
-    expect(help).toContain("Settings (3)")
-    expect(help.indexOf("Updates (1)")).toBeLessThan(help.indexOf("Publish (2)"))
-    expect(help.indexOf("Publish (2)")).toBeLessThan(help.indexOf("Settings (3)"))
+    expect(help).toContain("Accounts (2)")
+    expect(help).toContain("Videos (3)")
+    expect(help.indexOf("Overview (1)")).toBeLessThan(help.indexOf("Accounts (2)"))
+    expect(help.indexOf("Accounts (2)")).toBeLessThan(help.indexOf("Videos (3)"))
   })
 
   test("a tab dragged to the far left goes there, and Reset to default puts them all back", async () => {
     const h = await window()
-    const from = find(h, "8 Stats")!
-    const to = find(h, "1 Updates")!
+    const from = find(h, "8 Updates")!
+    const to = find(h, "1 Overview")!
     await h.t.mockMouse.drag(from[0] + 3, from[1], to[0], to[1])
     await h.settle(500)
-    const dragged = ["Stats", ...DEFAULT.slice(0, 7)]
+    const dragged = ["Updates", ...DEFAULT.slice(0, 7)]
     expect(strip(h)).toEqual(dragged)
     expect(header(h)).toEqual(dragged)
     await clickText(h, "Reset to default", 3)
     expect(strip(h)).toEqual(DEFAULT)
     expect(header(h)).toEqual(DEFAULT)
     // dragged off the row (up into the panel's title, here): where along the row still decides
-    const publish = find(h, "6 Publish")!
-    const settings = find(h, "2 Settings")!
-    await h.t.mockMouse.drag(publish[0] + 3, publish[1], settings[0], settings[1] - 2)
+    const publish = find(h, "4 Publish")!
+    const videos = find(h, "2 Videos")!
+    await h.t.mockMouse.drag(publish[0] + 3, publish[1], videos[0], videos[1] - 2)
     await h.settle(500)
-    expect(strip(h)).toEqual(["Updates", "Publish", "Settings", "Overview", "Videos", "Compare", "Accounts", "Stats"])
+    expect(strip(h)).toEqual(["Overview", "Publish", "Videos", "Compare", "Stats", "Accounts", "Settings", "Updates"])
   })
 
   test("with the keyboard: ← → pick a tab and Shift+← → move it", async () => {
     const h = await window()
-    await clickText(h, "3 Overview", 3)
-    h.t.mockInput.pressArrow("right") // Videos
+    await clickText(h, "3 Compare", 3)
+    h.t.mockInput.pressArrow("right") // Publish
     await h.settle(200)
     for (let i = 0; i < 4; i++) {
       h.t.mockInput.pressArrow("right", { shift: true })
       await h.settle(200)
     }
-    expect(strip(h)).toEqual(["Updates", "Settings", "Overview", "Compare", "Publish", "Accounts", "Stats", "Videos"])
-    h.t.mockInput.pressArrow("left") // Stats
+    expect(strip(h)).toEqual(["Overview", "Videos", "Compare", "Stats", "Accounts", "Settings", "Updates", "Publish"])
+    h.t.mockInput.pressArrow("left") // Updates
     h.t.mockInput.pressArrow("left", { shift: true }) // straight after, before the row is drawn again
     await h.settle(300)
-    expect(strip(h).slice(5)).toEqual(["Stats", "Accounts", "Videos"])
+    expect(strip(h).slice(5)).toEqual(["Updates", "Settings", "Publish"])
     h.t.mockInput.pressKey("6") // the number keys still open tabs while the row has the keyboard
     await h.settle(800)
-    expect(activeTab(h)).toBe("Stats")
+    expect(activeTab(h)).toBe("Updates")
   })
 
   test("in a narrow window the row wraps, and every tab still has its number", async () => {
@@ -265,17 +265,17 @@ describe("the tab order on a channel that's set up", () => {
   test("an order you pick is kept, and the next window opens with it; the default keeps nothing", async () => {
     let h = await settings()
     expect(kept()).toBeNull()
-    await clickText(h, "7 Accounts", 3)
+    await clickText(h, "6 Accounts", 3)
     for (let i = 0; i < 5; i++) await clickText(h, "← Move left", 3)
-    expect(kept()).toEqual(["updates", "accounts", "settings", "overview", "videos", "compare", "publish", "totals"])
+    expect(kept()).toEqual(["accounts", "overview", "videos", "compare", "publish", "totals", "settings", "updates"])
     expect(frame(h)).not.toContain("Demo mode")
     await open!.close()
     h = await settings("overview")
-    expect(header(h)).toEqual(["Updates", "Accounts", "Settings", "Overview", "Videos", "Compare", "Publish", "Stats"])
-    h.t.mockInput.pressKey("2")
+    expect(header(h)).toEqual(["Accounts", "Overview", "Videos", "Compare", "Publish", "Stats", "Settings", "Updates"])
+    h.t.mockInput.pressKey("1")
     await h.settle(1000)
     expect(activeTab(h)).toBe("Accounts")
-    h.t.mockInput.pressKey("3")
+    h.t.mockInput.pressKey("7")
     await h.settle(1500)
     await clickText(h, "Reset to default", 3)
     expect(kept()).toBeNull()

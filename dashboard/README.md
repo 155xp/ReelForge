@@ -11,7 +11,7 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | Type this | and you get |
 |---|---|
 | `reelforge` | the Overview |
-| `reelforge 1` … `reelforge 8` | straight to the tab in that place along the top, 1 at the far left: by default 1 Updates, 2 Settings, 3 Overview, 4 Videos, 5 Compare, 6 Publish, 7 Accounts, 8 Stats (the Settings tab's **Tab order** changes it) |
+| `reelforge 1` … `reelforge 8` | straight to the tab in that place along the top, 1 at the far left: by default 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Stats, 6 Accounts, 7 Settings, 8 Updates (the Settings tab's **Tab order** changes it) |
 | `reelforge videos`, `reelforge publish`, … | the same, by the tab's name (`post` and `upload` work for Publish, `login` for Accounts, `totals` for Stats: `reelforge stats` is the hourly job) |
 | `reelforge notifications` | the Overview with the notifications drawer open |
 | `reelforge -p "Channel name"` | ReelForge on one of your profiles (its number in the list, or the start of its name, works too) |
@@ -73,10 +73,10 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 
 ## The eight tabs
 
-Updates and Settings sit at the far left, then the others in the order below. The Settings tab's **Tab order** puts
-them in any order you like (drag a tab, or click one and use **← Move left** and **Move right →**), for every
-profile at once: **1**-**8** and `reelforge 1` … `reelforge 8` follow it, and **Reset to default** puts it back. It's
-kept in `dashboard/data/tab-order.json`.
+They sit along the top in the order below until you change it. The Settings tab's **Tab order** puts them in any order
+you like (drag a tab, or click one and use **← Move left** and **Move right →**), for every profile at once:
+**1**-**8** and `reelforge 1` … `reelforge 8` follow it, and **Reset to default** puts it back. It's kept in
+`dashboard/data/tab-order.json`.
 
 | Tab | What's on it |
 |---|---|
@@ -84,10 +84,10 @@ kept in `dashboard/data/tab-order.json`.
 | **Videos** | Every video on every platform: views, **views 12 hours in** (so new and old videos compare fairly; "in 5h" until a video is that old, — when the computer was off then), likes, comments, shares, engagement, share rate, views per hour and score. Click a header to sort. Above the chart, the highlighted video's **badges**. **Fix episode** if a post was grouped with the wrong video; **Export CSV** saves everything as a spreadsheet, with when each post went up (date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in. |
 | **Compare** | The **platform scoreboard**, or one video side by side on every platform against that platform's typical video. **Newest**, **Oldest** and **Most views** beside the episodes sort them (most views: each one's views on every platform added up). |
 | **Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
-| **Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it, in a private window of your browser once you have more than one profile) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
-| **Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
-| **Settings** | This channel's answers from first-time setup (**Change your answers**), an **FAQ** (click a question for its answer; the first says which model your AI uses and how hard it thinks, which your AI app decides, not ReelForge), the **Tab order** (above), what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button, and your **Profiles**: **Delete…** beside each one this window can delete, **New profile**, and the deleted ones, each with **Restore** (see Profiles above). At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
 | **Stats** | Your **followers** and **likes** added up across your platforms, over time. **Add up** ticks the platforms the totals count (click one to leave it out, and again to count it); the range is 24H, 48H, 7D, 30D or ALL. Each chart is the total as a filled area from real readings only: a stretch the computer was off for stays empty, a platform whose reads stopped counts with its last reading (its row says when that was), and the totals start once every platform counted has its first reading. Point at a chart for the totals then and each platform's part; yellow ▼ marks show where videos went up. Beside each chart, every platform's number now, its gain over the range, its gains hour by hour (or day by day) and its share of the total. |
+| **Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it, in a private window of your browser once you have more than one profile) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
+| **Settings** | This channel's answers from first-time setup (**Change your answers**), an **FAQ** (click a question for its answer; the first says which model your AI uses and how hard it thinks, which your AI app decides, not ReelForge), the **Tab order** (above), what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button, and your **Profiles**: **Delete…** beside each one this window can delete, **New profile**, and the deleted ones, each with **Restore** (see Profiles above). At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
+| **Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
 3× is a hit. **Engagement** = (likes + comments + shares) ÷ views. **Share rate** = shares ÷ views, the strongest
