@@ -588,10 +588,13 @@ class Menu(Scratch):
         self.assertFalse(a.folder.exists())
         self.assertEqual(profiles.every(), [profiles.main()])
         self.assertNotIn("Other channels", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
-        # the Settings tab lists it with when it went and how big it is, and Restore brings it back
+        # the Settings tab lists it with when it went and how big it is (added up with what's on this computer, whose
+        # look-ups, the hourly job's among them, are left out here: Windows' task scheduler takes its time on a slow
+        # computer), and Restore brings it back
         w.svc.tab = "settings"
-        w.call("update_settings")
-        self.assertTrue(w.until(lambda: w.view("settings")["profiles"]["deleted"][0]["size"] != ""))
+        with mock.patch.object(type(w.svc), "computer_rows", lambda svc: []):
+            w.call("update_settings")
+            self.assertTrue(w.until(lambda: w.view("settings")["profiles"]["deleted"][0]["size"] != "", 30))
         view = w.view("settings")["profiles"]
         self.assertEqual([(r["name"], r["deletable"]) for r in view["rows"]], [("Night Physics", False)])
         gone = view["deleted"][0]

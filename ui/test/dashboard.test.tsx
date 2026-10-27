@@ -281,8 +281,11 @@ describe("tables and charts", () => {
 })
 
 describe("badges", () => {
-  /** Point at the open tab's line of badges: does all of what badges are show under it? Then point away. */
-  async function explained(h: Headless, badge: string): Promise<boolean> {
+  /** Put up the open tab's line of badges (today's on the Overview, the highlighted video's on Videos: from the demo's
+   * numbers, they depend on the hour, since a badge needs a good day so far), point at it: does all of what badges are
+   * show under it? Then point away. */
+  async function explained(h: Headless, view: "badges" | "video_badges", badge: string): Promise<boolean> {
+    h.bridge.emit(view, { line: [[[[`★ ${badge}`, "bold #ffcc33"], ["  +1.2K so far · #1 of 30   ", "#8b93a1"]], 0]] })
     await until(h, badge)
     const [x, y] = find(h, badge)!
     await h.t.mockMouse.moveTo(x + 2, y)
@@ -295,14 +298,16 @@ describe("badges", () => {
 
   test("pointing at the badges shows what they are over the charts, on a tab opened again too", async () => {
     const h = await window()
-    expect(await explained(h, "Today:")).toBe(true)
+    const today = "Today: your best day yet for new TikTok followers"
+    const video = "Your best TikTok video yet for views"
+    expect(await explained(h, "badges", today)).toBe(true)
     await clickText(h, "Videos", 2)
-    expect(await explained(h, "Your best")).toBe(true)
+    expect(await explained(h, "video_badges", video)).toBe(true)
     // opened again, a tab draws its charts after the badges: they covered all of the pop-up but its top edge
     await clickText(h, "Overview", 2)
-    expect(await explained(h, "Today:")).toBe(true)
+    expect(await explained(h, "badges", today)).toBe(true)
     await clickText(h, "Videos", 2)
-    expect(await explained(h, "Your best")).toBe(true)
+    expect(await explained(h, "video_badges", video)).toBe(true)
   })
 })
 
