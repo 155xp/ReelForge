@@ -1,33 +1,21 @@
-## What's new in 1.0.6
+## What's new in 1.0.7
 
-- **A new look.** A calm dark window with panels instead of boxes, and each platform in its own colour.
-  - Each platform's followers in big numbers that count up, with its views hour by hour under them.
-  - Charts grow in, the tabs slide, and the bell shows how many notifications are new.
-  - The bar along the bottom shows each platform, when your stats were read and the keys.
-  - In a small window the Overview's panels stack and scroll instead of squeezing.
-- **Run more than one channel.** Each channel is a profile with its own accounts, stats, notifications and videos.
-  - Switch with the channel button at the top left, or press **p**. A red dot means another one has news.
-  - **New profile** asks a few questions about the channel, then opens its Accounts tab.
-  - Your first channel stays exactly where it is.
-- **Sign up without logging out.** New profile helps you make the channel's accounts, starting with a Gmail.
-  - Sign-up pages open in a private browser window, so your other channel stays logged in.
-- **Your AI knows every channel.** Each one gets its own folder with its own notes, and videos follow their channel's rules.
-  - "Make today's videos" makes every channel's, except one set to post **Only when I ask**.
-- **Tell your AI about your channel.** Drag a file about it into the chat (or paste a description) and say "here's my channel".
-  - Your AI keeps it as the channel's brief and plans every video from it.
-- **Tidier What's new.** This panel now shows release notes as clean, short lists at any window size.
-- **A shorter first-time setup.** Fewer questions, and `reelforge channel` changes your channel's answers.
-- **A Settings tab (7).** Your channel's answers and what ReelForge set up, in one place.
-  - **Factory reset** puts your settings, logins and stats in a backup, then first-time setup again. Videos stay.
-  - **Uninstall** removes ReelForge and keeps your videos in a folder beside it. `reelforge uninstall` does it too.
-  - Both ask you to type your channel's name, never delete anything for good, and never stop half-way.
-- **First-time setup fits any window.** Its screens sit on the same calm dark as the window and stay whole in any size.
-  - In a small window or one you resize, every button stays whole, with no hints on the edges.
-- **Meet the anvil, ReelForge's mascot.** He winks hello in first-time setup, hammers while it downloads and hops when it's all ready.
-  - On the Updates tab he hammers while an update installs, and he naps where there's nothing yet.
-- **No more Setup.exe.** ReelForge installs only with its one-line command, so Windows never calls it unverified.
+- **A Stats tab.** Your followers and likes added up across your platforms, over time.
+  - Tick a platform to count it in the totals, or untick it to leave it out. Pick 24H, 48H, 7D, 30D or ALL.
+  - Point at a chart for the totals at that moment and each platform's part. Yellow marks show when videos went up.
+- **Delete a channel you added.** Click **Delete** beside it in the profile menu or on the Settings tab's **Profiles** panel.
+  - You type its name first. Its folder moves into a backup in the ReelForge folder, so nothing is lost.
+  - **Restore** puts it back as it was, and **Move to the Recycle Bin** (the Trash on a Mac) frees its space.
+  - `reelforge profiles delete NAME` and `reelforge profiles restore` do the same from a terminal.
+- **Put the tabs in your order.** On the Settings tab, drag a tab where you want it, or move it with the arrows.
+  - The number keys and `reelforge 1` to `reelforge 8` follow your order, in every profile.
+  - Updates and Settings now start at the far left. **Reset to default** puts them back there.
+- **An FAQ on the Settings tab.** Click a question for its answer.
+  - The first says which model your AI uses and how hard it thinks: your AI app decides that, and the answer says how to change it.
+- **Sort the Compare tab's episodes.** Newest first, oldest first, or by most views on every platform added up.
+- **Fixes.** **Open profile** works again, and X's **Connect** answers while pop-ups are up.
 
-Already have ReelForge? Open **Updates** (`reelforge 6`) and click **Update and restart**.
+Already have ReelForge? Open the **Updates** tab and click **Update and restart**.
 
 ---
 
@@ -54,8 +42,8 @@ Mac works too, more slowly), and about 15 GB of free disk space.
 1. Open the ReelForge folder in Claude Code (the Claude desktop app's **Code** tab, then **Open folder…**), or run
    `codex` in it.
 2. Say **"make my first video"**.
-3. Type `reelforge 4` in a terminal (or open ReelForge's icon and go to **Publish**, tab 4) to post it.
+3. Type `reelforge publish` in a terminal (or open ReelForge's icon and go to **Publish**) to post it.
 
-Already have ReelForge? Its **Updates** tab (`reelforge 6`) installs this version in one click.
+Already have ReelForge? Its **Updates** tab (`reelforge updates`) installs this version in one click.
 
 See the README for the full guide.
