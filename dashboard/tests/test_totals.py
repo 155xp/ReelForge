@@ -254,6 +254,9 @@ class WindowTest(unittest.TestCase):
         cut = (datetime.now(UTC) - timedelta(hours=30)).isoformat(timespec="seconds")
         with db.connect() as c:
             c.execute("DELETE FROM account_stats WHERE platform = 'x' AND ts > ?", (cut,))
+            # The demo reads on the hour: X's last reading moves to the cut, so it's 30h old whatever the minute.
+            c.execute("UPDATE account_stats SET ts = ? WHERE platform = 'x' AND ts = "
+                      "(SELECT MAX(ts) FROM account_stats WHERE platform = 'x')", (cut,))
         m = self.open().view("totals")["metrics"]["followers"]
         x = next(r for r in m["rows"] if r["key"] == "x")
         self.assertTrue(x["counted"])
