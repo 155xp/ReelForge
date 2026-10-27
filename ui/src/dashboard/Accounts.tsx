@@ -164,7 +164,7 @@ function Connected({ panel: p }: { panel: AccountPanelView }) {
         ) : null}
         {p.state === "on" ? (
           <>
-            <Button id={`profile-${p.key}`} label="Open profile" disabled={p.profile_disabled} marginRight={1} onPress={() => s.bridge.send("profile", p.key)} />
+            <Button id={`profile-${p.key}`} label="Open profile" disabled={p.profile_disabled} marginRight={1} onPress={() => s.bridge.send("open_profile", p.key)} />
             <Button
               id={`refresh-${p.key}`}
               label="Refresh now"

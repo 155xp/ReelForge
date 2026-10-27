@@ -4,7 +4,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
@@ -14,6 +14,7 @@ import { DRAWER_WIDTH } from "../src/dashboard/Drawer"
 import { TILE_ROWS } from "../src/dashboard/Overview"
 import { TAB_NAMES, TOP_ROWS } from "../src/dashboard/state"
 import { DASH } from "../src/theme"
+import { toasts } from "../src/ui/Panels"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
 setDefaultTimeout(30_000) // each test starts a real window (2.5 s to draw it) before its clicks and keys
@@ -28,6 +29,7 @@ async function window(tab = "overview", size: [number, number] = [180, 50], draw
 afterEach(async () => {
   await open?.close()
   open = null
+  toasts.clear() // the pop-ups live in the module, so the next window would start with this one's
 })
 
 const frame = (h: Headless) => h.t.captureCharFrame()
@@ -108,6 +110,19 @@ describe("the header and the bell", () => {
   })
 })
 
+describe("pop-ups", () => {
+  test("a click anywhere on the pop-ups closes one, even on the row between two: nothing under them shows through", async () => {
+    const h = await window("accounts", [180, 50], false, { unconnected: ["x"] })
+    for (const n of [1, 2]) h.bridge.emit("toast", { title: `Pop-up ${n}`, body: "It stays until it's clicked.", timeout: 60 })
+    await h.settle(500)
+    const [x, y] = find(h, "Pop-up 1")!
+    await h.t.mockMouse.click(x, y + 3) // under its title: its line, its padding, then the row between the two
+    await h.settle(600)
+    expect(frame(h)).not.toContain("Pop-up 1")
+    expect(frame(h)).toContain("Pop-up 2")
+  })
+})
+
 describe("keys", () => {
   test("1-6 switch tabs, but not while you type; Esc leaves the field", async () => {
     const h = await window()
@@ -166,6 +181,36 @@ describe("accounts", () => {
     expect(frame(h)).toContain("Pick a username that matches your channel")
     await press(h, "escape")
     expect(frame(h)).not.toContain("MAKE YOUR X ACCOUNT")
+  })
+
+  test("X's Connect button connects the @handle typed in its box (the demo saves nothing, and says so)", async () => {
+    const h = await window("accounts", [180, 50], false, { unconnected: ["x"] })
+    await clickText(h, "@yourname", 2)
+    await h.t.mockInput.typeText("@mychannel")
+    await h.settle(300)
+    const at = find(h, " Connect ", find(h, "@mychannel")![1])! // on the box's row (the hint above says Connect too)
+    await h.t.mockMouse.click(at[0] + 2, at[1])
+    await until(h, "Demo mode: nothing is saved.")
+    expect(frame(h)).toContain("Demo mode: nothing is saved.")
+    expect(frame(h)).not.toContain("Something went wrong")
+  })
+
+  test("Open profile opens the platform's page (from a test, nothing opens: the page is listed)", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "reelforge-opened-"))
+    const list = join(tmp, "opened.txt")
+    try {
+      open = await headless("dashboard", { demo: true, only_demos: true, tab: "accounts" }, 180, 50, { ...PRELOAD, REELFORGE_OPENED: list })
+      const h = open
+      await h.settle(2500)
+      await clickText(h, "Open profile", 2) // TikTok's, the first panel
+      for (let i = 0; i < 25 && !existsSync(list); i++) await h.settle(200)
+      expect(readFileSync(list, "utf-8")).toBe("https://www.tiktok.com/@yourchannel\n")
+      expect(frame(h)).not.toContain("Something went wrong")
+    } finally {
+      await open?.close()
+      open = null
+      rmSync(tmp, { recursive: true, force: true })
+    }
   })
 
   test("with nothing connected, ReelForge opens on Accounts and offers a Gmail first", async () => {

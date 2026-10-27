@@ -209,43 +209,42 @@ class Toasts {
 
 export const toasts = new Toasts()
 
-/** The pop-ups in the bottom-right corner (each goes after its time, or when clicked). */
+/** The pop-ups in the bottom-right corner (each goes after its time, or when clicked). The stack takes every click in
+ * its corner, so the row between two pop-ups is the upper one's, in the window's colour: nothing under the stack
+ * shows through looking clickable. */
 export function ToastStack() {
   const list = useSyncExternalStore(toasts.subscribe, toasts.get)
   if (!list.length) return null
   return (
-    <box position="absolute" right={2} bottom={2} width={54} zIndex={80} flexDirection="column" gap={1}>
-      {list.map((t) => (
-        <ToastCard key={t.id} toast={t} />
+    <box position="absolute" right={2} bottom={2} width={54} zIndex={80} flexDirection="column">
+      {list.map((t, i) => (
+        <ToastCard key={t.id} toast={t} last={i === list.length - 1} />
       ))}
     </box>
   )
 }
 
-function ToastCard({ toast: t }: { toast: Toast }) {
+function ToastCard({ toast: t, last }: { toast: Toast; last: boolean }) {
   const theme = useTheme()
   const shown = useTween(t.leaving ? 0 : 1, { from: 0, ms: t.leaving ? FADE_MS : 220, ease: "outQuad" })
   const color = t.severity === "error" ? theme.bad : t.severity === "warning" ? theme.warn : theme.focus
   const bg = mix(theme.bg, mix(theme.surface, "#ffffff", 0.05), shown)
   return (
-    <box
-      flexDirection="row"
-      backgroundColor={bg}
-      flexShrink={0}
-      marginLeft={Math.round((1 - shown) * 6)}
-      onMouseDown={() => toasts.leave(t.id)}
-    >
-      <box width={1} backgroundColor={mix(theme.bg, color, shown)} />
-      <box flexDirection="column" flexGrow={1} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
-        {t.title ? (
-          <text fg={mix(theme.bg, color === theme.focus ? theme.text : color, shown)} attributes={TextAttributes.BOLD} wrapMode="word">
-            {t.title}
+    <box flexDirection="column" flexShrink={0} onMouseDown={() => toasts.leave(t.id)}>
+      <box flexDirection="row" backgroundColor={bg} marginLeft={Math.round((1 - shown) * 6)}>
+        <box width={1} backgroundColor={mix(theme.bg, color, shown)} />
+        <box flexDirection="column" flexGrow={1} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1}>
+          {t.title ? (
+            <text fg={mix(theme.bg, color === theme.focus ? theme.text : color, shown)} attributes={TextAttributes.BOLD} wrapMode="word">
+              {t.title}
+            </text>
+          ) : null}
+          <text fg={mix(theme.bg, theme.muted, shown)} wrapMode="word">
+            {t.body}
           </text>
-        ) : null}
-        <text fg={mix(theme.bg, theme.muted, shown)} wrapMode="word">
-          {t.body}
-        </text>
+        </box>
       </box>
+      {last ? null : <box height={1} backgroundColor={theme.bg} />}
     </box>
   )
 }

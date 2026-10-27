@@ -1696,7 +1696,9 @@ class Dashboard(SettingsTab, Service):
         self.loop.run_worker(self._browser_login, p, group="login")
 
     @rpc
-    def profile(self, key: str) -> None:
+    def open_profile(self, key: str) -> None:
+        """Open profile: your page on the platform, in your browser. (Not called profile: self.profile is the channel
+        this window shows, and it would hide the call.)"""
         p = self.every[key]
         if p.public_handle:
             desktop.open_url(desktop.profile_url(p.key, p.public_handle))

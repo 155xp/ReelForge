@@ -7,8 +7,9 @@ changes: it only swaps what ReelForge would find here for the same things on a f
   - The first-run screens show a neutral folder (C:\\Users\\you\\ReelForge) and what a computer with nothing installed
     sees, and the last screen a new channel's (Night Physics) with nothing turned on here.
   - The channel's questions start from a sample channel's answers, so its later steps can be shown.
-  - A sign-up guide's button opens nothing: no browser ever opens from a picture or a test (and a second channel's
-    private window is always Chrome's).
+  - A sign-up guide's button, Open profile and every other link open nothing: no browser ever opens from a picture
+    or a test (a test that sets REELFORGE_OPENED to a file finds the pages listed there), and a second channel's
+    private window is always Chrome's.
 """
 
 from __future__ import annotations
@@ -116,12 +117,20 @@ def _list_modules() -> None:
 
 def _no_browser() -> None:
     """Sign-up pages open nothing, and a second channel's private window is Chrome's on every computer (so the pictures
-    and tests say the same everywhere)."""
+    and tests say the same everywhere). Nor does any other page: each goes in REELFORGE_OPENED's file, if it's set."""
+    from dashboard import desktop
     from studio import signup
 
     signup.open_page = lambda url: None
     signup.launch = lambda command: None
     signup.private_browser = lambda: signup.Private("Chrome", ("chrome", "--incognito"))
+
+    def opened(url: str) -> None:
+        if os.environ.get("REELFORGE_OPENED"):
+            with open(os.environ["REELFORGE_OPENED"], "a", encoding="utf-8", newline="\n") as f:
+                f.write(url + "\n")
+
+    desktop.open_url = opened
 
 
 atexit.register(_list_modules)

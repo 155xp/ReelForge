@@ -238,6 +238,12 @@ class WindowTest(unittest.TestCase):
             w.call("follow_connections")
             self.assertIn("instagram", w.svc.platforms)
             self.assertIn("instagram", self.cards(w))
+            # X the same way.
+            self.assertIsNone(w.call("connect", "x", "x.com/mine"))
+            self.assertTrue(w.until(lambda: logins == ["instagram", "x"]))
+            self.assertEqual(config.load_config()["x"]["handle"], "@mine")
+            self.assertEqual(self.panel(w, "x")["state"], "login")
+            self.assertNotIn("x", w.svc.platforms)
             # Disconnect TikTok: hidden everywhere, its stats kept.
             self.assertEqual(w.call("disconnect_info", "tiktok")["title"], "DISCONNECT TIKTOK?")
             w.call("disconnect", "tiktok")
