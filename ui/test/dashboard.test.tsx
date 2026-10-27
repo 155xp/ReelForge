@@ -280,6 +280,32 @@ describe("tables and charts", () => {
   })
 })
 
+describe("badges", () => {
+  /** Point at the open tab's line of badges: does all of what badges are show under it? Then point away. */
+  async function explained(h: Headless, badge: string): Promise<boolean> {
+    await until(h, badge)
+    const [x, y] = find(h, badge)!
+    await h.t.mockMouse.moveTo(x + 2, y)
+    await h.settle(300)
+    const shown = frame(h).includes("Badges compare you with yourself") && frame(h).includes("ties count against you.")
+    await h.t.mockMouse.moveTo(1, rows(h).length - 1)
+    await h.settle(300)
+    return shown
+  }
+
+  test("pointing at the badges shows what they are over the charts, on a tab opened again too", async () => {
+    const h = await window()
+    expect(await explained(h, "Today:")).toBe(true)
+    await clickText(h, "Videos", 2)
+    expect(await explained(h, "Your best")).toBe(true)
+    // opened again, a tab draws its charts after the badges: they covered all of the pop-up but its top edge
+    await clickText(h, "Overview", 2)
+    expect(await explained(h, "Today:")).toBe(true)
+    await clickText(h, "Videos", 2)
+    expect(await explained(h, "Your best")).toBe(true)
+  })
+})
+
 describe("the drawer", () => {
   const noteTitles = (h: Headless) => h.bridge.view<{ items: { title: [string, string][] }[] }>("notes")!.items.map((n) => n.title.map((s) => s[0]).join(""))
 

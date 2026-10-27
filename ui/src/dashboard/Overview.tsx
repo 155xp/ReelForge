@@ -46,11 +46,7 @@ export function Overview() {
       ))}
     </box>
   )
-  const badge = badges?.line?.length ? (
-    <box marginTop={1} flexShrink={0}>
-      <BadgeLine parts={badges.line} how={s.init.badges_how} bg={DASH.surface} fg={DASH.muted} />
-    </box>
-  ) : null
+  const badge = badges?.line?.length ? <BadgeLine parts={badges.line} how={s.init.badges_how} bg={DASH.surface} fg={DASH.muted} marginTop={1} /> : null
   return (
     <box
       flexDirection="column"

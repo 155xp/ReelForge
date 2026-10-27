@@ -127,7 +127,8 @@ with **yourself**, from the numbers ReelForge has stored, so they're always true
   partly reading are left out).
 
 Percentages (top 25%, 10%, 5%, 1%) need at least 10 videos or days to compare; before that a badge only says "your
-best … yet", and only when it really is. Ties count against you. Moving up a tier adds a notification.
+best … yet", and only when it really is. Ties count against you. Moving up a tier adds a notification. Point at the
+badges on either tab for a short reminder of all this.
 
 There are no "top X% of all creators" badges: no platform publishes how big its creators' accounts are, and no
 outside study can back such a claim yet (`badges.py` lists the ones checked).

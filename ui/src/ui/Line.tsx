@@ -131,15 +131,19 @@ export function Fitted({
   )
 }
 
-/** A line of badges, with what badges are under it while the mouse is on it. */
-export function BadgeLine({ parts, how, bg, fg }: { parts: Parts; how: string; bg: string; fg: string }) {
+/** A line of badges, with what badges are under it while the mouse is on it. The line is drawn after the boxes beside
+ * it (zIndex 1): a zIndex only orders a box among its siblings, so otherwise a chart under the line drew over the
+ * pop-up and left only its top edge showing. */
+export function BadgeLine({ parts, how, bg, fg, marginTop }: { parts: Parts; how: string; bg: string; fg: string; marginTop?: number }) {
   const [hover, setHover] = useState(false)
   return (
     <box
       height={1}
+      marginTop={marginTop}
       paddingLeft={1}
       paddingRight={1}
       flexShrink={0}
+      zIndex={1}
       onMouseOver={() => setHover(true)}
       onMouseOut={() => setHover(false)}
     >
