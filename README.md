@@ -191,19 +191,19 @@ about it. The hourly stats job reads every profile, and `reelforge -p "Channel n
 today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
 out, say).
 
-![The profile menu: each channel with its platforms and unread notifications, New profile, this one's settings and Advanced settings](docs/screenshots/app-profiles.png)
+![The profile menu: each channel with its platforms and unread notifications, New profile and this one's settings](docs/screenshots/app-profiles.png)
 
 ### Settings
 
-This channel's answers from first-time setup (**Change your answers** asks the questions again), how hard your AI
-reasons on each video (**Max**, **High**, the standard, or **Fast**), and what ReelForge set up on your computer: the
-hourly stats read, the `reelforge` command and the icon, each with a button to turn it on or off. Across the bottom,
+This channel's answers from first-time setup (**Change your answers** asks the questions again), an FAQ beside them
+(click a question and its answer opens under it), and what ReelForge set up on your computer: the hourly stats read,
+the `reelforge` command and the icon, each with a button to turn it on or off. Across the bottom,
 the danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time
 setup again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
 anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac). Neither stops half-way either:
 if something can't be moved (another ReelForge window has it open, say), nothing changes.
 
-![The Settings tab: the channel's answers, your AI's reasoning, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
+![The Settings tab: the channel's answers, the FAQ with its first answer open, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
 
 ## Updates
 
@@ -338,15 +338,23 @@ ReelForge's settings. For another channel, open the profile menu and pick its se
 </details>
 
 <details>
-<summary><b>How do I get the best videos?</b></summary>
+<summary><b>Which model does my AI use, and how hard does it think?</b></summary>
 
 <br>
 
-Use your strongest model. First-time setup sets Claude Code to Opus at high effort for the ReelForge folder, the
-standard for every channel. For more (or less), open the **Settings** tab (`reelforge 7`, or **Advanced settings**
-in the profile menu): **Max** reasons the most and makes the best video it can, and **Fast** makes quick drafts. The
-ReelForge folder keeps your first channel's level, so when another channel's is different, your AI asks you to
-switch with `/effort` as it starts that channel's videos. With Codex, pick your strongest model with `/model`.
+Your AI app decides that, not ReelForge. First-time setup asks Claude Code for Opus at high effort in the ReelForge
+folder (in `.claude/settings.local.json`) and never changes it after that. Claude Code started in a terminal in that
+folder begins that way, but ReelForge can't control it everywhere:
+
+- The Claude desktop app uses the model and effort you pick under its prompt box.
+- A session that's already open keeps the ones it started with.
+- Your plan and its usage limits decide which models you can use.
+
+Type `/model` or `/effort` in Claude Code to see or change them. With Codex, ReelForge's `.codex/config.toml` asks
+for high reasoning once you trust the folder as a project, and `/model` picks the model and how hard it reasons.
+
+More effort means your AI thinks longer before it acts: often a better video, but slower, and it uses more of your
+plan. The **Settings** tab's FAQ says the same, along with answers to other questions.
 
 </details>
 

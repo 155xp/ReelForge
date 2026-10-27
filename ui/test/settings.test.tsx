@@ -32,12 +32,13 @@ afterEach(async () => {
 const frame = (h: Headless) => h.t.captureCharFrame()
 
 describe("the Settings tab", () => {
-  test("shows the channel, your AI's reasoning, this computer and the danger zone", async () => {
+  test("shows the channel, the FAQ, this computer and the danger zone, and no setting for your AI's reasoning", async () => {
     const h = await window()
     const f = frame(h)
     if (process.env.SHOW) console.log(f)
-    for (const text of ["THIS CHANNEL", "YOUR AI'S REASONING", "ON THIS COMPUTER", "DANGER ZONE", "Factory reset…", "Uninstall…", "Change your answers"])
+    for (const text of ["THIS CHANNEL", "FAQ", "▸ Which model does my AI use, and how hard does it think?", "▸ Something isn't working.", "ON THIS COMPUTER", "DANGER ZONE", "Factory reset…", "Uninstall…", "Change your answers"])
       expect(f).toContain(text)
+    for (const gone of ["REASONING", "Max", "High", "Fast", "the standard"]) expect(f).not.toContain(gone)
   })
 
   test("7 opens it", async () => {
@@ -53,10 +54,69 @@ describe("the Settings tab", () => {
     const lines = frame(h).split("\n")
     const at = (text: string) => lines.findIndex((l) => l.includes(text))
     expect(at("DANGER ZONE")).toBeGreaterThan(at("ON THIS COMPUTER"))
-    expect(at("ON THIS COMPUTER")).toBeGreaterThan(at("YOUR AI'S REASONING"))
+    expect(at("ON THIS COMPUTER")).toBeGreaterThan(at("Does ReelForge cost anything?"))
     const top = lines[at("DANGER ZONE")]!
     expect(top.indexOf("DANGER ZONE")).toBeLessThan(10) // from the left edge: the whole width, not one half
     expect(lines.slice(at("DANGER ZONE")).join("\n")).toContain("Uninstall…")
+  })
+
+  test("a question opens its answer under it, one at a time, and closes again", async () => {
+    const h = await window()
+    await clickText(h, "How do I make a video?", 3)
+    let f = frame(h)
+    expect(f).toContain("▾ How do I make a video?")
+    expect(f).toContain("Then say make my first video")
+    const lines = f.split("\n")
+    const at = (text: string) => lines.findIndex((l) => l.includes(text))
+    expect(at("Then say make my first video")).toBeGreaterThan(at("How do I make a video?"))
+    expect(at("Then say make my first video")).toBeLessThan(at("My AI doesn't know about my channel."))
+    await clickText(h, "Does ReelForge post for me?", 3)
+    f = frame(h)
+    expect(f).not.toContain("Then say make my first video")
+    expect(f).toContain("▾ Does ReelForge post for me?")
+    expect(f).toContain("ReelForge never posts, uploads or sends anything")
+    await clickText(h, "Does ReelForge post for me?", 3)
+    expect(frame(h)).not.toContain("never posts, uploads")
+    expect(frame(h)).toContain("▸ Does ReelForge post for me?")
+  })
+
+  test("the first answer is the honest one: your AI app picks the model and how hard it thinks", async () => {
+    const h = await window()
+    await clickText(h, "Which model does my AI use", 3)
+    const f = frame(h)
+    for (const text of ["Your AI app decides that, not ReelForge.", "Opus at high effort", "can't control it everywhere:", "• The Claude desktop app uses the model and effort", "/model or /effort"])
+      expect(f).toContain(text)
+  })
+
+  test("with the keyboard: the arrows move through the questions and Enter or Space opens one", async () => {
+    const h = await window()
+    await clickText(h, "Where are my videos?", 3) // it takes the keyboard, and opens
+    expect(frame(h)).toContain("and as files:")
+    h.t.mockInput.pressArrow("down")
+    await h.settle(300)
+    h.t.mockInput.pressKey("RETURN")
+    await h.settle(300)
+    expect(frame(h)).toContain("▾ Do my stats update while ReelForge is closed?")
+    expect(frame(h)).toContain("once an hour")
+    expect(frame(h)).not.toContain("and as files:")
+    h.t.mockInput.pressKey(" ")
+    await h.settle(300)
+    expect(frame(h)).not.toContain("once an hour")
+  })
+
+  test("in a narrow window the FAQ goes under the channel's answers, and every question still fits", async () => {
+    const h = await window([90, 60])
+    const lines = frame(h).split("\n")
+    const at = (text: string) => lines.findIndex((l) => l.includes(text))
+    expect(at("FAQ  click a question")).toBeGreaterThan(at("Change your answers"))
+    expect(lines[at("FAQ  click a question")]!.indexOf("FAQ")).toBeLessThan(10)
+    expect(frame(h)).toContain("▸ Which model does my AI use, and how hard does it think?")
+    for (const [w, hh] of [[64, 24], [40, 20], [200, 52]] as const) {
+      h.t.resize(w, hh) // drawn whole at every size: a column too narrow to wrap would blank the window
+      await h.settle(300)
+      expect(frame(h)).toContain("THIS CHANNEL")
+    }
+    expect(frame(h)).toContain("FAQ  click a question for its answer")
   })
 
   test("the demo resets and uninstalls nothing: no dialog opens", async () => {

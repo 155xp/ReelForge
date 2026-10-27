@@ -95,13 +95,13 @@ class Generate(unittest.TestCase):
             self.check(format=key, **extra)
 
     def test_variants(self):
-        s = self.check(assistant="codex", platforms=["youtube"], length="30-45", loudness="loud", quality="fast",
-                       cadence="1/week", hud=False)
+        s = self.check(assistant="codex", platforms=["youtube"], length="30-45", loudness="loud", cadence="1/week",
+                       hud=False)
         self.assertEqual(s["video"]["min_seconds"], 30.0)
         self.assertEqual(s["sound"]["target_lufs"], -15.0)
-        self.assertEqual(s["ai"], {"assistant": "codex", "quality": "fast"})  # picked in Advanced settings
-        a, _ = questions.validate(answers(quality="ultra"))
-        self.assertEqual(generate.settings_from(a)["ai"]["quality"], "high")  # anything else: the standard
+        self.assertEqual(s["ai"], {"assistant": "codex"})
+        a, _ = questions.validate(answers(quality="max"))  # an older version's answer: nothing reads it
+        self.assertEqual(generate.settings_from(a)["ai"], {"assistant": "claude"})
 
 
 class JsonFormat(unittest.TestCase):

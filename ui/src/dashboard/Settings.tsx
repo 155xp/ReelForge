@@ -1,18 +1,19 @@
-// The Settings tab (7): this channel's answers from first-time setup and how hard your AI reasons side by side, what
-// ReelForge set up on this computer under them, and the danger zone across the bottom: factory reset and uninstall,
-// each behind a dialog where you type the channel's name. Neither deletes anything: what they clear goes to a backup
-// or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work (with
-// studio/reset.py).
+// The Settings tab (7): this channel's answers from first-time setup and the FAQ side by side (one under the other in a
+// narrow window), what ReelForge set up on this computer under them, and the danger zone across the bottom: factory
+// reset and uninstall, each behind a dialog where you type the channel's name. Neither deletes anything: what they
+// clear goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the
+// work (with studio/reset.py); dashboard/faq.py writes the FAQ.
 
-import { TextAttributes } from "@opentui/core"
-import { useEffect, useState } from "react"
+import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
+import { useState } from "react"
 import { useView } from "../bridge"
+import { useFocus } from "../lib/focus"
 import { lines, type Segs } from "../lib/styled"
 import { DASH } from "../theme"
 import { Button } from "../ui/Button"
-import { RadioSet, Switch, TextField } from "../ui/Fields"
-import { Modal, Panel, Scroll, Wrapped } from "../ui/Panels"
-import { useDash, type AdvancedData } from "./state"
+import { Switch, TextField } from "../ui/Fields"
+import { Markdown, Modal, Panel, Scroll, Wrapped } from "../ui/Panels"
+import { useDash } from "./state"
 
 export interface ComputerRow {
   key: string
@@ -22,16 +23,25 @@ export interface ComputerRow {
   button: string
 }
 
+/** A question and its answer (a little Markdown). */
+export interface FaqItem {
+  q: string
+  a: string
+}
+
 export interface SettingsView {
   name: string
   onboarded: boolean
   rows: [string, string][]
-  ai: (AdvancedData & { about: Record<string, string> }) | null
+  faq: FaqItem[]
   computer: ComputerRow[] | null // null while it's being looked up
   demo: boolean
   bin: string
   several: boolean
 }
+
+/** Narrower than this, the FAQ goes under the channel's answers instead of beside them. */
+const SIDE_BY_SIDE = 110
 
 export interface ResetData {
   note: Segs
@@ -59,6 +69,7 @@ export function typedMatches(typed: string, word: string): boolean {
 export function Settings() {
   const s = useDash()
   const v = useView<SettingsView>(s.bridge, "settings")
+  const [width, setWidth] = useState(0)
   if (!v) {
     return (
       <text fg={DASH.muted} marginTop={1}>
@@ -66,12 +77,20 @@ export function Settings() {
       </text>
     )
   }
+  const side = width === 0 || width >= SIDE_BY_SIDE
   return (
     <Scroll flexGrow={1} scrollY>
       <box height={1} flexShrink={0} />
-      <box flexDirection="row" gap={2} flexShrink={0}>
-        <Channel v={v} />
-        <Reasoning v={v} />
+      <box
+        flexDirection={side ? "row" : "column"}
+        gap={side ? 2 : 1}
+        flexShrink={0}
+        onSizeChange={function (this: Renderable) {
+          setWidth(this.width)
+        }}
+      >
+        <Channel v={v} grow={side} />
+        <Faq items={v.faq} grow={side} />
       </box>
       <box height={1} flexShrink={0} />
       <Computer v={v} />
@@ -81,8 +100,9 @@ export function Settings() {
   )
 }
 
-/** This channel's answers, and the button that asks first-time setup's questions again. */
-function Channel({ v }: { v: SettingsView }) {
+/** This channel's answers, and the button that asks first-time setup's questions again. grow: half the row (beside
+ * the FAQ), else as tall as its rows (over it). */
+function Channel({ v, grow }: { v: SettingsView; grow: boolean }) {
   const s = useDash()
   const width = Math.max(...v.rows.map(([label]) => label.length), 8) + 3
   const change = () => {
@@ -90,7 +110,7 @@ function Channel({ v }: { v: SettingsView }) {
     s.nav.onboard("settings", "settings")
   }
   return (
-    <Panel title={`THIS CHANNEL: ${v.name.toUpperCase()}`} flexGrow={1} flexShrink={1}>
+    <Panel title={`THIS CHANNEL: ${v.name.toUpperCase()}`} flexGrow={grow ? 1 : undefined} flexShrink={grow ? 1 : 0}>
       {v.onboarded ? (
         v.rows.map(([label, value]) => (
           <text key={label} wrapMode="none" flexShrink={0}>
@@ -110,40 +130,63 @@ function Channel({ v }: { v: SettingsView }) {
   )
 }
 
-/** How hard your AI reasons on each video (the profile menu's Advanced settings opens this tab). */
-function Reasoning({ v }: { v: SettingsView }) {
-  const s = useDash()
-  const [level, setLevel] = useState(v.ai?.current ?? "high")
-  useEffect(() => setLevel(v.ai?.current ?? "high"), [v.ai?.current])
+/** The FAQ: a question a row, its answer opening under it (one at a time). A click opens or closes one; with the
+ * keyboard (Tab), the arrows move and Enter or Space opens. grow: half the row, beside the channel's answers. */
+function Faq({ items, grow }: { items: FaqItem[]; grow: boolean }) {
+  const [open, setOpen] = useState<number | null>(null)
+  const [cursor, setCursor] = useState(0)
+  const [hover, setHover] = useState<number | null>(null)
+  const toggle = (i: number) => setOpen((o) => (o === i ? null : i))
+  const { ref, focused, focus } = useFocus("settings-faq", {
+    disabled: !items.length,
+    onKey: (key: KeyEvent) => {
+      const n = items.length
+      if (key.name === "up") setCursor((c) => (c - 1 + n) % n)
+      else if (key.name === "down") setCursor((c) => (c + 1) % n)
+      else if (key.name === "return" || key.name === "enter" || key.name === "space") toggle(cursor)
+      else return false
+      key.preventDefault()
+      return true
+    },
+  })
   return (
-    <Panel title="YOUR AI'S REASONING" flexGrow={1} flexShrink={1}>
-      {v.ai ? (
-        <>
-          <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
-            {`How hard your AI thinks on each of ${v.ai.channel}'s videos. High suits almost every channel.`}
-          </text>
-          <box marginTop={1} flexShrink={0}>
-            <RadioSet id="settings-reasoning" options={v.ai.options} value={level} onChange={setLevel} />
-          </box>
-          <text fg={DASH.text} wrapMode="word" marginTop={1} flexShrink={0}>
-            {v.ai.about[level] ?? ""}
-          </text>
-          <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
-            <Button
-              id="settings-reasoning-save"
-              label="Save"
-              disabled={level === v.ai.current}
-              onPress={() => {
-                void s.bridge.call<boolean>("set_reasoning", level).then(() => s.bridge.send("tab_opened", "settings"))
-              }}
-            />
-          </box>
-        </>
-      ) : (
-        <text fg={DASH.muted} wrapMode="word" flexShrink={0}>
-          Set up the channel first: first-time setup asks how hard your AI should work on its videos.
-        </text>
-      )}
+    <Panel title="FAQ" sub={<text fg={DASH.faint} wrapMode="none">click a question for its answer</text>} flexGrow={grow ? 1 : undefined} flexShrink={grow ? 1 : 0}>
+      <box ref={ref} flexDirection="column" flexShrink={0}>
+        {items.map((item, i) => {
+          const shown = open === i
+          const here = focused && cursor === i
+          return (
+            <box key={item.q} flexDirection="column" flexShrink={0}>
+              <box
+                flexDirection="row"
+                flexShrink={0}
+                backgroundColor={here ? DASH.cursor : hover === i ? DASH.raised : undefined}
+                onMouseOver={() => setHover(i)}
+                onMouseOut={() => setHover((h) => (h === i ? null : h))}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return
+                  e.stopPropagation()
+                  focus()
+                  setCursor(i)
+                  toggle(i)
+                }}
+              >
+                <text fg={shown ? DASH.text : DASH.faint} width={2} flexShrink={0}>
+                  {shown ? "▾" : "▸"}
+                </text>
+                <text fg={shown || here || hover === i ? DASH.text : DASH.muted} attributes={shown ? TextAttributes.BOLD : undefined} wrapMode="word" flexGrow={1} flexShrink={1}>
+                  {item.q}
+                </text>
+              </box>
+              {shown ? (
+                <box paddingLeft={2} marginTop={1} marginBottom={1} flexShrink={0}>
+                  <Markdown text={item.a} />
+                </box>
+              ) : null}
+            </box>
+          )
+        })}
+      </box>
     </Panel>
   )
 }

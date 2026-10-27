@@ -220,7 +220,7 @@ class WhatsNewTest(unittest.TestCase):
 
     def test_whats_new_is_short_and_says_first_time_setup(self):
         shown = self.NOTES.read_text(encoding="utf-8").split("\n---")[0]
-        for word in ("onboarding", "ultracode"):
+        for word in ("onboarding", "ultracode", "advanced settings"):
             self.assertNotIn(word, shown.lower())
         for line in shown.splitlines():
             # Each bullet on one line, a bold lead first: the Updates tab before 1.0.6 (which people read these notes

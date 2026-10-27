@@ -23,7 +23,7 @@ from . import KIT_NAME, command, doctor, generate, logo, profiles, setup_flow, s
 from . import paths as P
 from . import settings as S
 from .bridge import Loop, Service, rpc
-from .questions import BY_KEY, KEPT, QUESTIONS, STEPS, Q, coerce, defaults_for
+from .questions import BY_KEY, QUESTIONS, STEPS, Q, coerce, defaults_for
 
 GOOD, BAD, WARN, MUTED = "#4ade80", "#ff5a4e", "#ffc83a", "#8a94a3"
 BLURBS = {
@@ -46,7 +46,7 @@ NEW_BLURB = ("A new channel, with its own accounts, stats and settings. Answer a
              "ReelForge about you and your AI is filled in already); you can change anything later from its Settings "
              "in the profile menu.")
 # A new profile starts from these answers of the profile it's made from: about you and your AI, not the channel.
-CARRIED = ("creator", "assistant", "quality", "timezone", "background_stats")
+CARRIED = ("creator", "assistant", "timezone", "background_stats")
 
 
 def seg_line(*parts) -> list:
@@ -62,7 +62,7 @@ def saved_answers(profile=None) -> dict | None:
         return None
     try:
         return {k: v for k, v in json.loads(path.read_text(encoding="utf-8")).items()
-                if k in BY_KEY or k in KEPT or k.startswith("_")}
+                if k in BY_KEY or k.startswith("_")}
     except ValueError:
         return None
 

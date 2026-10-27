@@ -75,10 +75,11 @@ file is for, ask.
 ## How {{ who }} works with you
 
 {% if claude %}
-- **Opus at {{ effort }} effort, always**, for every session and every subagent you start for this channel.
-  {% if extra %}The ReelForge folder's `.claude/settings.local.json` holds {{ main_name }}'s effort, which can be another one.{% else %}First-time setup set it for this folder in `.claude/settings.local.json`.{% endif %} If you are not on Opus at {{ effort }} effort,
-  say so in one line and tell {{ who }} how to switch: `/model opus` and `/effort {{ effort }}` (in the desktop app:
-  the model picker under the prompt box, then Effort).
+- **Opus, always**, for every session and every subagent you start for this channel. If you are not on Opus, say so
+  in one line and tell {{ who }} how to switch: `/model opus` (in the desktop app: the model picker under the prompt
+  box). How hard you think is up to {{ who }} and their AI app, not ReelForge{% if s.ai.assistant in ("claude", "both") %}: first-time
+  setup asked Claude Code for {{ effort }} effort in the ReelForge folder (`.claude/settings.local.json`), and `/effort`
+  changes it{% else %}, and `/effort` changes it{% endif %}.
 {% else %}
 - **Your strongest model at your highest reasoning effort, always.** Pick the model with `/model`; set
   `model_reasoning_effort = "high"` (or higher, if your model offers it) in `~/.codex/config.toml`. The kit's
@@ -87,7 +88,8 @@ file is for, ask.
 - **Rendering runs Blender** from `tools/` (or the installed copy), which writes into this folder and uses the GPU.
   If your sandbox blocks it, ask {{ who }} to approve the command or to give you write access to this folder.
 {% endif %}
-- **{{ quality_name }}, always.** {{ Who }}'s bar for every video: {{ quality_text }}
+- **A great video, checked carefully, every time.** Fix every fault QA or your review finds, without endless optional
+  polish.
 - **Copy proven formats, then do them better.** Start from what is already pulling views in this niche
   (`docs/RESEARCH.md`, notes in `research/`) and add the channel's twist at the climax. Don't invent untested
   premises.

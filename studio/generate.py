@@ -30,30 +30,16 @@ CADENCE = {"2/day": (2, 14, "2 videos a day"), "1/day": (1, 7, "1 video a day"),
            "3/week": (0, 3, "3 videos a week"), "1/week": (0, 1, "1 video a week"),
            "ask": (0, 0, "only when asked")}   # no regular videos: a production run makes none
 LENGTHS = {"61-75": (61.0, 75.0), "45-60": (45.0, 60.0), "30-45": (30.0, 45.0)}
-QUALITY = {
-    "max": ("Max", "the best video you are capable of, with no shortcuts, as many passes as it takes, and every "
-                   "frame deliberate. Time and usage are not the constraint; quality is. If a choice is between done "
-                   "and great, keep going until it's great."),
-    "high": ("High", "a great video, checked carefully: fix every fault QA or your review finds, without endless "
-                     "optional polish."),
-    "fast": ("Fast", "quick drafts to test ideas: simpler scenes and fewer passes, but still checked by QA and your "
-                     "own review before anything ships."),
-}
-
-
-EFFORT = {"max": "max", "high": "high", "fast": "medium"}       # Claude Code effort level per quality choice
-# The choices in ReelForge's Advanced settings (the "quality" answer; High is the standard): key, name, what it does.
-REASONING = [
-    ("max", "Max", "the best video it can make, slower and heavier on your plan"),
-    ("high", "High", "the standard, great videos checked carefully"),
-    ("fast", "Fast", "quick drafts to try ideas, still checked by QA"),
-]
+# What first-time setup asks Claude Code for in the ReelForge folder. Only a start: your AI app has the last word on
+# the model and how hard it thinks (the Settings tab's FAQ says so, dashboard/faq.py), so ReelForge never changes them.
+CLAUDE_MODEL, CLAUDE_EFFORT = "opus", "high"
 
 
 def write_claude_settings(s: dict) -> Path | None:
-    """Model and effort for Claude Code in this folder, in .claude/settings.local.json (per computer, never shared).
-    Other keys already in the file (permissions and the like) are kept. Max effort needs the
-    CLAUDE_CODE_EFFORT_LEVEL variable: the effortLevel key only goes up to xhigh."""
+    """First-time setup's model and effort for Claude Code in this folder, in .claude/settings.local.json (per computer,
+    never shared): Opus at high effort, for whichever of the two the file doesn't name already. Other keys already in
+    the file (permissions and the like) are kept. An effort is the effortLevel key or the CLAUDE_CODE_EFFORT_LEVEL
+    variable (max effort needs that: effortLevel only goes up to xhigh). None when there's nothing to add."""
     if s["ai"]["assistant"] not in ("claude", "both"):
         return None
     path = P.ROOT / ".claude" / "settings.local.json"
@@ -62,18 +48,17 @@ def write_claude_settings(s: dict) -> Path | None:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except ValueError:
+            data = None
+        if not isinstance(data, dict):
             shutil.copy2(path, path.with_suffix(".json.bak"))
-    env = data.setdefault("env", {})
-    effort = EFFORT[s["ai"]["quality"]]
-    data["model"] = "opus"
-    if effort == "max":
-        env["CLAUDE_CODE_EFFORT_LEVEL"] = "max"
-        data.pop("effortLevel", None)
-    else:
-        env.pop("CLAUDE_CODE_EFFORT_LEVEL", None)
-        data["effortLevel"] = effort
-    if not env:
-        data.pop("env")
+            data = {}
+    env = data.get("env")
+    effort = "effortLevel" in data or (isinstance(env, dict) and "CLAUDE_CODE_EFFORT_LEVEL" in env)
+    if "model" in data and effort:
+        return None
+    data.setdefault("model", CLAUDE_MODEL)
+    if not effort:
+        data["effortLevel"] = CLAUDE_EFFORT
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
     return path
@@ -148,8 +133,7 @@ def settings_from(a: dict) -> dict:
         },
         "schedule": {"per_day": per_day, "per_week": per_week, "post_times": a.get("post_times", "").strip(),
                      "timezone": a.get("timezone", "").strip()},
-        "ai": {"assistant": a.get("assistant", "claude"),
-               "quality": a.get("quality") if a.get("quality") in QUALITY else "high"},
+        "ai": {"assistant": a.get("assistant", "claude")},
     }
 
 
@@ -159,7 +143,6 @@ SETTINGS_COMMENTS = {
     "video.min_seconds": "TikTok's Creator Rewards only pays for videos over a minute",
     "sound": "Ask before changing: every mix is mastered to target_lufs and QA fails anything 2 LU louder.",
     "captions.tiktok_first_tag": "empty = none",
-    "ai.quality": "how hard your AI reasons: max, high (the standard) or fast; Advanced settings in ReelForge",
 }
 
 
@@ -259,9 +242,7 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
         "cadence": cadence, "per_day": per_day, "per_week": per_week,
         "per_run": _per_run(per_day, per_week),
         "post_times": s["schedule"]["post_times"], "timezone": s["schedule"]["timezone"],
-        "quality": s["ai"]["quality"], "quality_name": QUALITY[s["ai"]["quality"]][0],
-        "effort": EFFORT[s["ai"]["quality"]],
-        "quality_text": QUALITY[s["ai"]["quality"]][1],
+        "effort": CLAUDE_EFFORT,
         "py": P.venv_python(), "sep": sep, "win": win,
         "app_cmd": "reelforge",
         "onboard_cmd": ("reelforge channel, or " + ("channel.bat" if win else "./channel.sh")) if profile.main else
@@ -332,6 +313,7 @@ def write_all(answers: dict, profile=None) -> list[Path]:
     """Validate the answers and write every file, for a profile (the one this process works on, by default). Returns
     the paths written. Raises ValueError on bad answers."""
     w = _where(profile)
+    first = not w.settings.exists()                     # first-time setup: the channel isn't set up yet
     a, problems = validate(answers)
     if problems:
         raise ValueError("some answers need fixing:\n  " + "\n  ".join(problems))
@@ -372,7 +354,7 @@ def write_all(answers: dict, profile=None) -> list[Path]:
     log = w.completed / "production-log.md"
     if not log.exists():
         out(log, render("production-log.md.j2", context(a, s, "claude", w.profile)))
-    if w.profile.main:  # Claude Code's settings for the ReelForge folder, where your AI works on every channel
+    if w.profile.main and first:  # Claude Code's for the ReelForge folder, where your AI works on every channel
         cs = write_claude_settings(s)
         if cs:
             written.append(cs)
@@ -428,16 +410,3 @@ def set_account(platform: str, handle: str) -> list[Path]:
         return write_all(a)
     except ValueError:                                        # answers onboarding would ask about again first
         return dashboard_config.set_handle(platform, handle)
-
-
-def set_reasoning(level: str) -> list[Path]:
-    """How hard your AI reasons on each video (REASONING: max, high or fast), as ReelForge's Advanced settings pick it,
-    for the profile this process works on: it goes into your answers, and everything first-time setup wrote follows
-    (Claude Code's effort level for the folder and your AI's notes). Returns the paths written; raises ValueError when
-    the channel isn't set up yet or the level isn't one of them."""
-    if level not in QUALITY:
-        raise ValueError(f"{level!r} isn't one of: {', '.join(QUALITY)}")
-    if not P.ANSWERS.exists():
-        raise ValueError("Set up your channel first.")
-    a = json.loads(P.ANSWERS.read_text(encoding="utf-8"))
-    return write_all({**a, "quality": level})

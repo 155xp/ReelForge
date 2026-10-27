@@ -158,10 +158,9 @@ QUESTIONS: list[Q] = [
     Q("post_times", "posting", "When do you usually post?", default="8-11 am and 5-8 pm"),
     Q("timezone", "posting", "Your time zone", default=lambda a: _local_timezone()),
 ]
-# How hard your AI reasons on each video (the "quality" answer) isn't asked: it's High unless you pick another in
-# ReelForge's Advanced settings (studio/generate.py REASONING, set_reasoning).
-KEPT = ("quality",)  # answers set outside the questions: answering them again keeps these
-RETIRED = ("ultracode",)  # answers older versions asked for that nothing reads now: saving the answers drops them
+# Answers older versions saved that nothing reads now: saving the answers drops them. ("quality" was how hard your AI
+# should work: that's your AI app's to decide, as the Settings tab's FAQ says.)
+RETIRED = ("ultracode", "quality")
 
 BY_KEY = {q.key: q for q in QUESTIONS}
 

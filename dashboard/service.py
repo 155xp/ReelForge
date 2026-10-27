@@ -100,9 +100,9 @@ HELP = [
                      "read yet."),
     ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
                     "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
-    ("Settings (7)", "This channel's answers from first-time setup (Change your answers asks the questions again), how "
-                     "hard your AI reasons on each video, and what ReelForge set up on this computer: the hourly stats "
-                     "read, the reelforge command and the icon. At the bottom, Factory reset puts every channel's "
+    ("Settings (7)", "This channel's answers from first-time setup (Change your answers asks the questions again), an "
+                     "FAQ (click a question for its answer), and what ReelForge set up on this computer: the hourly "
+                     "stats read, the reelforge command and the icon. At the bottom, Factory reset puts every channel's "
                      "settings, log-ins and stats in a backup and starts first-time setup again (your videos stay), "
                      f"and Uninstall removes ReelForge, keeping your videos in a folder beside it. Neither deletes "
                      f"anything: what they clear goes to a backup or the {desktop.BIN}."),
@@ -391,46 +391,6 @@ class Dashboard(SettingsTab, Service):
         self.notify(f"{name} is in the {desktop.BIN}. Restore it from there to bring it back.",
                     title="Profile removed", timeout=10)
         self.update_profile()
-        return True
-
-    # ---------------------------------------------------------------- advanced settings
-
-    @rpc
-    def advanced_info(self) -> dict | None:
-        """The profile menu's Advanced settings: how hard your AI reasons on each video (High is the standard)."""
-        try:
-            from studio import generate
-            from studio import settings as S
-        except Exception:
-            return None
-        current = "high" if self.demo else S.load()["ai"]["quality"]
-        channel = self.profile.name if self.profile is not None and not self.demo else "your channel"
-        return {"current": current if current in generate.QUALITY else "high", "channel": channel,
-                "options": [[key, f"{name}: {what}"] for key, name, what in generate.REASONING]}
-
-    @rpc
-    def set_reasoning(self, level: str) -> bool:
-        """Save Advanced settings' choice: your answers, Claude Code's effort for the folder and your AI's notes."""
-        if self.demo:
-            self.notify("Demo mode: nothing is saved.", timeout=4)
-            return False
-        try:
-            from studio import generate
-
-            generate.set_reasoning(level)
-        except Exception as e:
-            self.notify(f"Couldn't save it: {e}", severity="error", timeout=10)
-            return False
-        name = dict((k, n) for k, n, _ in generate.REASONING)[level]
-        effort = generate.EFFORT[level]
-        if self.profile is not None and not self.profile.main:  # Claude Code's effort is the folder's: the first one's
-            more = (f"Claude Code's effort in the ReelForge folder is {profiles.main().name}'s, so type /effort {effort} "
-                    "when you make this channel's videos.")
-        else:
-            more = (f"A Claude Code session that's already open keeps its effort until you start a new one (or type "
-                    f"/effort {effort}).")
-        self.notify(f"Your AI now works at {name} on this channel's videos. {more}", title="Advanced settings saved",
-                    timeout=10)
         return True
 
     def started(self) -> None:

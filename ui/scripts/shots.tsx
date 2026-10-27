@@ -42,8 +42,9 @@ export const SHOTS: Record<string, Shot> = {
   "app-accounts": { screen: "dashboard", options: { ...demo("accounts"), unconnected: ["x"] }, size: APP, folder: "docs/screenshots" },
   // the profile button's menu: the demo's two channels, New profile and this one's settings
   "app-profiles": { screen: "dashboard", options: demo("overview"), size: APP, folder: "docs/screenshots", then: openProfiles },
-  // the Settings tab: the channel's answers, how hard the AI reasons, this computer, and the danger zone
-  "app-settings": { screen: "dashboard", options: demo("settings"), size: APP, folder: "docs/screenshots" },
+  // the Settings tab: the channel's answers, the FAQ with its first answer open, this computer, and the danger zone
+  // (tall enough for all of it)
+  "app-settings": { screen: "dashboard", options: demo("settings"), size: [180, 62], folder: "docs/screenshots", then: openFirstAnswer },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },
   overview: { screen: "dashboard", options: demo("overview", true), size: GUIDE, folder: "dashboard/docs" },
@@ -87,6 +88,10 @@ async function toAccountsStep(h: Headless) {
 async function openProfiles(h: Headless) {
   await h.t.mockInput.pressKey("p")
   await h.settle(800)
+}
+
+async function openFirstAnswer(h: Headless) {
+  await clickText(h, "Which model does my AI use", 3)
 }
 
 async function pickFirstVideo(h: Headless) {

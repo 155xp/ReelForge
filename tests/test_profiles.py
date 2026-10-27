@@ -180,14 +180,14 @@ class Onboarding(Scratch):
         self.assertEqual((self.root / "CLAUDE.md").read_text(encoding="utf-8"), before)
 
     def test_the_interview_makes_a_new_profile_from_your_answers_about_you(self):
-        self.onboard_main(quality="max")
+        self.onboard_main(assistant="both")
         svc = Setup(Loop(out=io.StringIO()))
         init = svc.start({"start": "onboard", "new": True, "embedded": True})
         self.assertTrue(init["new"])
         start = svc.onboard_start()
         self.assertEqual((start["side"], start["create"]), ("Set up a new channel", "Create the profile"))
-        self.assertEqual((svc.answers["creator"], svc.answers["quality"]), ("Sam", "max"))  # about you: carried
-        self.assertNotIn("channel_name", svc.answers)                                       # the channel: not
+        self.assertEqual((svc.answers["creator"], svc.answers["assistant"]), ("Sam", "both"))  # about you: carried
+        self.assertNotIn("channel_name", svc.answers)                                         # the channel: not
         svc.onboard_step(1)
         bad = svc.onboard_next({"channel_name": "night physics", "about": "Facts."})
         self.assertFalse(bad["ok"])
@@ -205,45 +205,44 @@ class Onboarding(Scratch):
         self.assertEqual(done["back"], "Back to Night Physics")
         self.assertIn('make my first Cool Epic Facts video', json.dumps(done["steps"]))
 
-    def test_advanced_settings_pick_how_hard_the_ai_reasons_and_answering_again_keeps_it(self):
-        self.onboard_main(ultracode=True)  # an older channel's answers
-        self.assertEqual(S.load()["ai"], {"assistant": "claude", "quality": "high"})  # the standard
+    def test_first_time_setup_asks_claude_code_for_opus_at_high_effort_and_never_changes_it_after(self):
+        self.onboard_main(ultracode=True, quality="max")  # an older channel's answers: neither is asked any more
+        self.assertEqual(S.load()["ai"], {"assistant": "claude"})
+        saved = json.loads((self.root / "my-studio" / "answers.json").read_text(encoding="utf-8"))
+        self.assertFalse({"quality", "ultracode"} & set(saved))
         local = self.root / ".claude" / "settings.local.json"
-        self.assertEqual(json.loads(local.read_text(encoding="utf-8"))["effortLevel"], "high")
-        with redirect_stdout(io.StringIO()):
-            generate.set_reasoning("max")
-        self.assertEqual(S.load()["ai"]["quality"], "max")
-        self.assertEqual(json.loads(local.read_text(encoding="utf-8"))["env"]["CLAUDE_CODE_EFFORT_LEVEL"], "max")
-        self.assertIn("Opus at max effort", (self.root / "CLAUDE.md").read_text(encoding="utf-8"))
-        self.assertNotIn("ultracode", (self.root / "CLAUDE.md").read_text(encoding="utf-8").lower())
+        self.assertEqual(json.loads(local.read_text(encoding="utf-8")), {"model": "opus", "effortLevel": "high"})
+        notes = (self.root / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("**Opus, always**", notes)
+        self.assertIn("How hard you think is up to Sam and their AI app, not ReelForge", notes)
+        for gone in ("ultracode", "advanced settings", "max, always", "high, always", "fast, always"):
+            self.assertNotIn(gone, notes.lower())
+        # What you pick after that is yours: answering the channel's questions again (or an update) leaves it be.
+        mine = json.dumps({"model": "sonnet", "env": {"CLAUDE_CODE_EFFORT_LEVEL": "max"}, "permissions": {}})
+        local.write_text(mine, encoding="utf-8")
+        self.onboard_main(about="Something new.")
+        self.assertEqual(local.read_text(encoding="utf-8"), mine)
         svc = Setup(Loop(out=io.StringIO()))
         svc.start({"start": "onboard", "preview": True})
         svc.onboard_start()
-        self.assertEqual(svc.answers["quality"], "max")  # the channel's questions again: still Max
-        with self.assertRaises(ValueError):
-            generate.set_reasoning("ultracode")
+        self.assertNotIn("quality", svc.answers)
+        local.write_text("{}", encoding="utf-8")  # even with nothing in it
+        self.onboard_main()
+        self.assertEqual(local.read_text(encoding="utf-8"), "{}")
 
-    def test_another_channels_reasoning_goes_in_its_notes_and_the_folder_keeps_the_first_ones_effort(self):
-        from dashboard.service import Dashboard
-
-        self.onboard_main()  # the first channel, at High
+    def test_another_channel_leaves_claude_codes_settings_alone(self):
+        self.onboard_main()  # the first channel
+        local = self.root / ".claude" / "settings.local.json"
+        before = local.read_text(encoding="utf-8")
         a = profiles.create("Cool Epic Facts")
         with redirect_stdout(io.StringIO()):
             generate.write_all({**ANSWERS, "channel_name": "Cool Epic Facts"}, a)
-        local = self.root / ".claude" / "settings.local.json"
-        before = local.read_text(encoding="utf-8")
-        os.environ[profiles.ENV] = a.key
-        said = []
-        window = SimpleNamespace(demo=False, profile=a, notify=lambda text, **kw: said.append(text))
-        with redirect_stdout(io.StringIO()):
-            self.assertTrue(Dashboard.set_reasoning(window, "max"))
-        self.assertEqual(S.load(a.settings)["ai"]["quality"], "max")
-        self.assertEqual(local.read_text(encoding="utf-8"), before)  # Claude Code's effort here is still High
+        self.assertEqual(local.read_text(encoding="utf-8"), before)
+        self.assertFalse((a.folder / ".claude").exists())
         notes = (a.folder / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn("Opus at max effort", notes)
-        self.assertIn("holds Night Physics's effort, which can be another one", notes)
-        self.assertIn("is Night Physics's, so type /effort max when you make this channel's videos", said[0])
-
+        self.assertIn("**Opus, always**", notes)
+        self.assertIn("high effort in the ReelForge folder (`.claude/settings.local.json`)", notes)
+        self.assertNotIn("which can be another one", notes)
 
 CHROME = signup.Private("Chrome", ("chrome.exe", "--incognito"))
 

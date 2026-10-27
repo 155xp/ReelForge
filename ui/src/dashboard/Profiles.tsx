@@ -1,7 +1,6 @@
 // Profiles: one for each channel (studio/profiles.py). The button at the top left shows this window's profile (with a
 // red dot when another one has unread notifications); its menu lists every profile, with the platforms each has
-// connected and its unread notifications, and offers a new profile, this one's settings, Advanced settings (the Settings
-// tab), and removing another one.
+// connected and its unread notifications, and offers a new profile, this one's settings, and removing another one.
 // Picking a profile shows it in this window: ui/src/root.tsx starts the Python side again on it.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
@@ -45,7 +44,7 @@ export function ProfileButton({ room = 40 }: { room?: number }) {
   )
 }
 
-type Item = { kind: "profile"; row: ProfileRow } | { kind: "new" } | { kind: "settings" } | { kind: "advanced" }
+type Item = { kind: "profile"; row: ProfileRow } | { kind: "new" } | { kind: "settings" }
 
 /** One row of the menu, as styled text fitted to the menu's width. */
 function rowSegs(row: ProfileRow, width: number, highlighted: boolean): Segs {
@@ -84,15 +83,10 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
   const current = data.rows.find((r) => r.current)
   const items: Item[] = [...data.rows.map((row) => ({ kind: "profile", row }) as Item), { kind: "new" }]
   if (current) items.push({ kind: "settings" })
-  if (current && data.onboarded) items.push({ kind: "advanced" })
   const [index, setIndex] = useState(Math.max(data.rows.findIndex((r) => r.current), 0))
   const width = MENU_WIDTH - 4
   const run = (item: Item | undefined, remove = false) => {
     if (!item) return
-    if (item.kind === "advanced") {
-      close()
-      return s.setTab("settings") // how hard your AI reasons is on the Settings tab (the demo shows it too)
-    }
     if (data.demo) {
       close()
       s.bridge.emit("toast", { title: "Demo mode", body: "Profiles can't be switched, added or removed in the demo.", severity: "information", timeout: 5 })
@@ -198,7 +192,6 @@ function MenuBox({ data, close }: { data: ProfilesMenu; close: () => void }) {
       </text>
       {action(" +  New profile", data.rows.length)}
       {current ? action(` ›  ${data.onboarded ? "Settings for" : "Set up"} ${current.name}`, data.rows.length + 1) : null}
-      {current && data.onboarded ? action(" ›  Advanced settings", data.rows.length + 2) : null}
       <text fg={DASH.faint} wrapMode="none" flexShrink={0} marginTop={1}>
         {"  ↑↓ pick   Enter opens   Delete removes   Esc closes"}
       </text>

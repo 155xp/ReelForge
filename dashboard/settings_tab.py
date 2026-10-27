@@ -1,4 +1,4 @@
-"""The Settings tab (7): this channel's answers from first-time setup, how hard your AI reasons, what ReelForge set up
+"""The Settings tab (7): this channel's answers from first-time setup, an FAQ (dashboard/faq.py), what ReelForge set up
 on this computer (the hourly stats read, the reelforge command, the icon), and the danger zone: factory reset and
 uninstall (studio/reset.py does both, and neither deletes anything for good).
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from studio.bridge import rpc
 
-from . import desktop
+from . import config, desktop, faq
 from .view import MUTED, Text
 
 RESTART = 75  # the launcher starts ReelForge again, and does the reset or the uninstall first (studio/reset.py)
@@ -60,32 +60,30 @@ class SettingsTab:
         name = p.name if p is not None and not self.demo else "Night Physics" if self.demo else "ReelForge"
         rows: list[list[str]] = []
         onboarded = self.demo or bool(p and p.onboarded)
+        assistant = ""  # not set up yet: the FAQ covers Claude Code and Codex
         try:
             from studio import settings as S
 
             if onboarded:
-                rows = _channel_rows(S.load() if not self.demo else S.DEFAULTS | {"channel": {**S.DEFAULTS["channel"],
-                                                                                              "name": name}})
+                s = S.load() if not self.demo else S.DEFAULTS | {"channel": {**S.DEFAULTS["channel"], "name": name}}
+                rows = _channel_rows(s)
+                assistant = s["ai"]["assistant"]
         except Exception:
             rows = []
-        ai = self._reasoning() if onboarded else None
-        if ai:
-            ai["channel"] = name
-        return {"name": name, "onboarded": onboarded, "rows": rows, "ai": ai, "computer": computer,
-                "demo": self.demo, "bin": desktop.BIN, "several": bool(p and not self.demo and self._several())}
+        several = bool(p and not self.demo and self._several())
+        return {"name": name, "onboarded": onboarded, "rows": rows, "faq": self._faq(assistant, name, several),
+                "computer": computer, "demo": self.demo, "bin": desktop.BIN, "several": several}
 
-    def _reasoning(self) -> dict | None:
-        """How hard your AI reasons (the Advanced settings' choice, dashboard/service.py advanced_info): short names
-        for the buttons, and what each one does, shown under them."""
-        info = self.advanced_info()
-        if info is None:
-            return None
-        from studio import generate
+    def _faq(self, assistant: str, name: str, several: bool) -> list[dict]:
+        """The FAQ's questions and answers, for this channel (dashboard/faq.py)."""
+        from studio import paths as P
 
-        info["options"] = [[key, name + (" (the standard)" if key == "high" else "")] for key, name, _ in
-                           generate.REASONING]
-        info["about"] = {key: what[:1].upper() + what[1:] + "." for key, _, what in generate.REASONING}
-        return info
+        from .service import minutes_setting
+
+        main = self.demo or self.profile is None or self.profile.main
+        return faq.items(assistant=assistant, root=P.ROOT, episodes=config.episodes_dir(self.cfg),
+                         completed=config.completed_dir(self.cfg), channel=name, main=main, several=several,
+                         refresh_minutes=minutes_setting(self.cfg, "refresh_minutes", 30), demo=self.demo)
 
     @staticmethod
     def _several() -> bool:

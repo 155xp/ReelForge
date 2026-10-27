@@ -39,9 +39,8 @@ press **p**) for the menu:
 | In the menu | |
 |---|---|
 | a profile | shows it in this window, on the tab you're on (each profile's row has its connected platforms and its unread notifications) |
-| **New profile** | first-time setup for a new channel, inside the window: your name, your AI and how hard it works carry over, the channel's answers start fresh, and it opens on the new profile's Accounts tab |
+| **New profile** | first-time setup for a new channel, inside the window: your name and your AI carry over, the channel's answers start fresh, and it opens on the new profile's Accounts tab |
 | **Settings for …** | the channel's questions again, for the profile you're on |
-| **Advanced settings** | how hard your AI reasons on this channel's videos: **High** (the standard), **Max** (the most reasoning, the best video it can make, slower and heavier on your plan) or **Fast** (quick drafts). Saving it sets Claude Code's effort for the folder and rewrites your AI's notes |
 | **Remove** | another profile's folder goes to the Recycle Bin (Trash on a Mac or Linux), from where you can put it back |
 
 A red dot on the button means another profile has unread notifications. ReelForge opens on the profile you had open
@@ -74,7 +73,7 @@ next time it starts. A tab you type `reelforge` into is called ReelForge too, bu
 | **4 Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
 | **5 Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it, in a private window of your browser once you have more than one profile) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
 | **6 Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
-| **7 Settings** | This channel's answers from first-time setup (**Change your answers**), how hard your AI reasons (**Max**, **High**, **Fast**), and what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button. At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
+| **7 Settings** | This channel's answers from first-time setup (**Change your answers**), an **FAQ** (click a question for its answer; the first says which model your AI uses and how hard it thinks, which your AI app decides, not ReelForge), and what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button. At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
 3× is a hit. **Engagement** = (likes + comments + shares) ÷ views. **Share rate** = shares ÷ views, the strongest

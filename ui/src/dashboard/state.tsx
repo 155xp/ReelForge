@@ -33,13 +33,6 @@ export type Dialog =
   | { kind: "factory_reset"; data: import("./Settings").ResetData }
   | { kind: "uninstall"; data: import("./Settings").UninstallData }
 
-/** How hard your AI reasons on each video (dashboard/service.py advanced_info), High the standard: the Settings tab. */
-export interface AdvancedData {
-  current: string
-  channel: string
-  options: [string, string][]
-}
-
 /** Moving between profiles (one for each channel), which the window does round this one (ui/src/root.tsx): show
  * another profile (its own Python side starts, on this tab), or onboarding in the window, for a new profile or for
  * this one's settings. */
