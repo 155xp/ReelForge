@@ -1,10 +1,12 @@
 // The Compare tab: the platform scoreboard (which platform is working: views per video, like rate, followers gained,
-// and how a typical video grows on each), or one episode on every platform against each one's typical video.
+// and how a typical video grows on each), or one episode on every platform against each one's typical video. The
+// episodes are listed newest first, oldest first or with the most views first (the choice beside their title).
 
 import { useCallback } from "react"
 import { useView } from "../bridge"
 import { ageLabels, lines as drawLines, type Drawn } from "../lib/chart"
-import { DASH } from "../theme"
+import type { Segs } from "../lib/styled"
+import { DASH, mix } from "../theme"
 import { Chart } from "../ui/Chart"
 import { HBars } from "../ui/Graphics"
 import { Line } from "../ui/Line"
@@ -17,14 +19,18 @@ import type { CompareChart, CompareView } from "./types"
 
 export function Compare() {
   const s = useDash()
-  const episodes = useView<{ items: Option[]; selected: string }>(s.bridge, "episodes")
+  const episodes = useView<{ items: Option[]; selected: string; sort?: Segs }>(s.bridge, "episodes")
   const compare = useView<CompareView>(s.bridge, "compare")
   const grow = useProgress(episodes?.selected, { ms: 700 })
   const charts = compare?.charts ?? []
   const rows = [charts.slice(0, 2), charts.slice(2, 4)].filter((r) => r.length)
+  // the chosen order filled, the others plain words (as the Overview's ranges)
+  const sort: Segs = (episodes?.sort ?? []).map((seg) =>
+    !seg[0].trim() ? seg : seg[2] ? [seg[0], DASH.muted, seg[2]] : [seg[0], `bold ${DASH.text} on ${mix(DASH.raised, "#ffffff", 0.05)}`],
+  )
   return (
     <box flexDirection="row" flexGrow={1} marginTop={1} gap={1}>
-      <Panel title="EPISODES" width={44} flexShrink={0} paddingX={1}>
+      <Panel title="EPISODES" width={44} flexShrink={0} paddingX={1} right={sort.length ? <Line segs={sort} /> : undefined}>
         <OptionList
           id="episode-list"
           items={episodes?.items ?? []}

@@ -56,6 +56,9 @@ VIDEO_COLUMNS = [  # (key, label, width); Views 12h is wide enough for its ▼ w
 # Columns of numbers, which line up on the right; the rest read from the left.
 RIGHT = {"views", "views_12h", "likes", "comments", "shares", "eng", "share_rate", "vph", "score", "pscore",
          "followers", "gained", "videos", "median", "share"}
+# How the Compare tab's Episodes list can be sorted: by when each episode first went up, or by its views on every
+# platform added up.
+EPISODE_SORTS = {"newest": "Newest", "oldest": "Oldest", "views": "Most views"}
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
 TABS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
@@ -80,7 +83,8 @@ HELP = [
                    "grouped with the wrong video; Export CSV saves every video as a spreadsheet, with when it went up "
                    "(date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in."),
     ("Compare (3)", "The platform scoreboard, or pick an episode to see the same video on every platform, each "
-                    "against that platform's typical video."),
+                    "against that platform's typical video. Newest, Oldest and Most views beside Episodes sort the "
+                    "list (Most views adds up each episode's views on every platform)."),
     ("Publish (4)", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, "
                     f"shows the file in {desktop.FILES}, and checks for the new post 10 and 30 minutes later. Remove "
                     f"(or a right-click) hides a video or moves it to the {desktop.BIN}; Show hidden brings hidden ones "
@@ -199,6 +203,7 @@ class Dashboard(SettingsTab, Service):
         self.sort = ("score", True)
         self.top_sort = ("score", True)  # Top performers: (column, descending)
         self.compare_target = "board"
+        self.episode_sort = "newest"  # the Compare tab's Episodes list (EPISODE_SORTS)
         self.selected_file: Path | None = None
         self.video_key: str | None = None  # the highlighted row on the Videos tab
         self.status = ""
@@ -253,6 +258,8 @@ class Dashboard(SettingsTab, Service):
         self.tab = tab if tab in TABS else "overview" if self.platforms or tab else "accounts"
         saved = db.get_meta("overview_range", "24h")
         self.range = saved if saved in trends.RANGES else "24h"
+        saved = db.get_meta("episode_sort", "newest")
+        self.episode_sort = saved if saved in EPISODE_SORTS else "newest"
         self.note_seen = self._safe(notify.newest_id, 0)  # what's already there shows in the drawer, not as pop-ups
         self.last_seen = db.get_meta("last_seen")  # totals when ReelForge was last open, for "since you last looked"
         self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
@@ -1089,21 +1096,44 @@ class Dashboard(SettingsTab, Service):
     # --- compare --------------------------------------------------------------------------
 
     def update_episode_list(self) -> None:
-        # How many platforms each episode is on; a second post on the same platform doesn't count twice.
+        # How many platforms each episode is on (a second post on the same platform doesn't count twice), and its views
+        # on all of them.
         on: dict[int, set[str]] = {}
+        views: dict[int, int] = {}
         for p in self.posts:
             if p["episode_id"]:
                 on.setdefault(p["episode_id"], set()).add(p["platform"])
+                views[p["episode_id"]] = views.get(p["episode_id"], 0) + (p["views"] or 0)
+        episodes = list(self.episodes)  # newest first (db.episodes)
+        if self.episode_sort == "oldest":
+            episodes.reverse()
+        elif self.episode_sort == "views":
+            episodes.sort(key=lambda e: views.get(e["id"], 0), reverse=True)  # ties stay newest first
         items = [{"id": "board", "lines": [Text("◆ Platform scoreboard", "bold #ffcc33").json()]}]
         titles = [e["title"] for e in self.episodes]
-        for e in self.episodes:
+        for e in episodes:
             count = len(on.get(e["id"], ()))
-            label = Text(trends.distinct_title(e["title"], titles)[:30].ljust(30))
+            if self.episode_sort == "views":  # each one's views beside it, so the order explains itself
+                label = Text(trends.distinct_title(e["title"], titles)[:27].ljust(27))
+                label.append(f" {fmt_num(views.get(e['id'], 0)):>6}", "bold")
+            else:
+                label = Text(trends.distinct_title(e["title"], titles)[:30].ljust(30))
             label.append(f" {count}/{len(self.platforms)}", GOOD if count == len(self.platforms) else MUTED)
             items.append({"id": f"ep-{e['id']}", "lines": [label.json()]})
         ids = [i["id"] for i in items]
+        sort = chips(*((name, act("sort_episodes", key), key == self.episode_sort)
+                       for key, name in EPISODE_SORTS.items()))
         self.emit("episodes", {"items": items, "selected": self.compare_target if self.compare_target in ids
-                               else "board"})
+                               else "board", "sort": sort.json()})
+
+    @rpc
+    @db_safe
+    def sort_episodes(self, key: str) -> None:
+        """Newest, Oldest or Most views beside the Episodes list: sort it that way, here and in the next window."""
+        if key in EPISODE_SORTS and key != self.episode_sort:
+            self.episode_sort = key
+            self.update_episode_list()
+            db.set_meta("episode_sort", key)
 
     @rpc
     def pick_episode(self, option_id: str) -> None:

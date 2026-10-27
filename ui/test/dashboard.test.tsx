@@ -189,6 +189,27 @@ describe("tables and charts", () => {
     expect(frame(h)).toContain("Views 12h ▲")
   })
 
+  test("Newest, Oldest and Most views beside Episodes sort the Compare tab's list, under the platform scoreboard", async () => {
+    const h = await window("compare")
+    const listed = () => h.bridge.view<{ items: { id: string }[] }>("episodes")!.items.map((i) => i.id).join()
+    const settled = async (ok: () => boolean) => {
+      for (let i = 0; i < 25 && !ok(); i++) await h.settle(200)
+    }
+    expect(rows(h).find((r) => r.includes("EPISODES"))).toContain("Newest   Oldest   Most views")
+    const newest = listed().split(",")
+    const oldest = [newest[0]!, ...newest.slice(1).reverse()].join()
+    await clickText(h, " Oldest ", 2)
+    await settled(() => listed() === oldest)
+    expect(listed()).toBe(oldest)
+    await clickText(h, " Most views ", 2)
+    await settled(() => /\dK 4\/4/.test(frame(h)))
+    expect(frame(h)).toMatch(/\d\.\dK 4\/4/) // each episode's views beside it
+    expect(frame(h)).toContain("◆ Platform scoreboard")
+    await clickText(h, " Newest ", 2)
+    await settled(() => listed() === newest.join())
+    expect(listed()).toBe(newest.join())
+  })
+
   test("the range chips and a platform's key change the charts", async () => {
     const h = await window()
     expect(frame(h)).toContain("in 24h")

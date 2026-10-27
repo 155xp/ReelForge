@@ -150,7 +150,8 @@ posted it. Export CSV saves every video with when it went up (date, weekday, hou
 ### Compare
 
 Which platform is working for you: views per video, like rate and followers gained side by side, and how a typical
-video grows over its first three days on each one.
+video grows over its first three days on each one. Pick an episode from the list (newest first, oldest first or most
+views first) to see it on every platform against each one's typical video.
 
 ![The Compare tab](docs/screenshots/app-compare.png)
 
