@@ -1,3 +1,10 @@
+## What's new in 1.0.8
+
+- **Your stats come first.** The tabs now start Overview, Videos, Compare, Publish, Stats, Accounts, Settings, Updates.
+  - The number keys and `reelforge 1` to `reelforge 8` follow this order. An order you picked yourself stays as it is.
+  - **Reset to default** on the Settings tab puts the tabs in this order.
+- **The badges' pop-up shows whole.** Pointing at the badges on the Overview or Videos tab no longer leaves a stray box under them.
+
 ## What's new in 1.0.7
 
 - **A Stats tab.** Your followers and likes added up across your platforms, over time.
@@ -9,7 +16,6 @@
   - `reelforge profiles delete NAME` and `reelforge profiles restore` do the same from a terminal.
 - **Put the tabs in your order.** On the Settings tab, drag a tab where you want it, or move it with the arrows.
   - The number keys and `reelforge 1` to `reelforge 8` follow your order, in every profile.
-  - Updates and Settings now start at the far left. **Reset to default** puts them back there.
 - **An FAQ on the Settings tab.** Click a question for its answer.
   - The first says which model your AI uses and how hard it thinks: your AI app decides that, and the answer says how to change it.
 - **Sort the Compare tab's episodes.** Newest first, oldest first, or by most views on every platform added up.
