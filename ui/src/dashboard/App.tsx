@@ -1,6 +1,6 @@
-// ReelForge's window: the header (the anvil, the profile button, seven tabs with a marker that slides to the open one,
+// ReelForge's window: the header (the anvil, the profile button, eight tabs with a marker that slides to the open one,
 // Refresh / Help / Quit and the bell), the tab, the status bar at the foot (each platform, when the stats were read,
-// any read under way, the keys), the notifications drawer sliding in from the right, dialogs, and pop-ups. Keys: 1-7
+// any read under way, the keys), the notifications drawer sliding in from the right, dialogs, and pop-ups. Keys: 1-8
 // switch tabs, r / R refresh, p the profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons
 // and fields, Ctrl+Q quits.
 
@@ -24,6 +24,7 @@ import { Overview } from "./Overview"
 import { ProfileButton } from "./Profiles"
 import { Publish } from "./Publish"
 import { Settings } from "./Settings"
+import { Stats } from "./Stats"
 import { DashContext, DashState, TAB_NAMES, TABS, useDash, type Nav } from "./state"
 import type { Init, NotesView, UpdateView } from "./types"
 import { Updates } from "./Updates"
@@ -73,7 +74,7 @@ function Window({ focus }: { focus: FocusManager }) {
     }
     if (focus.handleKey(key)) return
     if (s.dialog || focus.typing || key.ctrl || key.meta) return
-    if (/^[1-7]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
+    if (/^[1-8]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
     if (key.name === "p") return s.openProfiles()
     if (key.name === "?" || key.sequence === "?") return s.set({ dialog: { kind: "help" } })
@@ -112,6 +113,7 @@ function TabContent() {
       {s.tab === "accounts" && <Accounts />}
       {s.tab === "updates" && <Updates />}
       {s.tab === "settings" && <Settings />}
+      {s.tab === "totals" && <Stats />}
       {veil > 8 ? <box position="absolute" left={0} top={0} width="100%" height="100%" zIndex={20} backgroundColor={DASH.bg + veil.toString(16).padStart(2, "0")} /> : null}
     </box>
   )
@@ -136,7 +138,12 @@ function headerFit(width: number, name: string, anvilW: number, tabsW: (gap: num
       const room = width - fixed(anvil) - tabsW(gap) - actions
       if (room >= Math.min(cellLen(name), 12) + 6) return { anvil, gap, words, nameRoom: room - 6 }
     }
-  return { anvil: false, gap: 2, words: false, nameRoom: 6 }
+  // A narrow window: the tabs closer together and the profile's name cut to a few letters.
+  for (const gap of [2, 1]) {
+    const room = width - fixed(false) - tabsW(gap) - 10
+    if (room >= Math.min(cellLen(name), 4) + 6) return { anvil: false, gap, words: false, nameRoom: room - 6 }
+  }
+  return { anvil: false, gap: 1, words: false, nameRoom: 4 }
 }
 
 function Header() {
@@ -274,7 +281,7 @@ function Bell() {
 // ---------------------------------------------------------------- the status bar
 
 const KEYS: [string, string][] = [
-  ["1-7", "tabs"],
+  ["1-8", "tabs"],
   ["r", "refresh"],
   ["p", "profiles"],
   ["?", "help"],

@@ -9,7 +9,8 @@ import type { Init, ProfilesMenu } from "./types"
 /** Rows above a tab's own: the header (3) and the hairline under it. */
 export const TOP_ROWS = 4
 
-export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings"] as const
+// The Stats tab is "totals" (as in dashboard/tabs.py: `reelforge stats` is the hourly job's command).
+export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals"] as const
 export type Tab = (typeof TABS)[number]
 export const TAB_NAMES: Record<Tab, string> = {
   overview: "Overview",
@@ -19,6 +20,7 @@ export const TAB_NAMES: Record<Tab, string> = {
   accounts: "Accounts",
   updates: "Updates",
   settings: "Settings",
+  totals: "Stats",
 }
 
 export type Dialog =

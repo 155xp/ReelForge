@@ -108,8 +108,8 @@ channel change.
 
 ## Inside ReelForge
 
-ReelForge has seven tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 7`, or by name, like
-`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**7** switch tabs, **r** refreshes your
+ReelForge has eight tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 8`, or by name, like
+`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**8** switch tabs, **r** refreshes your
 stats, **p** opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and
 **Esc** closes.
 
@@ -204,6 +204,18 @@ anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Ma
 if something can't be moved (another ReelForge window has it open, say), nothing changes.
 
 ![The Settings tab: the channel's answers, the FAQ with its first answer open, what ReelForge set up on this computer, and the danger zone](docs/screenshots/app-settings.png)
+
+### Stats
+
+Your followers and your likes added up across your platforms, over time. **Add up** at the top ticks the platforms
+the totals count: click one to leave it out, and again to bring it back. Pick 24H, 48H, 7D, 30D or ALL at the right.
+Each chart draws the total from ReelForge's own readings, with a mark where each video went up, and a stretch when
+your computer was off stays empty. Point at a chart to see the totals then, with each platform's part. Beside each
+chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
+its share of the total. `reelforge 8` opens it, and so does `reelforge totals` (`reelforge stats` is the hourly stats
+job).
+
+![The Stats tab: followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
 
 ## Updates
 
@@ -416,7 +428,7 @@ or point `STUDIO_BLENDER` at it.
 <br>
 
 - `reelforge` opens ReelForge.
-- `reelforge 1` to `reelforge 7` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates, Settings.
+- `reelforge 1` to `reelforge 8` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates, Settings, Stats.
 - `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).

@@ -574,7 +574,12 @@ export function lines(
 ): Drawn {
   xaxis = xaxis && h >= 5
   const ys = series.flatMap((s) => (s.ys ?? []).filter(Number.isFinite))
-  const [lo, hi] = ys.length ? (zero ? [0, Math.max(...ys)] : hug(ys)) : [0, 1]
+  let [lo, hi] = ys.length ? (zero ? [0, Math.max(...ys)] : hug(ys)) : [0, 1]
+  if (marks.length) {
+    // keep the top row clear of the lines, so the marks' labels have somewhere to go
+    const rows = Math.max(h - (xaxis ? 2 : 0), 2)
+    hi += (hi - lo) / (rows - 1)
+  }
   const lay = layout(w, h, lo, hi, whole, xaxis)
   place(lay, slots)
   const canvas = new Canvas(lay.pw, lay.ph)

@@ -105,6 +105,63 @@ export interface TrendsView {
   metrics: Record<string, MetricView>
 }
 
+/** A platform at the top of the Stats tab: ticked (counted in the totals) or left out; has: it has stats to count. */
+export interface TotalsToggle {
+  key: string
+  name: string
+  short: string
+  color: string
+  counted: boolean
+  has: boolean
+}
+
+/** A bucket on a Stats chart, for the hover read-out: the total at its end (or now), what it gained in the bucket, and
+ * each counted platform's reading then. */
+export interface TotalsHover {
+  total: number
+  gain: number | null
+  each: Record<string, number | null>
+}
+
+/** A platform in a Stats chart's breakdown: its number now, its gain over the chart's span, its share of the total,
+ * what it gained in each bucket, and when it was last read once that's a while ago. */
+export interface TotalsRow {
+  key: string
+  name: string
+  short: string
+  color: string
+  counted: boolean
+  left_out: boolean
+  value: number | null
+  gained: number | null
+  share: number | null
+  gains: (number | null)[]
+  stale: string | null // "last read 34h ago": a platform whose reads stopped a while ago
+}
+
+/** One of the Stats tab's charts (dashboard/stats_tab.py totals_metric): followers or likes added up. */
+export interface TotalsMetric {
+  name: string
+  empty?: string | null
+  n?: number
+  step_h?: number
+  slots?: Slot[]
+  series?: Series[]
+  hover?: (TotalsHover | null)[]
+  marks?: Mark[]
+  title?: Parts
+  note?: Segs | null
+  rows?: TotalsRow[]
+  total?: { value: number | null; gained: number | null }
+}
+
+export interface TotalsView {
+  range: string
+  ranges: Segs
+  toggles: TotalsToggle[]
+  metrics: Record<string, TotalsMetric>
+}
+
 export type TableView = TableData & { title?: Parts; hint?: Parts; select?: string | null; focus?: boolean; heading?: Segs }
 
 export interface DetailView {

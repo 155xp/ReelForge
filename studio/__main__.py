@@ -1,10 +1,10 @@
 """reelforge [what]   (the same as: python -m studio [what], from this folder)
 
   reelforge                    open ReelForge (the first time: first-time setup)
-  reelforge 1 .. 7             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates,
-                               7 Settings
+  reelforge 1 .. 8             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates,
+                               7 Settings, 8 Stats
   reelforge videos             tabs by name work too: overview, videos, compare, publish, accounts, updates,
-                               settings
+                               settings, totals (the Stats tab: reelforge stats is the hourly job)
   reelforge --demo             try ReelForge on made-up stats
   reelforge refresh            read every profile's stats once and exit
 

@@ -22,6 +22,7 @@ from . import analytics, badges, besttime, config, db, desktop, notify, sync, tr
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
 from .platforms import Platform, PlatformError, PublishItem, browser, connected
 from .settings_tab import SettingsTab
+from .stats_tab import StatsTab
 from .platforms.base import Account, Post
 from .view import (BAD, GOOD, MARK, MUTED, SHORT, TYPICAL, Text, act, change_text, chip, chips, js, legend, num,
                    parts, score_text, tag)
@@ -60,7 +61,7 @@ RIGHT = {"views", "views_12h", "likes", "comments", "shares", "eng", "share_rate
 # platform added up.
 EPISODE_SORTS = {"newest": "Newest", "oldest": "Oldest", "views": "Most views"}
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
-TABS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings")
+TABS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals")
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
 WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
 # Demo mode's profiles (and the README's picture of the menu): (name, connected platforms, unread notifications).
@@ -106,6 +107,12 @@ HELP = [
                      "settings, log-ins and stats in a backup and starts first-time setup again (your videos stay), "
                      f"and Uninstall removes ReelForge, keeping your videos in a folder beside it. Neither deletes "
                      f"anything: what they clear goes to a backup or the {desktop.BIN}."),
+    ("Stats (8)", "Your followers and your likes added up across your platforms, over time: tick or untick a platform "
+                  "at the top to count it in the totals or leave it out, and pick 24H, 48H, 7D, 30D or ALL. Point at "
+                  "a chart to see the totals then, with each platform's part; yellow marks show when each video went "
+                  "up. Beside each chart: every platform's number now, what it gained over the range and its share of "
+                  "the total. A stretch the computer was off for stays empty, and the totals start once every "
+                  "platform you count has a first reading."),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
                       "log-ins that need you. A red dot on the bell means something's unread; click one to go "
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
@@ -124,7 +131,7 @@ HELP = [
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]
-KEYS = [("1-7", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
+KEYS = [("1-8", "switch tabs"), ("r / R", "refresh / force refresh"), ("p", "profiles: switch, add or change one"),
         ("Tab", "move between buttons, lists and fields (Enter presses, the arrows move through a list)"),
         ("Esc", "close the drawer or a dialog, or leave a text field"), ("Ctrl+Q", "quit")]
 
@@ -180,7 +187,7 @@ def table(columns: list[tuple[str, str, int]], rows: list[tuple[str | None, list
                                                              for c in cells]} for k, cells in rows]}
 
 
-class Dashboard(SettingsTab, Service):
+class Dashboard(StatsTab, SettingsTab, Service):
     def __init__(self, loop: Loop):
         super().__init__(loop)
         self.cfg: dict = {}
@@ -260,6 +267,7 @@ class Dashboard(SettingsTab, Service):
         self.range = saved if saved in trends.RANGES else "24h"
         saved = db.get_meta("episode_sort", "newest")
         self.episode_sort = saved if saved in EPISODE_SORTS else "newest"
+        self.load_totals_choices()
         self.note_seen = self._safe(notify.newest_id, 0)  # what's already there shows in the drawer, not as pop-ups
         self.last_seen = db.get_meta("last_seen")  # totals when ReelForge was last open, for "since you last looked"
         self.changes = self._safe(db.changes, 0)  # before the data it goes with (see keep_in_step)
@@ -502,6 +510,8 @@ class Dashboard(SettingsTab, Service):
         if self.trend_frame is not None and analytics.now() >= self.trend_frame.ends[-1]:
             self.update_trends()
             self.update_cards()
+        if self.tab == "totals" and self.totals_frame is not None and analytics.now() >= self.totals_frame.ends[-1]:
+            self.update_totals()
 
     # --- data -----------------------------------------------------------------------------
 
@@ -620,12 +630,14 @@ class Dashboard(SettingsTab, Service):
         since = (analytics.now() - timedelta(days=HISTORY_DAYS)).isoformat(timespec="seconds")
         posts = [p for p in db.posts_latest() if p["platform"] in self.platforms and p["published_at"]]
         analytics.add_early_views(analytics.enrich(posts, parsed), analytics.parse_series(db.early_series()))
+        history = {key: db.account_series(key, "") for key in self.platforms}  # all of it, for the Stats tab's ALL
         return {
             "parsed": parsed,
             "posts": posts,
             "latest": db.latest_accounts(),
             "episodes": db.episodes(),
-            "account_rows": {key: db.account_series(key, since) for key in self.platforms},
+            "account_rows": {key: [r for r in rows if r["ts"] >= since] for key, rows in history.items()},
+            "account_history": history,
             "first_day": badges.first_day_views(),
         }
 
@@ -633,6 +645,7 @@ class Dashboard(SettingsTab, Service):
         data = data or self.load_data()
         self.parsed, self.posts, self.latest = data["parsed"], data["posts"], data["latest"]
         self.episodes, self.account_rows = data["episodes"], data["account_rows"]
+        self.account_history = data["account_history"]
         self.first_day = data["first_day"]
         self.update_header()
         self.update_overview()
@@ -642,7 +655,7 @@ class Dashboard(SettingsTab, Service):
         self.update_posted()
         self.update_best_time()
         # Tabs you're not looking at are rebuilt when you open them.
-        self.stale = {"videos", "compare"}
+        self.stale = {"videos", "compare", "totals"}
         self.update_active_tab()
 
     def update_active_tab(self) -> None:
@@ -650,6 +663,8 @@ class Dashboard(SettingsTab, Service):
             self.stale.discard(self.tab)
             if self.tab == "videos":
                 self.update_videos()
+            elif self.tab == "totals":
+                self.update_totals()
             else:
                 self.update_episode_list()
                 self.update_compare()

@@ -29,7 +29,7 @@ from studio import ui  # noqa: E402
 
 NAMES = ["first-run", "setup-format", "setup-accounts", "first-run-ready", "app-overview",
          "app-notifications", "app-videos", "app-compare", "app-publish", "app-accounts", "app-profiles", "app-settings",
-         "app-updates", "app-notification-click", "overview", "notification-click", "updates"]
+         "app-stats", "app-updates", "app-notification-click", "overview", "notification-click", "updates"]
 
 
 def draw(names: list[str], work: Path) -> list[tuple[str, Path, Path]]:
