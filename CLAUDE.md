@@ -28,7 +28,7 @@ their answers (their channel, format, platforms, style, caption rules and qualit
    - No account on a platform yet? Help them make it: each handle question has its `signup` page and steps, and the
      first has `gmail`, a new Gmail just for the channel to offer first (it signs them in to YouTube, and the
      others can sign up with it). They sign up themselves, in their own browser: never make an account for them or
-     ask for a password. A handle they skip, they can connect later on ReelForge's Accounts tab (tab 5).
+     ask for a password. A handle they skip, they can connect later on ReelForge's Accounts tab.
    - Write their answers to `my-studio/answers.json` (`{"key": value, ...}`), then run
      `.venv\Scripts\python -m studio channel --answers my-studio/answers.json`. It checks the answers and says
      what to fix.
@@ -44,7 +44,6 @@ their answers (their channel, format, platforms, style, caption rules and qualit
 
 ## Always
 
-- Never post, upload or send anything. Finished videos go to ReelForge's Publish tab (tab 4), and they post by
-  hand.
+- Never post, upload or send anything. Finished videos go to ReelForge's Publish tab, and they post by hand.
 - Use your strongest model at high effort for video work.
 - Read `README.md` for what the kit does, and `docs/` for the pipeline, the quality bar and the sound rules.

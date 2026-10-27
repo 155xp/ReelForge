@@ -108,10 +108,11 @@ channel change.
 
 ## Inside ReelForge
 
-ReelForge has eight tabs. Open one straight from a terminal with `reelforge 1` to `reelforge 8`, or by name, like
-`reelforge publish`. Everything works with the mouse or the keyboard: **1**-**8** switch tabs, **r** refreshes your
-stats, **p** opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and
-**Esc** closes.
+ReelForge has eight tabs: Updates and Settings at the far left, then Overview, Videos, Compare, Publish, Accounts and
+Stats. Put them in any order you like on the Settings tab. Open one straight from a terminal by name, like
+`reelforge publish`, or by where it sits, from `reelforge 1` at the far left to `reelforge 8`. Everything works with
+the mouse or the keyboard: **1**-**8** open the tabs in the order they're shown, **r** refreshes your stats, **p**
+opens your profiles, **?** the help, **Tab** moves between buttons and fields, **Enter** presses and **Esc** closes.
 
 The window is calm and dark, so your numbers stand out: each platform keeps its own colour (TikTok cyan, YouTube red,
 Instagram purple, X white), green and red show what went up and down, and amber marks where each video went up.
@@ -211,7 +212,12 @@ setup again, and **Uninstall** removes ReelForge. Both ask you to type your chan
 anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac). Neither stops half-way either:
 if something can't be moved (another ReelForge window has it open, say), nothing changes.
 
-![The Settings tab: the channel's answers, the FAQ with its first answer open, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
+**Tab order**, under the FAQ, puts the tabs along the top in the order you like: drag a tab where you want it, or
+click one and move it with **← Move left** and **Move right →** (or Shift and the arrow keys). The number keys follow
+the new order, and so does `reelforge 1` to `reelforge 8`. It's kept for every channel, and **Reset to default** puts
+Updates and Settings back at the far left.
+
+![The Settings tab: the channel's answers, the FAQ with its first answer open, the tab order, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
 
 ### Stats
 
@@ -220,14 +226,13 @@ the totals count: click one to leave it out, and again to bring it back. Pick 24
 Each chart draws the total from ReelForge's own readings, with a mark where each video went up, and a stretch when
 your computer was off stays empty. Point at a chart to see the totals then, with each platform's part. Beside each
 chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
-its share of the total. `reelforge 8` opens it, and so does `reelforge totals` (`reelforge stats` is the hourly stats
-job).
+its share of the total. `reelforge totals` opens it (`reelforge stats` is the hourly stats job).
 
 ![The Stats tab: followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
 
 ## Updates
 
-When a new version is out, the bell tells you, and the **Updates** tab (`reelforge 6`) gets a red dot and shows
+When a new version is out, the bell tells you, and the **Updates** tab (`reelforge updates`) gets a red dot and shows
 what's new. Click **Update and restart** to install it: the anvil hammers while it installs and hops once it's in.
 Your channel, videos, stats and settings stay as they are, and your AI's instructions are refreshed for the new
 version.
@@ -450,7 +455,8 @@ or point `STUDIO_BLENDER` at it.
 <br>
 
 - `reelforge` opens ReelForge.
-- `reelforge 1` to `reelforge 8` open a tab: Overview, Videos, Compare, Publish, Accounts, Updates, Settings, Stats.
+- `reelforge publish`, `reelforge videos` and so on open a tab by name, and `reelforge 1` to `reelforge 8` by where
+  it sits along the top (1 is the far left).
 - `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
 - `reelforge profiles delete "Channel name"` deletes one you added (it's kept in `backups`), and

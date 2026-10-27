@@ -1,5 +1,5 @@
-// What every part of the window shares: the link to the Python side, the start-up facts, which tab and dialog are
-// showing, the rows highlighted in each table, and what clicking a chip does.
+// What every part of the window shares: the link to the Python side, the start-up facts, the order of the tabs and
+// which one and which dialog are showing, the rows highlighted in each table, and what clicking a chip does.
 
 import { createContext, useContext, useSyncExternalStore } from "react"
 import type { Bridge } from "../bridge"
@@ -9,9 +9,19 @@ import type { Init, ProfilesMenu } from "./types"
 /** Rows above a tab's own: the header (3) and the hairline under it. */
 export const TOP_ROWS = 4
 
-// The Stats tab is "totals" (as in dashboard/tabs.py: `reelforge stats` is the hourly job's command).
+// Every tab. The Stats tab is "totals" (as in dashboard/tabs.py: `reelforge stats` is the hourly job's command). The
+// order they sit in along the top is picked on the Settings tab, and the Python side says what it is (DashState.order).
 export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals"] as const
 export type Tab = (typeof TABS)[number]
+
+/** An order of the tabs as the Python side sends it (dashboard/tabs.py), made whole: each tab once, any missing at the
+ * end. */
+export function tabOrder(order: readonly string[] | undefined): Tab[] {
+  const out: Tab[] = []
+  for (const t of order ?? []) if ((TABS as readonly string[]).includes(t) && !out.includes(t as Tab)) out.push(t as Tab)
+  return [...out, ...TABS.filter((t) => !out.includes(t))]
+}
+
 export const TAB_NAMES: Record<Tab, string> = {
   overview: "Overview",
   videos: "Videos",
@@ -74,6 +84,7 @@ export interface EpisodeData {
 /** The window's own state (what the Python side doesn't need to know), with a way to watch it. */
 export class DashState {
   tab: Tab
+  order: Tab[] // the tabs along the top, left to right: 1-8 open them in this order
   drawer: boolean
   dialog: Dialog | null = null
   picked: string | null = null // a card or account panel framed for a few seconds (a clicked notification)
@@ -96,6 +107,7 @@ export class DashState {
     readonly nav: Nav = NO_NAV,
   ) {
     this.tab = (TABS as readonly string[]).includes(init.tab) ? (init.tab as Tab) : "overview"
+    this.order = tabOrder(init.order)
     this.drawer = init.drawer
     this.tags = init.default_tags
   }
@@ -116,6 +128,18 @@ export class DashState {
     if (!(TABS as readonly string[]).includes(tab)) return
     this.set({ tab: tab as Tab })
     this.bridge.send("tab_opened", tab)
+  }
+
+  /** Put the tabs in this order along the top, and keep it (keep: false while a tab is being dragged, until it's let
+   * go): every ReelForge window shows it, on every profile. */
+  setOrder(order: Tab[], keep = true) {
+    this.set({ order })
+    if (keep) this.bridge.send("set_tab_order", order)
+  }
+
+  /** The default order (Updates and Settings at the far left, then the rest), as the Python side has it. */
+  get defaultOrder(): Tab[] {
+    return tabOrder(this.init.default_order)
   }
 
   toggleDrawer(open = !this.drawer) {

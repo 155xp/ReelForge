@@ -468,7 +468,7 @@ class Setup(Service):
                                               "every video from it.", "")))
         steps.append(seg_line(("  3. ", "bold"), ("Say: ", ""), (f'"{first}"', "bold #ffffff")))
         steps.append(seg_line(("  4. ", "bold"),
-                              ("When it's done, it's waiting in ReelForge → Publish (tab 4), ready for you to post.",
+                              ("When it's done, it's waiting in ReelForge → Publish, ready for you to post.",
                                "")))
         logins, missing = self.needs_login(), self.to_connect()
         login = []

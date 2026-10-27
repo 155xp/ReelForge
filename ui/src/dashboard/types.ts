@@ -15,6 +15,8 @@ export interface PlatformInfo {
 export interface Init {
   platforms: PlatformInfo[]
   tab: string
+  order: string[] // the tabs along the top, left to right (dashboard/tabs.py)
+  default_order: string[] // ... until you pick another order on the Settings tab
   drawer: boolean
   test: boolean
   demo: boolean
@@ -25,7 +27,7 @@ export interface Init {
   bin: string
   anvil: [string, string | null, string | null][][]
   quadrants: boolean
-  help: [string, string][]
+  help: ([string, string] | [string, string, string])[] // [title, what it says, and for a tab its id]
   keys: [string, string][]
   version: string
   max_tags: number

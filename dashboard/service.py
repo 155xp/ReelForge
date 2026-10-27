@@ -20,7 +20,7 @@ from statistics import mean, median
 
 from studio.bridge import Loop, Service, rpc
 
-from . import analytics, badges, besttime, config, db, desktop, notify, sync, trends, videos
+from . import analytics, badges, besttime, config, db, desktop, notify, sync, tabs, trends, videos
 from .analytics import fmt_age, fmt_ago, fmt_clock, fmt_delta, fmt_hours, fmt_num, fmt_pct
 from .platforms import Platform, PlatformError, PublishItem, browser, connected
 from .settings_tab import SettingsTab
@@ -63,7 +63,7 @@ RIGHT = {"views", "views_12h", "likes", "comments", "shares", "eng", "share_rate
 # platform added up.
 EPISODE_SORTS = {"newest": "Newest", "oldest": "Oldest", "views": "Most views"}
 HISTORY_DAYS = 62  # account history kept in memory: the longest range (30 days) and the one before it
-TABS = ("overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals")
+TABS = tabs.TAB_IDS  # every tab (the order they sit in along the top is picked on the Settings tab: dashboard/tabs.py)
 UPDATE_EVERY_H = 6  # how often ReelForge asks GitHub whether there's a newer version
 WATCH_EVERY = 1  # seconds between looks at what the other ReelForge windows (and the hourly job) did
 # Demo mode's profiles (and the README's picture of the menu): (name, connected platforms, unread notifications).
@@ -82,51 +82,52 @@ CANT_DELETE = {
 }
 COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
           "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
-NOTHING_CONNECTED = "Connect an account on the Accounts tab (5) to see your stats here."
+NOTHING_CONNECTED = "Connect an account on the Accounts tab to see your stats here."
+# The help: (title, what it says), and for a tab its id as well: the window puts the tabs in the order you see them
+# along the top, each with the number that opens it.
 HELP = [
-    ("Overview (1)", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / "
-                     "per day on the longer ranges), stacked by platform. Yellow marks show when each video went up. "
-                     "Point at a bar to see that hour's numbers by platform; click a platform in the key to hide it. "
-                     "Under the cards: today's badges, like \"Today: top 10% of your days for new TikTok "
-                     "followers\"."),
-    ("Videos (2)", "Every video on every platform. Views 12h is each one's views 12 hours after it went up, so new and "
-                   "old videos compare fairly (\"in 5h\" until it's that old, — when the computer was off then). Show "
-                   "picks a platform, a header sorts, and clicking a highlighted row (or Open post) opens it. Above "
-                   "the chart: the highlighted video's badges, like \"Top 5% of your TikTok videos for views\". The "
-                   "chart compares its views with your typical video at the same age. Fix episode re-files a post "
-                   "grouped with the wrong video; Export CSV saves every video as a spreadsheet, with when it went up "
-                   "(date, weekday, hour and UTC time) and its views 1, 6, 12 and 24 hours in."),
-    ("Compare (3)", "The platform scoreboard, or pick an episode to see the same video on every platform, each "
-                    "against that platform's typical video. Newest, Oldest and Most views beside Episodes sort the "
-                    "list (Most views adds up each episode's views on every platform)."),
-    ("Publish (4)", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, "
-                    f"shows the file in {desktop.FILES}, and checks for the new post 10 and 30 minutes later. Remove "
-                    f"(or a right-click) hides a video or moves it to the {desktop.BIN}; Show hidden brings hidden ones "
-                    "back. Under the videos, Best time to post shows each platform's part of the day whose videos "
-                    "got the most views in their first day, and when it next comes round; it needs 2 videos a day old "
-                    "in each of 2 parts of the day, with one clearly ahead."),
-    ("Accounts (5)", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere "
-                     "else. TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No "
-                     "account yet? Sign up opens the platform's own sign-up page (with more than one profile, in a "
-                     "private window of your browser, so your other channel stays logged in), and Disconnect hides "
-                     "one again (its stats stay saved). Each panel says where that platform's stats come from and when "
-                     "they were last read; Type in stats lets you enter the numbers by hand for one ReelForge can't "
-                     "read yet."),
-    ("Updates (6)", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts "
-                    "it in place (your channel, videos and stats stay as they are) and opens ReelForge again."),
-    ("Settings (7)", "This channel's answers from first-time setup (Change your answers asks the questions again), an "
-                     "FAQ (click a question for its answer), what ReelForge set up on this computer (the hourly stats "
-                     "read, the reelforge command and the icon) and your profiles: Delete beside one, and Restore "
-                     "beside one you deleted. At the bottom, Factory reset puts every channel's "
-                     "settings, log-ins and stats in a backup and starts first-time setup again (your videos stay), "
-                     f"and Uninstall removes ReelForge, keeping your videos in a folder beside it. Neither deletes "
-                     f"anything: what they clear goes to a backup or the {desktop.BIN}."),
-    ("Stats (8)", "Your followers and your likes added up across your platforms, over time: tick or untick a platform "
-                  "at the top to count it in the totals or leave it out, and pick 24H, 48H, 7D, 30D or ALL. Point at "
-                  "a chart to see the totals then, with each platform's part; yellow marks show when each video went "
-                  "up. Beside each chart: every platform's number now, what it gained over the range and its share of "
-                  "the total. A stretch the computer was off for stays empty, and the totals start once every "
-                  "platform you count has a first reading."),
+    ("Overview", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / per day "
+                 "on the longer ranges), stacked by platform. Yellow marks show when each video went up. Point at a "
+                 "bar to see that hour's numbers by platform; click a platform in the key to hide it. Under the cards: "
+                 "today's badges, like \"Today: top 10% of your days for new TikTok followers\".", "overview"),
+    ("Videos", "Every video on every platform. Views 12h is each one's views 12 hours after it went up, so new and old "
+               "videos compare fairly (\"in 5h\" until it's that old, — when the computer was off then). Show picks a "
+               "platform, a header sorts, and clicking a highlighted row (or Open post) opens it. Above the chart: the "
+               "highlighted video's badges, like \"Top 5% of your TikTok videos for views\". The chart compares its "
+               "views with your typical video at the same age. Fix episode re-files a post grouped with the wrong "
+               "video; Export CSV saves every video as a spreadsheet, with when it went up (date, weekday, hour and "
+               "UTC time) and its views 1, 6, 12 and 24 hours in.", "videos"),
+    ("Compare", "The platform scoreboard, or pick an episode to see the same video on every platform, each against "
+                "that platform's typical video. Newest, Oldest and Most views beside Episodes sort the list (Most "
+                "views adds up each episode's views on every platform).", "compare"),
+    ("Publish", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, shows "
+                f"the file in {desktop.FILES}, and checks for the new post 10 and 30 minutes later. Remove (or a "
+                f"right-click) hides a video or moves it to the {desktop.BIN}; Show hidden brings hidden ones back. "
+                "Under the videos, Best time to post shows each platform's part of the day whose videos got the most "
+                "views in their first day, and when it next comes round; it needs 2 videos a day old in each of 2 "
+                "parts of the day, with one clearly ahead.", "publish"),
+    ("Accounts", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere else. "
+                 "TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No account yet? "
+                 "Sign up opens the platform's own sign-up page (with more than one profile, in a private window of "
+                 "your browser, so your other channel stays logged in), and Disconnect hides one again (its stats "
+                 "stay saved). Each panel says where that platform's stats come from and when they were last read; "
+                 "Type in stats lets you enter the numbers by hand for one ReelForge can't read yet.", "accounts"),
+    ("Updates", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts it in "
+                "place (your channel, videos and stats stay as they are) and opens ReelForge again.", "updates"),
+    ("Settings", "This channel's answers from first-time setup (Change your answers asks the questions again), an FAQ "
+                 "(click a question for its answer), the order of the tabs along the top (drag a tab, or click one "
+                 "and move it with the arrows; 1-8 follow it, in every profile), what ReelForge set up on this "
+                 "computer (the hourly stats read, the reelforge command and the icon) and your profiles: Delete "
+                 "beside one, and Restore beside one you deleted. At the bottom, Factory reset "
+                 "puts every channel's settings, log-ins and stats in a backup and starts first-time setup again "
+                 "(your videos stay), and Uninstall removes ReelForge, keeping your videos in a folder beside it. "
+                 f"Neither deletes anything: what they clear goes to a backup or the {desktop.BIN}.", "settings"),
+    ("Stats", "Your followers and your likes added up across your platforms, over time: tick or untick a platform at "
+              "the top to count it in the totals or leave it out, and pick 24H, 48H, 7D, 30D or ALL. Point at a chart "
+              "to see the totals then, with each platform's part; yellow marks show when each video went up. Beside "
+              "each chart: every platform's number now, what it gained over the range and its share of the total. A "
+              "stretch the computer was off for stays empty, and the totals start once every platform you count has "
+              "a first reading.", "totals"),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
                       "log-ins that need you. A red dot on the bell means something's unread; click one to go "
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
@@ -228,6 +229,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.demo = False
         self.screenshots = False
         self.tab = "overview"
+        self.tab_order = tabs.DEFAULT_ORDER  # the tabs along the top, left to right (the Settings tab's Tab order)
         self.note_seen = 0  # the newest notification already shown as a pop-up
         self.update_info: dict | None = None  # the last answer from the update check (studio.update.check)
         self.updating = False
@@ -293,6 +295,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         if options.get("switched") and not self.platforms:
             tab = "accounts"  # a profile you switched to with nothing connected yet: where you connect one
         self.tab = tab if tab in TABS else "overview" if self.platforms or tab else "accounts"
+        self.load_tab_order()
         saved = db.get_meta("overview_range", "24h")
         self.range = saved if saved in trends.RANGES else "24h"
         saved = db.get_meta("episode_sort", "newest")
@@ -320,6 +323,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             "tab": self.tab, "drawer": bool(options.get("drawer")), "test": TEST_COPY, "demo": self.demo,
             "screenshots": self.screenshots, "title": "ReelForge TEST" if TEST_COPY else "ReelForge",
             "files": desktop.FILES, "files_window": desktop.FILES_WINDOW, "bin": desktop.BIN,
+            "order": list(self.tab_order), "default_order": list(tabs.DEFAULT_ORDER),
             "anvil": anvil, "quadrants": quads, "help": HELP, "keys": KEYS, "version": KIT_VERSION,
             "max_tags": videos.MAX_TAGS, "first_tag": videos.FIRST_TAG, "default_tags": self.cfg.get("default_tags", ""),
             "caption_placeholder": "one short line that hooks the viewer", "tags_placeholder": tags,
@@ -773,6 +777,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         the hourly job, are up to. A read one of them has under way shows in the header, one it finished shows here
         too, and so do its notifications and errors."""
         self.follow_config()  # a platform another window connected or disconnected
+        self.follow_tab_order()  # a tab another window moved
         try:
             with db.connect() as c:  # one quick look at the store
                 state, changes, notes = sync.shared(c), db.changes(c), notify.signature(c)

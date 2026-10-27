@@ -1,4 +1,4 @@
-"""The Stats tab (8): your followers and your likes added up across the platforms you count, over time.
+"""The Stats tab: your followers and your likes added up across the platforms you count, over time.
 
 Each platform reports its own running total, read on every refresh. The tab adds them up at each moment of its time
 axis where ReelForge was reading (level_at: between two readings close together, the straight line joining them;
@@ -9,8 +9,7 @@ platform's first reading: leave that platform out to see further back. Followers
 show; likes are held at their highest reading, as on the other charts (trends.points).
 
 A mixin of the window's service (dashboard/service.py): the tab calls these, and "totals" is the view it draws. The
-tab's id is "totals" because `reelforge stats` is the hourly job's command; `reelforge 8` or `reelforge totals`
-opens it.
+tab's id is "totals" because `reelforge stats` is the hourly job's command; `reelforge totals` opens it.
 """
 
 from __future__ import annotations

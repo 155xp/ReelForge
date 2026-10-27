@@ -1,4 +1,4 @@
-"""Is a finished episode ready in ReelForge's Publish tab (tab 4)?
+"""Is a finished episode ready in ReelForge's Publish tab?
 
 The Publish tab lists every episodes/<id>/final/<id>.mp4 and fills the post from episode.json's `title` and the
 hashtag line of final/caption.txt. This check runs the dashboard's own listing code when it can (so it sees exactly
@@ -115,7 +115,7 @@ def check(ep_dir: Path) -> tuple[bool, str]:
             if here.completed.exists() else [])
     lines.append("")
     lines.append(f"  Copy in completed videos: {'yes' if done else 'no (run --steps deliver)'}")
-    head = "READY in ReelForge -> Publish (tab 4)" if ok else "NOT READY for ReelForge's Publish tab"
+    head = "READY in ReelForge -> Publish" if ok else "NOT READY for ReelForge's Publish tab"
     return ok, f"  {head}: {spec['id']}\n" + "\n".join(lines)
 
 

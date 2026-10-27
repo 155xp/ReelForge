@@ -29,7 +29,7 @@ main() {
   case "$dir" in /*) ;; *) dir="$PWD/$dir" ;; esac
   if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
     echo "There's already a ReelForge folder at $dir, so nothing was changed."
-    echo "To update it, open ReelForge and go to Updates (type reelforge 6). To put another copy somewhere else:"
+    echo "To update it, open ReelForge and go to Updates (type reelforge updates). To put another copy somewhere else:"
     echo "  curl -fsSL $release/install.sh | REELFORGE_DIR=~/ReelForge2 bash"
     return 0
   fi

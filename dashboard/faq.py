@@ -88,18 +88,18 @@ def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channe
          "a": "Open the ReelForge folder in your AI. " + " ".join(open_it) + "\n\n"
               f"Then say **{first}**. After that, **make today's videos** makes the next ones"
               + (" for every channel that posts regularly" if several else "")
-              + ". Each finished video waits on **Publish** (tab 4)."},
+              + ". Each finished video waits on **Publish**."},
         {"q": "My AI doesn't know about my channel.",
          "a": f"Make sure you opened the ReelForge folder itself ({here}), not the folder it's in: your AI reads its "
               f"notes, {notes}, from there. First-time setup only asks a few questions, so give it the full picture "
               f"too: drag a file about your channel into the chat (or paste a description) and say **{brief}**. It "
               "keeps your words as the channel's brief and plans every video from it."},
         {"q": "Does ReelForge post for me?",
-         "a": "No. ReelForge never posts, uploads or sends anything. Finished videos wait on **Publish** (tab 4): each "
+         "a": "No. ReelForge never posts, uploads or sends anything. Finished videos wait on **Publish**: each "
               "platform's button opens its upload page, copies exactly the text it needs and shows the video in "
               f"{desktop.FILES}, so you drag it in and press Post."},
         {"q": "Where are my videos?",
-         "a": f"On **Publish** (tab 4), and as files: every video has its own folder in {episodes_at}, and a copy of "
+         "a": f"On **Publish**, and as files: every video has its own folder in {episodes_at}, and a copy of "
               f"each finished one goes to {completed_at}."},
         {"q": "Do my stats update while ReelForge is closed?",
          "a": "Yes, while the **Hourly stats read** on this tab is on: once an hour, while your computer is on, it "
@@ -115,7 +115,7 @@ def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channe
               "there (or under **Profiles** on this tab): it moves whole into a backup, and **Restore** brings it "
               "back."},
         {"q": "How do I update ReelForge?",
-         "a": "**Updates** (tab 6) checks for a new version every few hours while ReelForge is open, and the bell tells "
+         "a": "**Updates** checks for a new version every few hours while ReelForge is open, and the bell tells "
               "you when one is out. **Update and restart** installs it, and your channel, videos, stats and settings "
               "stay as they are."},
         {"q": "Something isn't working.",

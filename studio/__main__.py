@@ -1,10 +1,10 @@
 """reelforge [what]   (the same as: python -m studio [what], from this folder)
 
   reelforge                    open ReelForge (the first time: first-time setup)
-  reelforge 1 .. 8             open a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates,
-                               7 Settings, 8 Stats
-  reelforge videos             tabs by name work too: overview, videos, compare, publish, accounts, updates,
-                               settings, totals (the Stats tab: reelforge stats is the hourly job)
+  reelforge publish            open a tab by name: overview, videos, compare, publish, accounts, updates, settings,
+                               totals (the Stats tab: reelforge stats is the hourly job)
+  reelforge 1 .. 8             ... or by where it sits along the top: 1 is the one at the far left (Updates, unless
+                               you've moved the tabs on the Settings tab)
   reelforge --demo             try ReelForge on made-up stats
   reelforge refresh            read every profile's stats once and exit
 
@@ -29,7 +29,7 @@
   reelforge command [on|off]   the reelforge command itself (on your PATH)
   reelforge sounds             download the Mixkit sound effects
   reelforge new-episode SLUG [--from EXAMPLE]   start episodes/epNN_<slug>/ from an example
-  reelforge publish-check episodes/<id>         is this video ready in the Publish tab (tab 4)?
+  reelforge publish-check episodes/<id>         is this video ready in the Publish tab?
 
   reelforge reset [--yes]      factory reset: every channel's settings, log-ins and stats back to brand-new (into a
                                backup in backups/), then first-time setup again; your first channel's videos stay
@@ -80,8 +80,7 @@ def next_steps(profile=None) -> str:
     lines.append(f'  3. Say: "make {video}"')
     icon = ("double-click ReelForge.bat" if P.WINDOWS else "open ReelForge from Applications" if P.MAC else
             "open ReelForge from your app menu")
-    lines.append(f"  4. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish (tab 4) to post "
-                 "it.")
+    lines.append(f"  4. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish to post it.")
     return "\n".join(lines)
 
 

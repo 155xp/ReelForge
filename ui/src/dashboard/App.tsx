@@ -1,8 +1,8 @@
-// ReelForge's window: the header (the anvil, the profile button, eight tabs with a marker that slides to the open one,
-// Refresh / Help / Quit and the bell), the tab, the status bar at the foot (each platform, when the stats were read,
-// any read under way, the keys), the notifications drawer sliding in from the right, dialogs, and pop-ups. Keys: 1-8
-// switch tabs, r / R refresh, p the profiles, Esc closes the drawer or leaves a text field, Tab moves between buttons
-// and fields, Ctrl+Q quits.
+// ReelForge's window: the header (the anvil, the profile button, eight tabs in the order picked on the Settings tab
+// with a marker that slides to the open one, Refresh / Help / Quit and the bell), the tab, the status bar at the foot
+// (each platform, when the stats were read, any read under way, the keys), the notifications drawer sliding in from the
+// right, dialogs, and pop-ups. Keys: 1-8 open the tabs in the order they're shown, r / R refresh, p the profiles, Esc
+// closes the drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
@@ -25,7 +25,7 @@ import { ProfileButton } from "./Profiles"
 import { Publish } from "./Publish"
 import { Settings } from "./Settings"
 import { Stats } from "./Stats"
-import { DashContext, DashState, TAB_NAMES, TABS, useDash, type Nav } from "./state"
+import { DashContext, DashState, TAB_NAMES, tabOrder, useDash, type Nav } from "./state"
 import type { Init, NotesView, UpdateView } from "./types"
 import { Updates } from "./Updates"
 import { Videos } from "./Videos"
@@ -42,6 +42,8 @@ export function DashboardApp({ bridge, init, quit, nav }: { bridge: Bridge; init
       bridge.on("exit", (d) => quit(d.code ?? 0)),
       // A picked video's caption and hashtags, for the Publish form (whichever tab is open when it's picked).
       bridge.on("form", (d) => state.set({ caption: d.caption ?? "", tags: d.tags ?? "" })),
+      // Another ReelForge window moved a tab (the Settings tab's Tab order): this one follows.
+      bridge.on("order", (d) => state.set({ order: tabOrder(d.order) })),
     ]
     if (state.drawer) bridge.send("drawer_opened")
     return () => offs.forEach((off) => off())
@@ -74,7 +76,7 @@ function Window({ focus }: { focus: FocusManager }) {
     }
     if (focus.handleKey(key)) return
     if (s.dialog || focus.typing || key.ctrl || key.meta) return
-    if (/^[1-8]$/.test(key.name)) return s.setTab(TABS[Number(key.name) - 1]!)
+    if (/^[1-8]$/.test(key.name)) return s.setTab(s.order[Number(key.name) - 1]!)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
     if (key.name === "p") return s.openProfiles()
     if (key.name === "?" || key.sequence === "?") return s.set({ dialog: { kind: "help" } })
@@ -95,7 +97,7 @@ function Window({ focus }: { focus: FocusManager }) {
  * window's colour. */
 function TabContent() {
   const s = useDash()
-  const i = Math.max(TABS.indexOf(s.tab), 0)
+  const i = Math.max(s.order.indexOf(s.tab), 0)
   const last = useRef(i)
   const dir = i >= last.current ? 1 : -1
   useEffect(() => {
@@ -151,7 +153,7 @@ function Header() {
   const { width } = useTerminalDimensions()
   const anvil = useMemo(() => shade(logoCells(s.init.anvil), ANVIL_STOPS), [s.init.anvil])
   const update = useView<UpdateView>(s.bridge, "update")
-  const labels = TABS.map((t) => TAB_NAMES[t] + (t === "updates" && update?.newer ? " ●" : ""))
+  const labels = s.order.map((t) => TAB_NAMES[t] + (t === "updates" && update?.newer ? " ●" : ""))
   const tabsW = (gap: number) => labels.reduce((n, l) => n + cellLen(l), 0) + gap * (labels.length - 1)
   const profile = useView<{ name: string }>(s.bridge, "profile") ?? s.init.profile
   const fit = headerFit(width, profile.name, widthOf(anvil), tabsW)
@@ -192,8 +194,8 @@ function Header() {
   )
 }
 
-/** The tabs: the open one white and bold with a short bar under it that slides to whichever you pick; a red dot on
- * Updates when a new version is out. */
+/** The tabs, in the order picked on the Settings tab: the open one white and bold with a short bar under it that slides
+ * to whichever you pick; a red dot on Updates when a new version is out. */
 function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
   const s = useDash()
   const [hover, setHover] = useState<number | null>(null)
@@ -203,21 +205,21 @@ function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
     starts.push(x)
     x += cellLen(l) + gap
   }
-  const i = Math.max(TABS.indexOf(s.tab), 0)
+  const i = Math.max(s.order.indexOf(s.tab), 0)
   const at = useTween(starts[i]!, { ms: 220, ease: "outQuad" })
-  const wide = useTween(cellLen(TAB_NAMES[TABS[i]!]), { ms: 220, ease: "outQuad" })
+  const wide = useTween(cellLen(TAB_NAMES[s.order[i]!]), { ms: 220, ease: "outQuad" })
   const from = Math.round(at)
   return (
     <box flexDirection="column" flexShrink={0} marginLeft={3}>
       <box height={1} />
       <box flexDirection="row" height={1}>
-        {TABS.map((tab, k) => {
+        {s.order.map((tab, k) => {
           const on = k === i
           const name = TAB_NAMES[tab]
           return (
             <text
               key={tab}
-              marginRight={k < TABS.length - 1 ? gap : 0}
+              marginRight={k < s.order.length - 1 ? gap : 0}
               fg={on ? DASH.text : k === hover ? mix(DASH.muted, DASH.text, 0.6) : DASH.muted}
               attributes={on ? TextAttributes.BOLD : undefined}
               wrapMode="none"

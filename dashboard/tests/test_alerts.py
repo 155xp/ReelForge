@@ -9,9 +9,10 @@ from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
-from dashboard import badges, db, notify
-from dashboard.__main__ import TAB_IDS, main, tab_for
+from dashboard import badges, db, notify, tabs
+from dashboard.__main__ import main, tab_for
 
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 NAMES = {"tiktok": "TikTok", "youtube": "YouTube"}
@@ -289,7 +290,8 @@ class BadgeNotesTest(DbTest):
 
 class WordsTest(unittest.TestCase):
     def test_numbers_names_and_aliases(self):
-        self.assertEqual([tab_for(str(i)) for i in range(1, 9)], list(TAB_IDS))
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(tabs, "HERE", Path(tmp)):  # no order picked
+            self.assertEqual([tab_for(str(i)) for i in range(1, 9)], list(tabs.DEFAULT_ORDER))
         self.assertEqual([tab_for(w) for w in ("Videos", "post", "upload", "logins", "update", "notifications",
                                                "settings")],
                          ["videos", "publish", "publish", "accounts", "updates", "overview", "settings"])

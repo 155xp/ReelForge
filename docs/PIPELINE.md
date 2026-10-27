@@ -164,6 +164,6 @@ in `assets/sfx/<source>/`, add a manifest entry with its licence, then use its n
 
 ## Publishing
 
-ReelForge (`reelforge 4`) lists every `episodes/<id>/final/<id>.mp4` on its Publish tab (tab 4), newest first,
+ReelForge lists every `episodes/<id>/final/<id>.mp4` on its Publish tab (`reelforge publish`), newest first,
 with the post pre-filled from `episode.json`'s `title` and the hashtag line of `final/caption.txt`. You post by
 hand from there; nothing in the kit posts for you.

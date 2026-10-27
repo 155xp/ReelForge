@@ -1,20 +1,21 @@
-// The Settings tab (7): this channel's answers from first-time setup and the FAQ side by side (one under the other in a
-// narrow window), what ReelForge set up on this computer under them, your profiles (Delete beside each one this window
-// can delete, Restore beside each one deleted), and the danger zone across the bottom: factory reset and uninstall,
-// each behind a dialog where you type the channel's name. None of them deletes anything: what they clear goes to a
-// backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work (with
-// studio/reset.py, and dashboard/service.py and studio/profiles.py for the profiles); dashboard/faq.py writes the FAQ.
+// The Settings tab: this channel's answers from first-time setup and the FAQ side by side (one under the other in a
+// narrow window), the order of the tabs along the top, what ReelForge set up on this computer, your profiles (Delete
+// beside each one this window can delete, Restore beside each one deleted), and the danger zone across the bottom:
+// factory reset and uninstall, each behind a dialog where you type the channel's name. None of them deletes anything:
+// what they clear goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and
+// does the work (with studio/reset.py, and dashboard/service.py and studio/profiles.py for the profiles);
+// dashboard/faq.py writes the FAQ, and dashboard/tabs.py keeps the tab order.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useView } from "../bridge"
 import { useFocus } from "../lib/focus"
 import { lines, type Segs } from "../lib/styled"
-import { DASH } from "../theme"
+import { DASH, mix } from "../theme"
 import { Button } from "../ui/Button"
 import { Switch, TextField } from "../ui/Fields"
 import { Markdown, Modal, Panel, Scroll, Wrapped } from "../ui/Panels"
-import { useDash } from "./state"
+import { TAB_NAMES, useDash, type Tab } from "./state"
 
 export interface ComputerRow {
   key: string
@@ -108,6 +109,8 @@ export function Settings() {
         <Channel v={v} grow={side} />
         <Faq items={v.faq} grow={side} />
       </box>
+      <box height={1} flexShrink={0} />
+      <TabOrder />
       <box height={1} flexShrink={0} />
       <Computer v={v} />
       <box height={1} flexShrink={0} />
@@ -204,6 +207,114 @@ function Faq({ items, grow }: { items: FaqItem[]; grow: boolean }) {
             </box>
           )
         })}
+      </box>
+    </Panel>
+  )
+}
+
+/** The tabs along the top, in their order, each with the number that opens it. Drag one to another place, or pick one
+ * (click it, or ← → while the row has the keyboard) and move it with the arrows (the buttons, or Shift+← →). Each move
+ * is kept at once, for every profile; Reset to default puts Updates and Settings back at the far left. */
+function TabOrder() {
+  const s = useDash()
+  const [picked, setPicked] = useState<Tab | null>(null)
+  const [hover, setHover] = useState<Tab | null>(null)
+  const [held, setHeld] = useState<Tab | null>(null) // the tab being dragged
+  const nodes = useRef(new Map<Tab, Renderable>())
+  const before = useRef("") // the order when the drag started
+  const pickedNow = useRef<Tab | null>(null) // the picked tab for keys that come before the next draw
+  const pick = (tab: Tab) => {
+    pickedNow.current = tab
+    setPicked(tab)
+  }
+  const at = picked ? s.order.indexOf(picked) : -1
+  /** Put a tab in this place (0 is the far left); keep: false while it's being dragged. */
+  const place = (tab: Tab, to: number, keep = true) => {
+    const rest = s.order.filter((t) => t !== tab)
+    const next = [...rest.slice(0, to), tab, ...rest.slice(to)]
+    if (next.join() !== s.order.join()) s.setOrder(next, keep)
+  }
+  const nudge = (by: -1 | 1) => {
+    const tab = pickedNow.current
+    const i = tab ? s.order.indexOf(tab) : -1
+    if (tab && i + by >= 0 && i + by < s.order.length) place(tab, i + by)
+  }
+  /** Where a dragged tab goes: after every other tab whose middle the pointer is past, on its row or a row below it
+   * (above or below the tabs counts as their first or last row). */
+  const dropAt = (tab: Tab, x: number, y: number) => {
+    const rows = [...nodes.current.values()].map((n) => n.y)
+    const row = Math.min(Math.max(y, Math.min(...rows)), Math.max(...rows))
+    return s.order.filter((t) => {
+      const n = t !== tab && nodes.current.get(t)
+      return n && (n.y < row || (n.y === row && n.x + n.width / 2 <= x))
+    }).length
+  }
+  const { ref, focused, focus } = useFocus("settings-tab-order", {
+    onKey: (key: KeyEvent) => {
+      const by = key.name === "left" ? -1 : key.name === "right" ? 1 : 0
+      if (!by) return false
+      const i = pickedNow.current ? s.order.indexOf(pickedNow.current) : -1
+      if (key.shift) nudge(by)
+      else pick(s.order[Math.min(Math.max(i + by, 0), s.order.length - 1)]!)
+      key.preventDefault()
+      return true
+    },
+  })
+  useEffect(() => {
+    if (focused && !pickedNow.current) pick(s.order[0]!) // the row has the keyboard: show where it is
+  }, [focused])
+  const reset = <Button id="settings-tab-reset" label="Reset to default" disabled={s.order.join() === s.defaultOrder.join()} onPress={() => s.setOrder(s.defaultOrder)} />
+  const tabs = s.order.map((tab, k) => {
+    const lit = tab === held || tab === picked
+    const bg = tab === held ? mix(DASH.raised, "#ffffff", 0.1) : tab === picked ? (focused ? DASH.cursor : DASH.raised) : tab === hover ? DASH.raised : undefined
+    return (
+      <box
+        key={tab}
+        ref={(n: Renderable | null) => void (n ? nodes.current.set(tab, n) : nodes.current.delete(tab))}
+        flexDirection="row"
+        height={1}
+        flexShrink={0}
+        paddingLeft={1}
+        paddingRight={1}
+        backgroundColor={bg}
+        onMouseOver={() => setHover(tab)}
+        onMouseOut={() => setHover((h) => (h === tab ? null : h))}
+        onMouseDown={(e) => {
+          if (e.button !== 0) return
+          e.stopPropagation()
+          focus()
+          pick(tab)
+          before.current = s.order.join()
+        }}
+        onMouseDrag={(e) => {
+          setHeld(tab)
+          place(tab, dropAt(tab, e.x, e.y), false)
+        }}
+        onMouseDragEnd={() => {
+          setHeld(null)
+          if (s.order.join() !== before.current) s.setOrder(s.order)
+        }}
+      >
+        <text wrapMode="none" selectable={false /* a press here starts a drag, not a text selection */}>
+          <span fg={DASH.faint}>{`${k + 1} `}</span>
+          <span fg={lit || tab === hover ? DASH.text : DASH.muted} attributes={lit ? TextAttributes.BOLD : undefined}>
+            {TAB_NAMES[tab]}
+          </span>
+        </text>
+      </box>
+    )
+  })
+  return (
+    <Panel title="TAB ORDER" sub={<text fg={DASH.faint} wrapMode="none">drag a tab, or click one and use the arrows</text>} right={reset} flexShrink={0}>
+      {/* the tabs, with the arrows beside them (under them in a narrow window) */}
+      <box flexDirection="row" flexWrap="wrap" columnGap={4} rowGap={1} flexShrink={0}>
+        <box ref={ref} flexDirection="row" flexWrap="wrap" columnGap={2} flexShrink={1} minWidth={0}>
+          {tabs}
+        </box>
+        <box flexDirection="row" columnGap={1} flexShrink={0}>
+          <Button id="settings-tab-left" label="← Move left" disabled={at <= 0} onPress={() => nudge(-1)} />
+          <Button id="settings-tab-right" label="Move right →" disabled={at < 0 || at >= s.order.length - 1} onPress={() => nudge(1)} />
+        </box>
       </box>
     </Panel>
   )

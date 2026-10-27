@@ -247,7 +247,7 @@ def _sample_notifications(now: datetime, start: datetime, posted: list[tuple[str
         notes.append((t, "milestone", f"A video passed {notify.short(m)} views on {names[key]}", title[:70], False,
                       f"milestone:video:{key}|{post_id}:{m}"))
     notes.append((now - timedelta(hours=2), "update", f"ReelForge {SAMPLE_UPDATE[0]} is out",
-                  "Open Updates (6) to update and restart in one click.", False, f"update:{SAMPLE_UPDATE[0]}"))
+                  "Open the Updates tab to update and restart in one click.", False, f"update:{SAMPLE_UPDATE[0]}"))
     if video:
         name, caption = video
         notes.append((now - timedelta(minutes=30), "video", "A new video is ready to post",

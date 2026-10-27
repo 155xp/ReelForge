@@ -14,7 +14,7 @@ default_tags = ""              # up to 5 hashtags for new videos, e.g. "#cooking
 # completed_dir = "../completed videos"
 
 # Your handle on each platform, e.g. handle = "@yourname". TikTok and YouTube need only the handle;
-# Instagram and X also need the one-time Log in on the Accounts tab (5). Leave a platform blank to skip it.
+# Instagram and X also need the one-time Log in on the Accounts tab. Leave a platform blank to skip it.
 
 [tiktok]
 handle = ""

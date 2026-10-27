@@ -41,15 +41,19 @@ function Buttons({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** How ReelForge works: the tabs first, in the order they sit along the top, each with the number that opens it, then
+ * the rest. */
 function Help({ close }: { close: () => void }) {
   const s = useDash()
+  const place = (tab: string) => (s.order as string[]).indexOf(tab)
+  const topics = s.init.help.map((topic, i) => ({ topic, rank: topic[2] ? place(topic[2]) : s.order.length + i })).sort((a, b) => a.rank - b.rank)
   return (
     <Modal name="help" title="HOW REELFORGE WORKS">
       <Scroll maxHeight={30} flexShrink={1} scrollY>
-        {s.init.help.map(([tab, text]) => (
-          <box key={tab} flexDirection="column" marginBottom={1} flexShrink={0}>
+        {topics.map(({ topic: [title, text, tab] }) => (
+          <box key={title} flexDirection="column" marginBottom={1} flexShrink={0}>
             <text fg={DASH.text} attributes={TextAttributes.BOLD}>
-              {tab}
+              {tab ? `${title} (${place(tab) + 1})` : title}
             </text>
             <text fg={DASH.muted} wrapMode="word">
               {text}

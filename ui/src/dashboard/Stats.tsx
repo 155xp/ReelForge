@@ -1,4 +1,4 @@
-// The Stats tab (8): your followers and your likes added up across the platforms you count, over time. The platforms
+// The Stats tab: your followers and your likes added up across the platforms you count, over time. The platforms
 // at the top left are ticked while they count in the totals (click one to leave it out, or back in), the range is at
 // the top right, and each chart is the total as a filled area, broken where the computer was off, with a mark where
 // each video went up; point at it for the totals then, with each platform's part. Beside each chart (under it in a

@@ -1,4 +1,4 @@
-// The Stats tab (8), drawn without a terminal on demo data with its real Python side: the pills that put a platform
+// The Stats tab, drawn without a terminal on demo data with its real Python side: the pills that put a platform
 // in or out of the totals, the ranges, the hover read-out, the breakdowns, and how it fits windows big and small.
 // (What the Python side adds up is tested in dashboard/tests/test_totals.py.)
 

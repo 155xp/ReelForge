@@ -53,7 +53,7 @@
         Say "This updates it instead. Your channel, videos, stats, logins and settings stay as they are."
     } elseif ((Test-Path -LiteralPath $dir) -and (Get-ChildItem -LiteralPath $dir -Force | Select-Object -First 1)) {
         Say "There's already a ReelForge folder at $dir, so nothing was changed." "Yellow"
-        Say "To update it, open ReelForge and go to Updates (type reelforge 6). To put another copy somewhere else:"
+        Say "To update it, open ReelForge and go to Updates (type reelforge updates). To put another copy somewhere else:"
         Say '  $env:REELFORGE_DIR = "D:\ReelForge"   then paste the install command again'
         return
     }

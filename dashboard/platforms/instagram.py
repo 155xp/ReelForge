@@ -17,6 +17,6 @@ class Instagram(Platform):
 
     def fetch(self) -> tuple[Account, list[Post]]:
         if not self.logged_in:
-            raise PlatformError("Log in to Instagram once on the Accounts tab (5) so ReelForge can read your stats.",
+            raise PlatformError("Log in to Instagram once on the Accounts tab so ReelForge can read your stats.",
                                 needs_login=True)
         return browser.instagram(self.public_handle)

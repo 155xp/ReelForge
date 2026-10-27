@@ -1,16 +1,18 @@
-"""The Settings tab (7): this channel's answers from first-time setup, an FAQ (dashboard/faq.py), what ReelForge set up
-on this computer (the hourly stats read, the reelforge command, the icon), your profiles (deleting one and restoring it:
-dashboard/service.py profiles_settings), and the danger zone: factory reset and uninstall (studio/reset.py does both,
-and neither deletes anything for good).
+"""The Settings tab: this channel's answers from first-time setup, an FAQ (dashboard/faq.py), the order of the tabs
+along the top (dashboard/tabs.py keeps it), what ReelForge set up on this computer (the hourly stats read, the
+reelforge command, the icon), your profiles (deleting one and restoring it: dashboard/service.py profiles_settings),
+and the danger zone: factory reset and uninstall (studio/reset.py does both, and neither deletes anything for good).
 
-A mixin of the window's service (dashboard/service.py): the tab calls these, and "settings" is the view it draws.
+A mixin of the window's service (dashboard/service.py): the tab calls these, and "settings" is the view it draws. The
+tab order is the window's own (it's in what the window starts with, and in an "order" event when another window moves
+a tab): the Settings tab moves the tabs there, and set_tab_order keeps the new order.
 """
 
 from __future__ import annotations
 
 from studio.bridge import rpc
 
-from . import config, desktop, faq
+from . import config, desktop, faq, tabs
 from .view import MUTED, Text
 
 RESTART = 75  # the launcher starts ReelForge again, and does the reset or the uninstall first (studio/reset.py)
@@ -93,6 +95,40 @@ class SettingsTab:
         from studio import profiles
 
         return profiles.several()
+
+    # ---------------------------------------------------------------- the tab order
+
+    def load_tab_order(self) -> None:
+        """The order the window starts with: the one kept for every profile, or in the demo the default (nothing the
+        demo does is kept)."""
+        self.tab_order = tabs.DEFAULT_ORDER if self.demo else tabs.order(config.APP_DIR)
+
+    @rpc
+    def set_tab_order(self, order: list | None) -> list[str]:
+        """The Settings tab moved a tab (or, with none, put them back in the default order): keep the new order for
+        every profile, which every open ReelForge window then shows. Returns it as kept."""
+        kept = tabs.tidy(order) if order else tabs.DEFAULT_ORDER
+        if self.demo:
+            if self.tab_order == tabs.DEFAULT_ORDER and kept != tabs.DEFAULT_ORDER:
+                self.notify("Demo mode: this order isn't kept.", timeout=6)
+        else:
+            try:
+                kept = tabs.save_order(kept, config.APP_DIR)
+            except OSError as e:
+                kept = tabs.order(config.APP_DIR)  # the order that's still kept: the window goes back to it
+                self.notify(f"Couldn't change the tab order: {e}", title="Tab order", severity="warning", timeout=10)
+                self.emit("order", {"order": list(kept)})
+        self.tab_order = kept
+        return list(kept)
+
+    def follow_tab_order(self) -> None:
+        """Every second: another ReelForge window moved a tab (on any profile), so this one shows the new order too."""
+        if self.demo:
+            return
+        kept = tabs.order(config.APP_DIR)
+        if kept != self.tab_order:
+            self.tab_order = kept
+            self.emit("order", {"order": list(kept)})
 
     def computer_rows(self) -> list[dict]:
         """What ReelForge set up on this computer, each with the button that changes it."""

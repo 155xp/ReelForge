@@ -140,9 +140,9 @@ def _logged_out(platform: str) -> PlatformError:
     was = logged_in(platform)
     forget(platform)
     if was:
-        return PlatformError(f"{NAMES[platform]} logged ReelForge's browser out. Log in again on the Accounts tab (5).",
+        return PlatformError(f"{NAMES[platform]} logged ReelForge's browser out. Log in again on the Accounts tab.",
                              needs_login=True)
-    return PlatformError(f"Log in to {NAMES[platform]} once on the Accounts tab (5) so ReelForge can read your stats.",
+    return PlatformError(f"Log in to {NAMES[platform]} once on the Accounts tab so ReelForge can read your stats.",
                          needs_login=True)
 
 
@@ -154,7 +154,7 @@ def _sent_to_login(platform: str) -> PlatformError:
         return _logged_out(platform)
     config.set_token(f"browser:{platform}", {**entry, "misses": entry.get("misses", 0) + 1})
     return PlatformError(f"{NAMES[platform]} showed ReelForge's browser its login page; it tries again next refresh. "
-                         "If it keeps happening, press Log in again on the Accounts tab (5).")
+                         "If it keeps happening, press Log in again on the Accounts tab.")
 
 
 def _read_ok(platform: str) -> None:
@@ -279,7 +279,7 @@ def instagram(handle: str) -> tuple[Account, list[Post]]:
         on_login_page = "/accounts/login" in page.url
         challenge = "/challenge" in page.url or "/checkpoint" in page.url
     if challenge:
-        raise PlatformError("Instagram wants to check it's you: press Log in again on the Accounts tab (5) and "
+        raise PlatformError("Instagram wants to check it's you: press Log in again on the Accounts tab and "
                             "follow its steps in the window that opens.")
     if on_login_page:
         raise _sent_to_login("instagram")

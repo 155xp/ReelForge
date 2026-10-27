@@ -281,5 +281,5 @@ def check_videos(cfg: dict) -> int:
 
 
 def update_available(version: str) -> bool:
-    return add("update", f"ReelForge {version} is out", "Open Updates (6) to update and restart in one click.",
+    return add("update", f"ReelForge {version} is out", "Open the Updates tab to update and restart in one click.",
                key=f"update:{version}")

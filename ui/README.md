@@ -69,6 +69,6 @@ while something moves; `REELFORGE_MOTION=0` turns it off.
 
 Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
 keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
-click on the highlighted row) opens it. In the ReelForge window 1-8 switch tabs and r / R refresh, except while a
-text field has the keyboard, p opens the profile menu and ? the help; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q
-quits.
+click on the highlighted row) opens it. In the ReelForge window 1-8 open the tabs in the order they're shown (the
+Settings tab's Tab order changes it) and r / R refresh, except while a text field has the keyboard, p opens the
+profile menu and ? the help; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q quits.

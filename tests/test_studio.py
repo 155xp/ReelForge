@@ -84,7 +84,8 @@ class Generate(unittest.TestCase):
         for who in ("claude", "codex"):
             text = generate.render("context.md.j2", generate.context(a, s, who))
             self.assertIn("Test Channel", text)
-            self.assertIn("Publish (tab 4)", text)
+            self.assertIn("**Publish**", text)
+            self.assertNotRegex(text, r"\(tab \d\)|tab \d,|reelforge(?: -p \S+)? \d\b")  # the tabs can be in any order
             self.assertLess(len(text.encode("utf-8")), 30_000)
         generate.render("channel-bible.md.j2", generate.context(a, s, "claude"))
         return s

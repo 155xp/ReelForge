@@ -403,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     print(f"ReelForge {info['latest']} is out (you have {info['current']}). {info['url']}")
     if "--apply" not in argv:
-        print("Run: python -m studio.update --apply   (or press Update and restart on the Updates tab, 6)")
+        print("Run: python -m studio.update --apply   (or press Update and restart on the Updates tab)")
         return 0
     try:
         print(apply(release_from(info), _show))

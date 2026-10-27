@@ -1,9 +1,9 @@
 """reelforge [1-8 | a tab's name | notifications | refresh] [--demo]      (also: python -m dashboard ...)
 
   reelforge                ReelForge on the Overview tab
-  reelforge 4              straight to a tab: 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Accounts, 6 Updates,
-                           7 Settings, 8 Stats (reelforge totals: reelforge stats is the hourly job)
-  reelforge publish        the same, by name
+  reelforge publish        straight to a tab, by name (reelforge totals for Stats: reelforge stats is the hourly job)
+  reelforge 4              the same, by where it sits along the top: 1 is the one at the far left (the Settings
+                           tab changes the order; dashboard/tabs.py)
   reelforge notifications  with the notifications drawer open
   reelforge refresh        read every profile's stats once, save them and exit (the hourly background job)
   reelforge --demo         try it on made-up data; nothing is read or saved
