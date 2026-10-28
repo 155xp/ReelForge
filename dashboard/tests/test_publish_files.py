@@ -2,7 +2,9 @@
 
 import tempfile
 import unittest
+import os
 from pathlib import Path
+from unittest import mock
 
 from dashboard import db, demo, videos
 from dashboard.tests.window import Window, plain
@@ -56,3 +58,26 @@ class PublishFiles(unittest.TestCase):
         w.call("show_file", "ep01.mp4")
         self.assertTrue(any("hidden" in t for t in w.toasts()))
         self.assertIn("Show 1 hidden", plain(w.view("files")["heading"]))
+
+    @unittest.skipIf(os.name == "nt", "backslashes are path separators on Windows")
+    def test_a_backslash_in_a_posix_filename_keeps_posted_and_hidden_status(self):
+        folder = self.root / "videos"
+        folder.mkdir()
+        path = folder / "clip\\v2.mp4"
+        path.write_bytes(b"video")
+        eid = db.create_episode("A video", str(path))
+        db.add_post("youtube", "post-1", eid, "A video", "https://example.invalid/post")
+        w = self.window()
+        item = w.view("files")["items"][0]
+        self.assertTrue(plain(item["lines"][0]).startswith("✓ "))
+        db.set_meta("hidden_videos", [str(path)])
+        w.call("scan_files")
+        self.assertEqual(w.view("files")["items"], [])
+        w.call("show_file", path.name)
+        self.assertTrue(any("hidden" in t for t in w.toasts()))
+
+    def test_zero_hashtag_preview_does_not_advertise_a_first_tag(self):
+        w = self.window()
+        with mock.patch.multiple(videos, MAX_TAGS=0, FIRST_TAG="fyp"):
+            w.call("form_changed", "A video", "")
+        self.assertNotIn("#fyp", plain(w.view("preview")["tags"]))

@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from pipeline import make_episode, qa
-from studio import paths, profiles, publish_check, settings
+from studio import generate, paths, profiles, publish_check, questions, settings
 from studio.__main__ import new_episode
 
 
@@ -65,13 +65,31 @@ class CaptionRules(unittest.TestCase):
         spec = json.loads(next((self.root / "new-episodes").glob("*/episode.json")).read_text(encoding="utf-8"))
         self.assertEqual(spec["hashtags"], [])
 
-    def test_new_episode_respects_empty_default_tags(self):
+    def test_new_episode_preserves_copied_tags_when_enabled_and_defaults_are_empty(self):
         self.settings["captions"]["default_tags"] = []
+        prior = self.root / "new-episodes" / "ep01_previous"
+        prior.mkdir(parents=True)
+        spec = json.loads((paths.EXAMPLES / "demo_doubling_duck" / "episode.json").read_text(encoding="utf-8"))
+        spec["hashtags"] = ["fyp", "custom"]
+        (prior / "episode.json").write_text(json.dumps(spec), encoding="utf-8")
         with mock.patch.object(paths, "EPISODES", self.root / "new-episodes"), \
                 mock.patch.object(settings, "load", return_value=self.settings), redirect_stdout(io.StringIO()):
-            self.assertEqual(new_episode(["test"]), 0)
-        spec = json.loads(next((self.root / "new-episodes").glob("*/episode.json")).read_text(encoding="utf-8"))
-        self.assertEqual(spec["hashtags"], [])
+            self.assertEqual(new_episode(["test", "--from", "ep01_previous"]), 0)
+        spec = json.loads((prior.parent / "ep02_test" / "episode.json").read_text(encoding="utf-8"))
+        self.assertEqual(spec["hashtags"], ["fyp", "custom"])
+
+    def test_zero_hashtag_guides_and_settings_do_not_require_a_first_tag(self):
+        from dashboard.settings_tab import _channel_rows
+
+        answers, problems = questions.validate({"channel_name": "Test Channel", "about": "Science videos",
+                                                "max_hashtags": 0})
+        self.assertEqual(problems, [])
+        s = generate.settings_from(answers)
+        for template in ("context.md.j2", "channel-bible.md.j2"):
+            text = generate.render(template, generate.context(answers, s, "codex"))
+            self.assertNotIn("#fyp", text)
+            self.assertNotIn("caption + hashtags", text)
+        self.assertEqual(dict(_channel_rows(s))["Captions"], "no hashtags")
 
     def test_zero_hashtag_captions_contain_only_the_hook(self):
         self.configure(0)

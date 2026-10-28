@@ -29,9 +29,13 @@ def _channel_rows(s: dict) -> list[list[str]]:
         fmt = s["format"]["template"]
     v, c, sched = s["video"], s["captions"], s["schedule"]
     loud = S.LOUDNESS.get(s["sound"]["loudness"], ("", ""))[1].split(",")[0] or f"{s['sound']['target_lufs']} LUFS"
-    tags = f"up to {c['max_hashtags']} hashtags" + (f", #{c['tiktok_first_tag']} first" if c["tiktok_first_tag"] else "")
-    if not c["hashtags_on_x"]:
-        tags += ", none on X"
+    tags = "no hashtags"
+    if c["max_hashtags"]:
+        tags = f"up to {c['max_hashtags']} hashtags"
+        if c["tiktok_first_tag"]:
+            tags += f", #{c['tiktok_first_tag']} first"
+        if not c["hashtags_on_x"]:
+            tags += ", none on X"
     per = f"{sched['per_day']} a day" if sched["per_day"] else f"{sched['per_week']} a week"
     who = {"claude": "Claude", "codex": "Codex", "both": "Claude and Codex"}.get(s["ai"]["assistant"], s["ai"]["assistant"])
     return [

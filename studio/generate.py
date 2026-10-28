@@ -181,8 +181,8 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
     who = creator or "the creator"
     win = P.WINDOWS
     sep = "\\" if win else "/"
-    first = s["captions"]["tiktok_first_tag"]
     n_tags = s["captions"]["max_hashtags"]
+    first = s["captions"]["tiktok_first_tag"] if n_tags > 0 else ""
     platforms = [{"key": p, "name": S.PLATFORM_NAMES[p], "handle": s["platforms"]["handles"].get(p, "")}
                  for p in s["platforms"]["enabled"]]
     rules = {
@@ -191,6 +191,9 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
         "youtube": "YouTube: the caption is the title, the hashtags are the description",
         "x": "X: the caption only, no hashtags" if not s["captions"]["hashtags_on_x"] else "X: caption + hashtags",
     }
+    if n_tags == 0:
+        rules = {p: f"{S.PLATFORM_NAMES[p]}: the caption only, no hashtags" for p in S.PLATFORMS}
+        rules["youtube"] = "YouTube: the caption is the title, no hashtags in the description"
     per_day, per_week = s["schedule"]["per_day"], s["schedule"]["per_week"]
     cadence = _cadence(s)
     lufs = s["sound"]["target_lufs"]
