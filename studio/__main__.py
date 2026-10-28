@@ -9,6 +9,7 @@
   reelforge refresh            read every profile's stats once and exit
 
   reelforge profiles           your profiles: one for each channel, with its own accounts, stats and settings
+  reelforge profiles --json    the same list as JSON, with the selected profile's key (read-only)
   reelforge profiles new       add one (the same interview as your first channel's)
   reelforge profiles delete NAME [--yes]
                                take one you added out of ReelForge: its folder moves whole into backups/
@@ -212,19 +213,32 @@ def first_run(start: str, new: bool = False) -> int:
     return code
 
 
-def list_profiles(argv: list[str]) -> int:
-    """reelforge profiles [new | delete NAME | restore [NAME]]: every profile, the interview that adds one, or taking
-    one out of ReelForge and bringing it back."""
+def list_profiles(argv: list[str], chosen: profiles.Profile | None = None) -> int:
+    """reelforge profiles [--json | new | delete NAME | restore [NAME]]: every profile, the interview that adds one,
+    or taking one out of ReelForge and bringing it back."""
+    usage = "usage: reelforge profiles [--json | new | delete NAME | restore [NAME]]"
+    if "--json" in argv and argv != ["--json"]:
+        print(f"{usage}\n--json only works with the profile listing, without a subcommand.", file=sys.stderr)
+        return 2
     if argv and argv[0] in ("new", "add"):
         return first_run("onboard", new=True) if _interactive() else onboard(["--new", *argv[1:]])
     if argv and argv[0] in ("delete", "remove"):
         return delete_profile(argv[1:])
     if argv and argv[0] == "restore":
         return restore_profile(argv[1:])
-    if argv:
-        print("usage: reelforge profiles [new | delete NAME | restore [NAME]]")
+    if argv and argv != ["--json"]:
+        print(usage)
         return 2
-    here = profiles.current() if profiles.get(os.environ.get(profiles.ENV)) else profiles.last()
+    here = chosen or (profiles.current() if profiles.get(os.environ.get(profiles.ENV)) else profiles.last())
+    if argv == ["--json"]:
+        from . import settings as S
+
+        print(json.dumps({"current": here.key, "profiles": [
+            {"key": p.key, "name": p.name, "folder": str(p.folder), "main": p.main,
+             "onboarded": p.onboarded, "platforms": S.load(p.settings)["platforms"]["enabled"]}
+            for p in profiles.every()
+        ]}, ensure_ascii=False))
+        return 0
     print("Your profiles (one for each channel):")
     for i, p in enumerate(profiles.every(), 1):
         mark = "*" if p == here else " "
@@ -436,21 +450,26 @@ def main(argv: list[str] | None = None) -> int:
     except (AttributeError, ValueError):
         pass
     argv = list(sys.argv[1:] if argv is None else argv)
-    P.keep_runnable()
-    from . import reset
-    done = reset.finish_pending()   # a factory reset or an uninstall the window just asked for (it quit for this)
-    if isinstance(done, list):
-        return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
-    if done is not None:
-        return done
     argv, word = take_profile(argv)
+    # JSON listings leave launchers, pending actions and the process's profile selection untouched.
+    profiles_json = argv[:1] == ["profiles"] and "--json" in argv[1:]
+    if not profiles_json:
+        P.keep_runnable()
+        from . import reset
+        done = reset.finish_pending()   # a factory reset or an uninstall the window just asked for (it quit for this)
+        if isinstance(done, list):
+            return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
+        if done is not None:
+            return done
+    chosen = None
     if word is not None:
         chosen = profiles.find(word)
         if chosen is None:
             names = ", ".join(f"{i}. {p.name}" for i, p in enumerate(profiles.every(), 1))
             print(f"There's no profile called {word!r}. Your profiles: {names}")
             return 2
-        profiles.use(chosen)
+        if not profiles_json:
+            profiles.use(chosen)
     if argv and argv[0] in ("-h", "--help", "help"):
         print(__doc__)
         return 0
@@ -464,7 +483,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd in ("channel", "onboard"):
         return onboard(rest)
     if cmd == "profiles":
-        return list_profiles(rest)
+        return list_profiles(rest, chosen)
     if cmd == "setup":
         yes = "--yes" in rest or "-y" in rest
         if not yes and _interactive():

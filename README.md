@@ -208,6 +208,12 @@ about it. The hourly stats job reads every profile, and `reelforge -p "Channel n
 today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
 out, say).
 
+`reelforge profiles --json` prints one JSON object with `current` (the selected profile's key) and a `profiles` array.
+Each profile has `key`, `name`, `folder` (an absolute path), `main`, `onboarded`, and `platforms` (enabled platform
+keys from its studio settings, or the defaults before onboarding). Selection follows `reelforge profiles`: `-p NAME`
+or `REELFORGE_PROFILE`, then the last-opened profile, then the first. It changes no files or profile selection and
+includes no login data. `--json` cannot be combined with `new`, `delete`, or `restore`.
+
 Done with a channel you added? **Delete** beside it in the menu (or the Delete key, or **Delete…** under **Profiles**
 on the Settings tab) asks you to type its name, then takes it out of ReelForge. Nothing is deleted for good: its whole
 folder, with its accounts, logins, stats, settings and videos, moves into `backups` in the ReelForge folder, and
