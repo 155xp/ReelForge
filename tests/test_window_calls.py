@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from dashboard import db, demo
+from dashboard import db, demo, sync
 from dashboard.config import PLATFORM_KEYS
 from dashboard.service import TABS, Dashboard
 from dashboard.tests.window import Recorder, Window
@@ -57,7 +57,8 @@ def rpc_names(cls: type) -> set[str]:
 
 
 class DashboardCalls(unittest.TestCase):
-    """The stats window's Python side (dashboard/service.py) on the demo, X not connected, every tab opened."""
+    """The stats window's Python side (dashboard/service.py) on the demo, X not connected, YouTube's last read failed
+    (so the foot of the window names it, with a click that opens Accounts), every tab opened."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
@@ -68,6 +69,11 @@ class DashboardCalls(unittest.TestCase):
                "completed_dir": str(root / "none"), **{key: {} for key in PLATFORM_KEYS}}
         db.init(root / "demo.db")
         demo.seed()
+        for state in (sync._attempted, sync.last_errors):
+            state.clear()
+            self.addCleanup(state.clear)
+        sync.last_errors["youtube"] = (db.now_iso(), "Couldn't read YouTube")
+        sync._share(None)  # as every ReelForge window sees it
         self.w = Window(cfg, demo.platforms(unconnected=("x",)), drawer=True)
         self.addCleanup(self.w.close)
         for tab in TABS:

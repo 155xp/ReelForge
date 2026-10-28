@@ -104,7 +104,7 @@ def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channe
         {"q": "Do my stats update while ReelForge is closed?",
          "a": "Yes, while the **Hourly stats read** on this tab is on: once an hour, while your computer is on, it "
               f"reads your stats for about a minute, then stops. {open_now}"},
-        {"q": "A platform is red in the bar along the bottom.",
+        {"q": "The bottom left says a platform's last refresh failed.",
          "a": "Its last read failed. Click it to open **Accounts**, where that platform says what went wrong. "
               "Instagram and X sometimes need **Log in** again, and **Refresh now** tries once more."},
         {"q": "Can I run more than one channel?",

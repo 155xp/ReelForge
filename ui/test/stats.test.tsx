@@ -48,9 +48,9 @@ async function until(h: Headless, ok: () => boolean) {
 }
 
 describe("the Stats tab", () => {
-  test("5 opens it: views, followers and likes with their numbers, a breakdown beside each, the pills and the ranges", async () => {
+  test("4 opens it: views, followers and likes with their numbers, a breakdown beside each, the pills and the ranges", async () => {
     const h = await window([180, 50], "overview")
-    h.t.mockInput.pressKey("5") // Stats is 5th by default
+    h.t.mockInput.pressKey("4") // Stats is 4th by default
     await until(h, () => frame(h).includes("BY PLATFORM"))
     expect(activeTab(h)).toBe("Stats")
     const f = frame(h)

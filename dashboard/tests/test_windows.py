@@ -281,18 +281,21 @@ class WindowsTest(unittest.TestCase):
 
     @staticmethod
     def status(w: Window) -> str:
-        return plain(w.view("header")["line"])
+        """Under the Refresh button: the read under way, here or in another window, or "" when there's none."""
+        return w.view("refreshed")["reading"]
 
     def test_a_read_in_another_window_shows_here(self):
         w = self.window()
         followers = w.svc.latest["tiktok"]["followers"] + 5_000
+        self.assertTrue(w.view("refreshed")["ago"].endswith(" ago"))
         other = Other("TikTok").start()
         self.assertTrue(w.until(lambda: "refreshing TikTok…" in self.status(w)))
         other.finish({"tiktok": followers})
         self.assertTrue(w.until(lambda: w.svc.latest["tiktok"]["followers"] == followers))
         self.assertTrue(any(c["values"]["followers"] >= followers for c in w.view("cards")["cards"]
                             if c["id"] == "tiktok"))  # the card shows it
-        self.assertNotIn("refreshing", self.status(w))
+        self.assertEqual(self.status(w), "")
+        self.assertEqual(w.view("refreshed")["ago"], "0m ago")
         self.assertEqual(w.svc.changes, db.changes())
 
     def test_refresh_while_another_window_reads_waits_for_it(self):
@@ -316,6 +319,13 @@ class WindowsTest(unittest.TestCase):
         self.assertEqual(sync.last_errors["instagram"][1], "Log in to Instagram again")
         panel = next(p for p in w.view("accounts")["panels"] if p["key"] == "instagram")
         self.assertIn("last read failed: Log in to Instagram again", plain(panel["body"]))
+        # the foot of the window names it (and only it), and a click on it opens Accounts
+        self.assertTrue(w.until(lambda: "Instagram" in plain(w.view("header")["line"])))
+        foot = w.view("header")
+        self.assertIn("● Instagram: last refresh failed  see Accounts", plain(foot["line"]))
+        self.assertIn("● IG: last refresh failed", plain(foot["short"]))
+        self.assertNotIn("TikTok", plain(foot["line"]))
+        self.assertIn(["tab", "accounts"], [seg[2] for seg in foot["line"] if len(seg) > 2])
 
     def test_the_bell_follows_the_other_windows(self):
         w = self.window()

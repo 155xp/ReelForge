@@ -98,6 +98,8 @@ async function openFirstAnswer(h: Headless) {
 
 async function pickFirstVideo(h: Headless) {
   await clickText(h, "demo_", 2)
+  // its caption comes from the Python side, on a busy computer after the click's settle
+  for (let i = 0; i < 30 && /Caption +0\//.test(h.t.captureCharFrame()); i++) await h.settle(100)
 }
 
 /** Click the newest notification about a video (taking off, or passing a views milestone) in the drawer. */

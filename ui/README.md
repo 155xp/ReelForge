@@ -43,7 +43,7 @@ The window finds the kit's Python by itself (`REELFORGE_PYTHON`, else `../.venv`
 | `src/main.tsx` | Starts the renderer and the Python side, mounts the window or the first-run screens, quits cleanly |
 | `src/root.tsx` | The window round the profiles (one per channel): switching starts a Python side on the profile picked (`REELFORGE_PROFILE`) and lets the old one finish; New profile shows the channel's questions inside the window |
 | `src/bridge.ts` | The link to `studio/bridge.py`: calls, replies and views |
-| `src/dashboard/` | The ReelForge window: `App.tsx` (the header with its sliding tab marker, the bell, the status bar, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
+| `src/dashboard/` | The ReelForge window: `App.tsx` (the header with its sliding tab marker, the green Publish button, the bell, the status bar, keys), a file per tab, `Drawer.tsx`, `Dialogs.tsx`, `Profiles.tsx` (the profile button and its menu) |
 | `src/setup/` | The first-run screens (`App.tsx`), the channel's questions (`Onboard.tsx`) and the steps, logo and mascot round them (`Frame.tsx`) |
 | `src/theme.ts` | The colours, and `restyle`: the Python side's colours mapped to them as its messages arrive |
 | `src/ui/` | The pieces: buttons, tables and lists, charts, fields, panels, dialogs, pop-ups, block art (the big numbers, sparklines, the bell), the mascot (`Mascot.tsx`; his frames in `mascot/`, copied from `../assets/mascot/opentui`), and `Motion.tsx` (counting up, growing in, sliding, fading) |
@@ -69,6 +69,7 @@ while something moves; `REELFORGE_MOTION=0` turns it off.
 
 Everything works with either. Tab and Shift+Tab move between buttons, lists and fields in reading order (a dialog
 keeps Tab inside itself); Enter or Space presses a button, the arrows move through a list or table, Enter (or a
-click on the highlighted row) opens it. In the ReelForge window 1-8 open the tabs in the order they're shown (the
-Settings tab's Tab order changes it) and r / R refresh, except while a text field has the keyboard, p opens the
-profile menu and ? the help; Esc leaves the field, closes a dialog or the drawer. Ctrl+Q quits.
+click on the highlighted row) opens it. In the ReelForge window 1-7 open the tabs in the order they're shown (the
+Settings tab's Tab order changes it), u opens Publish (the green button at the right of the header) and r / R
+refresh, except while a text field has the keyboard, p opens the profile menu and ? the help; Esc leaves the field,
+closes a dialog or the drawer. Ctrl+Q quits.

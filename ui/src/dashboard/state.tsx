@@ -9,17 +9,22 @@ import type { Init, ProfilesMenu } from "./types"
 /** Rows above a tab's own: the header (3) and the hairline under it. */
 export const TOP_ROWS = 4
 
-// Every tab. The Stats tab is "totals" (as in dashboard/tabs.py: `reelforge stats` is the hourly job's command). The
-// order they sit in along the top is picked on the Settings tab, and the Python side says what it is (DashState.order).
+// Every tab. The Stats tab is "totals" (as in dashboard/tabs.py: `reelforge stats` is the hourly job's command). Publish
+// isn't along the top with the others: it's the green button at the right of the header, and PUBLISH_KEY opens it. The
+// order the others sit in along the top is picked on the Settings tab, and the Python side says what it is
+// (DashState.order).
 export const TABS = ["overview", "videos", "compare", "publish", "accounts", "updates", "settings", "totals"] as const
 export type Tab = (typeof TABS)[number]
+/** The tabs along the top, which can be put in any order: every one but Publish. */
+export const ROW_TABS: readonly Tab[] = TABS.filter((t) => t !== "publish")
+export const PUBLISH_KEY = "u" // u for upload: p is the profiles
 
-/** An order of the tabs as the Python side sends it (dashboard/tabs.py), made whole: each tab once, any missing at the
- * end. */
+/** An order of the tabs along the top as the Python side sends it (dashboard/tabs.py), made whole: each one once, any
+ * missing at the end, and never Publish. */
 export function tabOrder(order: readonly string[] | undefined): Tab[] {
   const out: Tab[] = []
-  for (const t of order ?? []) if ((TABS as readonly string[]).includes(t) && !out.includes(t as Tab)) out.push(t as Tab)
-  return [...out, ...TABS.filter((t) => !out.includes(t))]
+  for (const t of order ?? []) if ((ROW_TABS as readonly string[]).includes(t) && !out.includes(t as Tab)) out.push(t as Tab)
+  return [...out, ...ROW_TABS.filter((t) => !out.includes(t))]
 }
 
 export const TAB_NAMES: Record<Tab, string> = {
@@ -84,7 +89,7 @@ export interface EpisodeData {
 /** The window's own state (what the Python side doesn't need to know), with a way to watch it. */
 export class DashState {
   tab: Tab
-  order: Tab[] // the tabs along the top, left to right: 1-8 open them in this order
+  order: Tab[] // the tabs along the top, left to right (Publish isn't one): 1-7 open them in this order
   drawer: boolean
   dialog: Dialog | null = null
   picked: string | null = null // a card or account panel framed for a few seconds (a clicked notification)
@@ -137,7 +142,7 @@ export class DashState {
     if (keep) this.bridge.send("set_tab_order", order)
   }
 
-  /** The default order (Overview first, Settings and Updates last), as the Python side has it. */
+  /** The default order along the top (Overview first, Settings and Updates last), as the Python side has it. */
   get defaultOrder(): Tab[] {
     return tabOrder(this.init.default_order)
   }

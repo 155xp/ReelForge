@@ -1,9 +1,9 @@
-"""reelforge [1-8 | a tab's name | notifications | refresh] [--demo]      (also: python -m dashboard ...)
+"""reelforge [1-7 | a tab's name | notifications | refresh] [--demo]      (also: python -m dashboard ...)
 
   reelforge                ReelForge on the Overview tab
   reelforge publish        straight to a tab, by name (reelforge totals for Stats: reelforge stats is the hourly job)
-  reelforge 4              the same, by where it sits along the top: 1 is the one at the far left (the Settings
-                           tab changes the order; dashboard/tabs.py)
+  reelforge 2              a tab by where it sits along the top: 1 is the one at the far left (the Settings tab
+                           changes the order; Publish, the green button at the right, has no number: dashboard/tabs.py)
   reelforge notifications  with the notifications drawer open
   reelforge refresh        read every profile's stats once, save them and exit (the hourly background job)
   reelforge --demo         try it on made-up data; nothing is read or saved
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
                                      description="ReelForge: your stats on TikTok, YouTube, Instagram and X, the "
                                                  "Publish tab, notifications and updates.")
     parser.add_argument("--demo", action="store_true", help="try ReelForge on made-up data; nothing is read or saved")
-    parser.add_argument("what", nargs="?", default="", help="a tab (1-8 or its name), notifications, or refresh")
+    parser.add_argument("what", nargs="?", default="", help="a tab (1-7 or its name), notifications, or refresh")
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     word = args.what.strip().lower()
     if word and word != "refresh" and tab_for(word) is None:

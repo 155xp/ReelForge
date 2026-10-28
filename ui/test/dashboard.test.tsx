@@ -13,7 +13,7 @@ import { ROOT } from "../src/bridge"
 import { DRAWER_WIDTH } from "../src/dashboard/Drawer"
 import { TILE_ROWS } from "../src/dashboard/Overview"
 import { TAB_NAMES, TOP_ROWS } from "../src/dashboard/state"
-import { DASH } from "../src/theme"
+import { DASH, MARK } from "../src/theme"
 import { toasts } from "../src/ui/Panels"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
@@ -35,7 +35,8 @@ afterEach(async () => {
 const frame = (h: Headless) => h.t.captureCharFrame()
 const rows = (h: Headless) => frame(h).split("\n")
 
-/** The tab that's open: its name bold in the header, where the others are plain. */
+/** The tab that's open: its name bold in the header, where the others are plain ("" while Publish is open: it's the
+ * button at the right, not a tab). */
 function activeTab(h: Headless): string {
   const names = Object.values(TAB_NAMES) as string[]
   const lit = h.t.captureSpans().lines[1]!.spans.find((s) => s.attributes & TextAttributes.BOLD && names.includes(s.text.trim()))
@@ -43,6 +44,13 @@ function activeTab(h: Headless): string {
 }
 
 const hex = (c: { toInts(): [number, number, number, number] }) => "#" + c.toInts().slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("")
+
+/** The Publish button's label: green on the window's colour, or dark on green (filled) while Publish is open. */
+function publishButton(h: Headless): { fg: string; bg: string } | null {
+  const span = h.t.captureSpans().lines[1]!.spans.find((s) => s.text.includes("Publish"))
+  return span ? { fg: hex(span.fg), bg: hex(span.bg) } : null
+}
+const publishOpen = (h: Headless) => publishButton(h)?.fg === DASH.bg
 
 /** Row y as cells: each character with its background colour. */
 function cells(h: Headless, y: number): { ch: string; bg: string }[] {
@@ -112,6 +120,42 @@ describe("the header and the bell", () => {
     await clickText(h, " Quit ", 2)
     expect(h.exits).toEqual([{ code: 0, result: undefined }])
   })
+
+  test("Publish is a green button in a box at the right, not a tab: it opens Publish and stays filled there", async () => {
+    const h = await window()
+    const top = rows(h)
+    expect(top[1]).toMatch(/Overview {2,}Videos {2,}Compare {2,}Stats {2,}Accounts {2,}Settings {2,}Updates ● +│ ↑ Publish │ +↻ Refresh +\? Help +Quit/)
+    const x = [...top[1]!].indexOf("│")
+    expect([...top[0]!].slice(x, x + 13).join("")).toBe("╭───────────╮")
+    expect([...top[2]!].slice(x, x + 13).join("")).toBe("╰───────────╯")
+    expect(publishButton(h)).toEqual({ fg: DASH.good, bg: DASH.bg })
+    await clickText(h, "↑ Publish", 2)
+    expect(frame(h)).toContain("UPLOAD")
+    expect(publishOpen(h)).toBe(true)
+    expect(activeTab(h)).toBe("") // no tab along the top is lit, and the bar under them has gone
+    expect(top[2]!.slice(0, x)).toContain("▔")
+    expect(rows(h)[2]!.slice(0, x)).not.toContain("▔")
+    await clickText(h, "Videos", 2)
+    expect(activeTab(h)).toBe("Videos")
+    expect(publishOpen(h)).toBe(false)
+  })
+
+  test("in a narrower window the button keeps its word and its box, and the bell its corner", async () => {
+    for (const [w, button, signs] of [
+      [122, "│ Publish │", "↻   ?   ×"],
+      [110, "│ Publish │", "↻   ?   ×"],
+      [100, "│Publish│", "↻ ? ×"], // the narrowest: everything a little closer
+    ] as const) {
+      const h = await window("publish", [w, 30])
+      const top = rows(h)
+      expect(top[1]!.indexOf(button)).toBeGreaterThan(top[1]!.indexOf("Updates ●") + 9) // never touching the tabs
+      expect(top[1]).toContain(signs)
+      expect(top[0]).toMatch(/\d▌\s*$/) // the bell's unread count, in the corner
+      expect(publishOpen(h)).toBe(true)
+      await open?.close()
+      open = null
+    }
+  })
 })
 
 describe("pop-ups", () => {
@@ -128,24 +172,30 @@ describe("pop-ups", () => {
 })
 
 describe("keys", () => {
-  test("1-8 open the tabs in the order they're shown, but not while you type; Esc leaves the field", async () => {
+  test("1-7 open the tabs in the order they're shown and u opens Publish, but not while you type; Esc leaves the field", async () => {
     const h = await window()
     expect(activeTab(h)).toBe("Overview")
     await press(h, "2")
     expect(activeTab(h)).toBe("Videos")
     await press(h, "4")
-    expect(activeTab(h)).toBe("Publish")
+    expect(activeTab(h)).toBe("Stats")
+    await press(h, "8") // there are seven
+    expect(activeTab(h)).toBe("Stats")
+    await press(h, "u")
+    expect(publishOpen(h)).toBe(true)
     for (let i = 0; i < 30 && !find(h, "What if everyone"); i++) await h.settle(100) // the picked video's caption
     await h.t.mockMouse.click(find(h, "What if everyone")![0] + 3, find(h, "What if everyone")![1])
     await h.settle(200)
     h.t.mockInput.pressKey("END")
-    await h.t.mockInput.typeText(" 3")
+    await h.t.mockInput.typeText(" 3u")
     await h.settle(300)
-    expect(activeTab(h)).toBe("Publish")
-    expect(frame(h)).toContain("time? 3")
+    expect(publishOpen(h)).toBe(true)
+    expect(activeTab(h)).toBe("")
+    expect(frame(h)).toContain("time? 3u")
     await press(h, "escape")
     await press(h, "3")
     expect(activeTab(h)).toBe("Compare")
+    expect(publishOpen(h)).toBe(false)
   })
 
   test("? opens the help, Esc closes it", async () => {
@@ -382,15 +432,37 @@ describe("profiles", () => {
     expect(frame(h)).toContain("PROFILES")
   })
 
-  test("the status bar names each platform, or says TT YT IG X in a window too narrow for that, and when it read them", async () => {
-    for (const [w, full] of [[64, false], [122, true]] as const) {
+  test("when the stats were read sits under Refresh at the top, and the bar at the foot doesn't list the platforms", async () => {
+    for (const [w, ago] of [
+      [180, /^updated \d+m ago/],
+      [122, /^\d+m ago/],
+      [100, /^\d+m ago/],
+    ] as const) {
       const h = await window("overview", [w, 30], false, { screenshots: true })
+      const top = rows(h)
+      const at = [...top[1]!].indexOf("↻")
+      expect([...top[2]!].slice(at).join("")).toMatch(ago)
       const bar = rows(h)[29]!
-      expect(bar).toContain(full ? "● TikTok" : "● TT  ● YT  ● IG  ● X")
-      expect(bar).toContain("updated")
+      for (const gone of ["TikTok", "YouTube", "Instagram", "TT ", "IG ", "updated"]) expect(bar).not.toContain(gone)
+      expect(bar).toContain("u publish")
       await open?.close()
       open = null
     }
+  })
+
+  test("a read under way shows under Refresh in amber; a failed one shows at the bottom left, and a click opens Accounts", async () => {
+    const h = await window()
+    h.bridge.emit("refreshed", { ago: "5m ago", reading: "refreshing TikTok…" })
+    await h.settle(300)
+    const [x, y] = find(h, "refreshing TikTok…")!
+    expect(y).toBe(2)
+    expect(x).toBe([...rows(h)[1]!].indexOf("↻"))
+    expect(hex(h.t.captureSpans().lines[2]!.spans.find((sp) => sp.text.includes("refreshing"))!.fg)).toBe(MARK)
+    h.bridge.emit("header", { line: [["● Instagram: last refresh failed", "bold #ff5c6c", ["tab", "accounts"]]] })
+    await h.settle(300)
+    expect(rows(h)[49]).toContain("● Instagram: last refresh failed")
+    await clickText(h, "Instagram: last refresh failed", 2)
+    expect(activeTab(h)).toBe("Accounts")
   })
 
   test("picking another profile shows it in the same window, on its own Python side", async () => {

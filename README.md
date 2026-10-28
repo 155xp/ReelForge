@@ -101,24 +101,27 @@ unless you picked another). Its last screen tells you what to do next.
    renders it, adds the text and the sound, then watches the finished video and fixes anything that's off. Rendering
    takes from about 15 minutes to an hour on a fast graphics card.
 5. **Post it.** Open ReelForge (type `reelforge` in any terminal, or open the ReelForge icon: on your desktop on
-   Windows, in Applications on a Mac, in your app menu on Linux) and go to **Publish**.
+   Windows, in Applications on a Mac, in your app menu on Linux) and click the green **Publish** button at the top
+   right.
 
 After that, say **make today's videos** whenever you want more, and give it a new file whenever your plans for the
 channel change.
 
 ## Inside ReelForge
 
-ReelForge has eight tabs: Overview, Videos, Compare, Publish, Stats, Accounts, Settings and Updates. Put them in any
-order you like on the Settings tab. Open one straight from a terminal by name, like `reelforge publish`, or by where
-it sits, from `reelforge 1` at the far left to `reelforge 8`. Everything works with the mouse or the keyboard:
-**1**-**8** open the tabs in the order they're shown, **r** refreshes your stats, **p** opens your profiles, **?** the
+Seven tabs run along the top: Overview, Videos, Compare, Stats, Accounts, Settings and Updates, in any order you like
+(pick it on the Settings tab). **Publish**, where your finished videos wait, is the green button at the top right.
+Open any of them straight from a terminal by name, like `reelforge publish`, or a tab by where it sits, from
+`reelforge 1` at the far left to `reelforge 7`. Everything works with the mouse or the keyboard: **1**-**7** open the
+tabs in the order they're shown, **u** opens Publish, **r** refreshes your stats, **p** opens your profiles, **?** the
 help, **Tab** moves between buttons and fields, **Enter** presses and **Esc** closes.
 
 The window is calm and dark, so your numbers stand out: each platform keeps its own colour (TikTok cyan, YouTube red,
 Instagram purple, X white), green and red show what went up and down, and amber marks where each video went up.
-Numbers count up and charts grow in as they arrive, and the tabs slide. The bar along the bottom shows each platform
-you've connected (red when its last read failed: click it for Accounts), when your stats were last read and any read
-under way. It fits any window: in a small one the Overview's panels stack and scroll instead of squeezing.
+Numbers count up and charts grow in as they arrive, and the tabs slide. Under **↻ Refresh** at the top is when your
+stats were last read (in amber while a read is under way), and if a platform's last read failed, the bottom left of
+the window says so: click it for Accounts. It fits any window: in a small one the Overview's panels stack and scroll
+instead of squeezing.
 ReelForge's window and its first-time setup are built with [OpenTUI](https://github.com/anomalyco/opentui), and look
 sharpest in Windows Terminal.
 
@@ -158,9 +161,10 @@ views first) to see it on every platform against each one's typical video.
 
 ### Publish
 
-Every finished video waits here with its post already written. Each platform's button opens that site's upload page,
-copies exactly the text it needs and shows the video in Explorer, Finder or your file manager, so you drag it in and
-press Post. ReelForge spots the post by itself.
+Every finished video waits here with its post already written: click the green **Publish** button at the top right
+(or press **u**), from any tab. Each platform's button opens that site's upload page, copies exactly the text it
+needs and shows the video in Explorer, Finder or your file manager, so you drag it in and press Post. ReelForge spots
+the post by itself.
 Under the list, Best time to post shows the part of the day your videos have done best in on each platform, by
 their views in their first day, and when it next comes round, once there are enough videos to tell.
 
@@ -226,8 +230,9 @@ if something can't be moved (another ReelForge window has it open, say), nothing
 
 **Tab order**, under the FAQ, puts the tabs along the top in the order you like: drag a tab where you want it, or
 click one and move it with **← Move left** and **Move right →** (or Shift and the arrow keys). The number keys follow
-the new order, and so does `reelforge 1` to `reelforge 8`. It's kept for every channel, and **Reset to default** puts
-them back as they started, with Settings and Updates at the far right.
+the new order, and so does `reelforge 1` to `reelforge 7`. It's kept for every channel, and **Reset to default** puts
+them back as they started, with Settings and Updates at the far right. Publish isn't one of them: it keeps its own
+green button at the top right.
 
 ![The Settings tab: the channel's answers, the FAQ with its first answer open, the tab order, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
 
@@ -270,8 +275,8 @@ Yes. ReelForge is free and open source. Making videos uses your own Claude Code 
 
 <br>
 
-No. ReelForge never posts, uploads or sends anything. Finished videos wait in the Publish tab, and you post them
-yourself.
+No. ReelForge never posts, uploads or sends anything. Finished videos wait in Publish (the green button at the top
+of ReelForge), and you post them yourself.
 
 </details>
 
@@ -300,8 +305,8 @@ curl -fsSL https://github.com/dan2756/ReelForge/releases/latest/download/install
 
 <br>
 
-In the Publish tab, and as files in the ReelForge folder: every video has its own folder in `episodes`, and a copy of
-each finished one goes to `completed videos`.
+In Publish (the green button at the top of ReelForge), and as files in the ReelForge folder: every video has its own
+folder in `episodes`, and a copy of each finished one goes to `completed videos`.
 
 </details>
 
@@ -456,8 +461,8 @@ or point `STUDIO_BLENDER` at it.
 <br>
 
 - `reelforge` opens ReelForge.
-- `reelforge publish`, `reelforge videos` and so on open a tab by name, and `reelforge 1` to `reelforge 8` by where
-  it sits along the top (1 is the far left).
+- `reelforge publish`, `reelforge videos` and so on open a tab by name, and `reelforge 1` to `reelforge 7` by where
+  it sits along the top (1 is the far left; Publish, the green button, goes by its name).
 - `reelforge channel` changes your channel answers.
 - `reelforge profiles` lists your channels, and `reelforge profiles new` adds one.
 - `reelforge profiles delete "Channel name"` deletes one you added (it's kept in `backups`), and

@@ -11,8 +11,8 @@ drawer, and one-click updates. ReelForge never posts anything itself.
 | Type this | and you get |
 |---|---|
 | `reelforge` | the Overview |
-| `reelforge 1` … `reelforge 8` | straight to the tab in that place along the top, 1 at the far left: by default 1 Overview, 2 Videos, 3 Compare, 4 Publish, 5 Stats, 6 Accounts, 7 Settings, 8 Updates (the Settings tab's **Tab order** changes it) |
-| `reelforge videos`, `reelforge publish`, … | the same, by the tab's name (`post` and `upload` work for Publish, `login` for Accounts, `totals` for Stats: `reelforge stats` is the hourly job) |
+| `reelforge 1` … `reelforge 7` | straight to the tab in that place along the top, 1 at the far left: by default 1 Overview, 2 Videos, 3 Compare, 4 Stats, 5 Accounts, 6 Settings, 7 Updates (the Settings tab's **Tab order** changes it) |
+| `reelforge videos`, `reelforge publish`, … | the same, by the tab's name (`post` and `upload` work for Publish, which is the green button at the top right and has no number, `login` for Accounts, `totals` for Stats: `reelforge stats` is the hourly job) |
 | `reelforge notifications` | the Overview with the notifications drawer open |
 | `reelforge -p "Channel name"` | ReelForge on one of your profiles (its number in the list, or the start of its name, works too) |
 | `reelforge --demo` | a tour on made-up numbers: nothing is read or saved |
@@ -21,10 +21,10 @@ ReelForge shows only the platforms you've connected: first-time setup connects t
 **Accounts** connects (or disconnects) any of them later. TikTok and YouTube stats start straight away; Instagram
 and X need **Log in** once (see below). With nothing connected yet, ReelForge opens on Accounts. It looks best in
 Windows Terminal with the window maximised.
-Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**8** open the tabs in the
-order they're shown, **r** / **R** refresh / force a refresh, **p** opens the profile menu, **Tab** moves between
-buttons, lists and fields (**Enter** presses, the arrows move through a list), **Esc** closes the drawer or a dialog
-or leaves a text field, and **Ctrl+Q** quits.
+Everything is a button on the page it applies to, for the mouse or the keyboard: **1**-**7** open the tabs in the
+order they're shown, **u** opens Publish (the green button at the top right), **r** / **R** refresh / force a
+refresh, **p** opens the profile menu, **Tab** moves between buttons, lists and fields (**Enter** presses, the arrows
+move through a list), **Esc** closes the drawer or a dialog or leaves a text field, and **Ctrl+Q** quits.
 
 The window is an [OpenTUI](https://github.com/anomalyco/opentui) app (`ui/` in the ReelForge folder), run by Bun; setup
 puts Bun in `tools/bun` and the window's packages in `ui/node_modules`, and ReelForge gets them again by itself if
@@ -62,21 +62,23 @@ first-time setup said no to background stats is read only while it's open).
 
 You can have ReelForge open in several windows at once, each on its own tab (the Overview in one, Publish in
 another), or each on its own profile. Windows on the same profile share one set of stats: one window reads them at a
-time, with **refreshing …** in every window's status bar meanwhile, and as soon as it's done every window shows the new
-numbers, notifications and errors. The hourly background job's reads show up the same way. **r** in a window while
-another one is reading waits for that read instead of reading everything again. Switching a window to another
+time, with **refreshing …** under every window's **↻ Refresh** meanwhile, and as soon as it's done every window shows
+the new numbers, notifications and errors. The hourly background job's reads show up the same way. **r** in a window
+while another one is reading waits for that read instead of reading everything again. Switching a window to another
 profile lets a read it has under way finish first, in the background, into its own profile.
 
 On Windows, ReelForge also adds itself to Windows Terminal: opened from the desktop shortcut or the Start menu, its
 tab is called ReelForge and shows the anvil, and **ReelForge** is in Terminal's **+** menu. Terminal picks this up the
 next time it starts. A tab you type `reelforge` into is called ReelForge too, but keeps that tab's own icon.
 
-## The eight tabs
+## The tabs, and Publish
 
-They sit along the top in the order below until you change it. The Settings tab's **Tab order** puts them in any order
-you like (drag a tab, or click one and use **← Move left** and **Move right →**), for every profile at once:
-**1**-**8** and `reelforge 1` … `reelforge 8` follow it, and **Reset to default** puts it back. It's kept in
-`dashboard/data/tab-order.json`.
+Seven tabs sit along the top in the order below until you change it. **Publish**, in the table with them, isn't one
+of them: it's the green button at the top right (**u** opens it too), whatever the order, so it has no number. The
+Settings tab's **Tab order** puts the tabs in any order you like (drag a tab, or click one and use **← Move left** and
+**Move right →**), for every profile at once: **1**-**7** and `reelforge 1` … `reelforge 7` follow it, and **Reset
+to default** puts it back. It's kept in `dashboard/data/tab-order.json` (an order kept before Publish had its button
+just leaves Publish out).
 
 | Tab | What's on it |
 |---|---|
@@ -174,9 +176,10 @@ question) keep them filling in while ReelForge is closed: a small job wakes once
 hidden browser for about a minute, and exits. `reelforge stats off` stops it. Each run adds a line to
 `dashboard/data/refresh.log`.
 
-## The Publish tab
+## Publish
 
-It lists every finished video from the pipeline (`episodes/<id>/final/<id>.mp4` and `completed videos/`), plus any
+The green **Publish** button at the top right opens it, from any tab (so does **u**, and `reelforge publish`). It
+lists every finished video from the pipeline (`episodes/<id>/final/<id>.mp4` and `completed videos/`), plus any
 video you drop into `dashboard/videos/`. Picking one fills in the caption (the episode's `title`) and its hashtags.
 What each platform gets follows your channel's caption rules from first-time setup: the caption plus hashtags on TikTok
 (your first hashtag, usually #fyp, always leads) and Instagram, the caption as the YouTube title with the hashtags as
@@ -224,7 +227,7 @@ upload it).
 |---|---|
 | ReelForge says it needs its Python environment | Run setup again (`setup.bat`, or `./setup.sh`). |
 | "ReelForge's window couldn't run" | It says why, and the details are in `dashboard/data/window-log.txt`. `reelforge doctor` checks Bun and the window's packages; `reelforge setup` puts them right. |
-| A platform's name is red in the status bar at the foot of the window | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
+| The bottom left of the window says a platform's last refresh failed | The Accounts tab shows the error. TikTok sometimes shows a captcha to a background browser: ReelForge tries again next time. |
 | Instagram "wants to check it's you" | Press **Log in again** and follow Instagram's steps in the window that opens. |
 | A finished video isn't in the Publish list | Run `reelforge publish-check episodes/<id>` in the ReelForge folder: it says what's missing. |
 | A post is grouped with the wrong video | Videos tab: highlight it and press **Fix episode**. ReelForge keeps your choice. |

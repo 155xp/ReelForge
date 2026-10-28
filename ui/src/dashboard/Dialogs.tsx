@@ -13,7 +13,7 @@ import { Modal, Scroll, Wrapped } from "../ui/Panels"
 import { useFocusManager } from "../lib/focus"
 import { DeleteProfile, ProfileMenu } from "./Profiles"
 import { DiscardProfile, FactoryReset, Uninstall } from "./Settings"
-import { useDash, type EpisodeData, type LogData, type SignupData } from "./state"
+import { PUBLISH_KEY, useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
   const s = useDash()
@@ -42,18 +42,20 @@ function Buttons({ children }: { children: React.ReactNode }) {
 }
 
 /** How ReelForge works: the tabs first, in the order they sit along the top, each with the number that opens it, then
- * the rest. */
+ * Publish (the green button at the right) with its key, then the rest. */
 function Help({ close }: { close: () => void }) {
   const s = useDash()
-  const place = (tab: string) => (s.order as string[]).indexOf(tab)
-  const topics = s.init.help.map((topic, i) => ({ topic, rank: topic[2] ? place(topic[2]) : s.order.length + i })).sort((a, b) => a.rank - b.rank)
+  const place = (tab: string) => (s.order as string[]).indexOf(tab) // -1 for Publish: it isn't along the top
+  const rank = (tab: string) => (place(tab) < 0 ? s.order.length : place(tab))
+  const key = (tab: string) => (place(tab) < 0 ? PUBLISH_KEY : String(place(tab) + 1))
+  const topics = s.init.help.map((topic, i) => ({ topic, rank: topic[2] ? rank(topic[2]) : s.order.length + 1 + i })).sort((a, b) => a.rank - b.rank)
   return (
     <Modal name="help" title="HOW REELFORGE WORKS">
       <Scroll maxHeight={30} flexShrink={1} scrollY>
         {topics.map(({ topic: [title, text, tab] }) => (
           <box key={title} flexDirection="column" marginBottom={1} flexShrink={0}>
             <text fg={DASH.text} attributes={TextAttributes.BOLD}>
-              {tab ? `${title} (${place(tab) + 1})` : title}
+              {tab ? `${title} (${key(tab)})` : title}
             </text>
             <text fg={DASH.muted} wrapMode="word">
               {text}

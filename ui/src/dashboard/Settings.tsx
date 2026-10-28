@@ -15,7 +15,7 @@ import { DASH, mix } from "../theme"
 import { Button } from "../ui/Button"
 import { Switch, TextField } from "../ui/Fields"
 import { Markdown, Modal, Panel, Scroll, Wrapped } from "../ui/Panels"
-import { TAB_NAMES, useDash, type Tab } from "./state"
+import { PUBLISH_KEY, TAB_NAMES, useDash, type Tab } from "./state"
 
 export interface ComputerRow {
   key: string
@@ -215,7 +215,7 @@ function Faq({ items, grow }: { items: FaqItem[]; grow: boolean }) {
 /** The tabs along the top, in their order, each with the number that opens it. Drag one to another place, or pick one
  * (click it, or ← → while the row has the keyboard) and move it with the arrows (the buttons, or Shift+← →). Each move
  * is kept at once, for every profile; Reset to default puts them back in the default order (Overview first, Settings
- * and Updates last). */
+ * and Updates last). Publish isn't one of them: under them, a line says where its button is. */
 function TabOrder() {
   const s = useDash()
   const [picked, setPicked] = useState<Tab | null>(null)
@@ -317,6 +317,9 @@ function TabOrder() {
           <Button id="settings-tab-right" label="Move right →" disabled={at < 0 || at >= s.order.length - 1} onPress={() => nudge(1)} />
         </box>
       </box>
+      <text fg={DASH.faint} wrapMode="word" marginTop={1} flexShrink={0}>
+        {`Publish has its own green button at the top right, and ${PUBLISH_KEY} opens it.`}
+      </text>
     </Panel>
   )
 }

@@ -84,7 +84,7 @@ COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtu
           "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
 NOTHING_CONNECTED = "Connect an account on the Accounts tab to see your stats here."
 # The help: (title, what it says), and for a tab its id as well: the window puts the tabs in the order you see them
-# along the top, each with the number that opens it.
+# along the top, each with the number that opens it, then Publish (the green button at the right) with its key.
 HELP = [
     ("Overview", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / per day "
                  "on the longer ranges), stacked by platform. Yellow marks show when each video went up, and hours "
@@ -101,12 +101,13 @@ HELP = [
     ("Compare", "The platform scoreboard, or pick an episode to see the same video on every platform, each against "
                 "that platform's typical video. Newest, Oldest and Most views beside Episodes sort the list (Most "
                 "views adds up each episode's views on every platform).", "compare"),
-    ("Publish", "Pick a video, check the caption, then open each upload page: ReelForge copies the right text, shows "
-                f"the file in {desktop.FILES}, and checks for the new post 10 and 30 minutes later. Remove (or a "
-                f"right-click) hides a video or moves it to the {desktop.BIN}; Show hidden brings hidden ones back. "
-                "Under the videos, Best time to post shows each platform's part of the day whose videos got the most "
-                "views in their first day, and when it next comes round; it needs 2 videos a day old in each of 2 "
-                "parts of the day, with one clearly ahead.", "publish"),
+    ("Publish", "The green button at the top right opens it. Pick a video, check the caption, then open each upload "
+                f"page: ReelForge copies the right text, shows the file in {desktop.FILES}, and checks for the new "
+                "post 10 and 30 minutes later. Remove (or a right-click) hides a video or moves it to the "
+                f"{desktop.BIN}; Show hidden brings hidden ones back. Under the videos, Best time to post shows each "
+                "platform's part of the day whose videos got the most views in their first day, and when it next "
+                "comes round; it needs 2 videos a day old in each of 2 parts of the day, with one clearly "
+                "ahead.", "publish"),
     ("Accounts", "Connect the platforms you post to: ReelForge shows only the ones you've connected, everywhere else. "
                  "TikTok and YouTube need just your @handle; Instagram and X also need one log-in. No account yet? "
                  "Sign up opens the platform's own sign-up page (with more than one profile, in a private window of "
@@ -117,7 +118,7 @@ HELP = [
                 "place (your channel, videos and stats stay as they are) and opens ReelForge again.", "updates"),
     ("Settings", "This channel's answers from first-time setup (Change your answers asks the questions again), an FAQ "
                  "(click a question for its answer), the order of the tabs along the top (drag a tab, or click one "
-                 "and move it with the arrows; 1-8 follow it, in every profile), what ReelForge set up on this "
+                 "and move it with the arrows; 1-7 follow it, in every profile), what ReelForge set up on this "
                  "computer (the hourly stats read, the reelforge command and the icon) and your profiles: Delete "
                  "beside one, and Restore beside one you deleted. At the bottom, Factory reset "
                  "puts every channel's settings, log-ins and stats in a backup and starts first-time setup again "
@@ -150,7 +151,8 @@ HELP = [
     ("Badges", "Badges only ever compare you with yourself, from the numbers ReelForge has stored. Percentages need "
                "at least 10 videos or days to compare, and ties count against you, so a badge is always true."),
 ]
-KEYS = [("1-8", "switch tabs"), ("r / R", "refresh / force refresh"),
+KEYS = [("1-7", "switch tabs"), ("u", "open Publish (the green button at the top right)"),
+        ("r / R", "refresh / force refresh"),
         ("p", "profiles: switch, add, change or delete one"),
         ("Tab", "move between buttons, lists and fields (Enter presses, the arrows move through a list)"),
         ("Esc", "close the drawer or a dialog, or leave a text field"), ("Ctrl+Q", "quit")]
@@ -889,12 +891,19 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.update_header()
 
     def update_header(self) -> None:
-        """The top bar's line: each platform (red when its last read failed), when the stats were read, and any read
-        under way. short: the same with TT / YT / IG / X, for a window too narrow for the names beside the profile
-        button."""
+        """When the stats were read, under the Refresh button at the top ("refreshed": how long ago, and the read
+        under way, here or in another window, if there is one), and the line at the foot of the window ("header": see
+        header_line). The platforms aren't listed at the foot any more (DJ, 2026-10-28): only one whose last read
+        failed is."""
+        stamps = [r["ts"] for r in self.latest.values()]
+        self.emit("refreshed", {"ago": fmt_ago(max(stamps) if stamps else None),
+                                "reading": self.status or self.elsewhere})  # this window's read, or another one's
         self.emit("header", {"line": self.header_line(False).json(), "short": self.header_line(True).json()})
 
     def header_line(self, short: bool) -> Text:
+        """The foot of the window, at the left: the TEST or DEMO badge, a nudge to connect an account while none is,
+        and any platform whose last read failed (a click shows why, on Accounts). short: the same with TT / YT / IG /
+        X, for a narrow window."""
         t = Text()
         gap, after_badge = ("  ", "  ") if short else ("    ", "   ")
         if TEST_COPY:
@@ -903,23 +912,16 @@ class Dashboard(StatsTab, SettingsTab, Service):
         if self.demo and not self.screenshots:
             t.append(" DEMO ", "bold #0a0c0f on #ffcc33")
             t.append(after_badge)
-        for p in self.platforms.values():
-            live = p.has_stats or p.key in self.latest  # typed-in stats count too
-            failed = p.key in sync.last_errors
-            color = BAD if failed else p.color if live else "#4a515c"
-            t.append("● " if live else "○ ", color, act("tab", "accounts"))
-            t.append(SHORT.get(p.key, p.key) if short else p.name, f"bold {color}" if live else color,
-                     act("tab", "accounts"))
-            t.append(gap)
         if not self.platforms:
             t.append("No accounts connected yet  ", MUTED)
             t.append_text(chip("Connect one", act("tab", "accounts")))
             t.append(gap)
-        stamps = [r["ts"] for r in self.latest.values()]
-        t.append(f"updated {fmt_ago(max(stamps) if stamps else None)}", MUTED)
-        status = self.status or self.elsewhere  # this window's read, or another one's (see keep_in_step)
-        if status:
-            t.append(f"{gap}{status}", "#ffcc33")
+        failed = [SHORT.get(p.key, p.key) if short else p.name for p in self.platforms.values()
+                  if p.key in sync.last_errors]
+        if failed:
+            t.append(f"● {', '.join(failed)}: last refresh failed", f"bold {BAD}", act("tab", "accounts"))
+            if not short:
+                t.append("  see Accounts", MUTED, act("tab", "accounts"))
         return t
 
     # --- overview -------------------------------------------------------------------------

@@ -108,7 +108,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(self.buttons(w), ["tiktok", "youtube"])
         self.assertEqual(len(w.view("best")["lines"]), 2)
         header = plain(w.view("header")["line"])
-        self.assertIn("TikTok", header)
+        self.assertNotIn("TikTok", header)  # the foot of the window doesn't list the platforms (DJ, 2026-10-28)
         self.assertNotIn("Instagram", header)
         key = plain(w.view("trends")["legend"])
         self.assertIn("YouTube", key)

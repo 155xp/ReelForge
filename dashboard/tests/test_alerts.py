@@ -291,11 +291,11 @@ class BadgeNotesTest(DbTest):
 class WordsTest(unittest.TestCase):
     def test_numbers_names_and_aliases(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(tabs, "HERE", Path(tmp)):  # no order picked
-            self.assertEqual([tab_for(str(i)) for i in range(1, 9)], list(tabs.DEFAULT_ORDER))
+            self.assertEqual([tab_for(str(i)) for i in range(1, 8)], list(tabs.DEFAULT_ORDER))
         self.assertEqual([tab_for(w) for w in ("Videos", "post", "upload", "logins", "update", "notifications",
                                                "settings")],
                          ["videos", "publish", "publish", "accounts", "updates", "overview", "settings"])
-        self.assertIsNone(tab_for("9"))
+        self.assertIsNone(tab_for("8"))  # Publish has no number: it's the green button
         self.assertIsNone(tab_for("stats"))  # reelforge stats on/off is the background job, not a tab
 
     def test_unknown_word_is_refused_before_anything_starts(self):

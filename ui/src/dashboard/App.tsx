@@ -1,8 +1,9 @@
-// ReelForge's window: the header (the anvil, the profile button, eight tabs in the order picked on the Settings tab
-// with a marker that slides to the open one, Refresh / Help / Quit and the bell), the tab, the status bar at the foot
-// (each platform, when the stats were read, any read under way, the keys), the notifications drawer sliding in from the
-// right, dialogs, and pop-ups. Keys: 1-8 open the tabs in the order they're shown, r / R refresh, p the profiles, Esc
-// closes the drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
+// ReelForge's window: the header (the anvil, the profile button, seven tabs in the order picked on the Settings tab
+// with a marker that slides to the open one, then at the right the green Publish button, Refresh / Help / Quit with
+// when the stats were read under Refresh, and the bell), the tab, the status bar at the foot (the DEMO or TEST badge,
+// a platform whose last read failed, the keys), the notifications drawer sliding in from the right, dialogs, and
+// pop-ups. Keys: 1-7 open the tabs in the order they're shown, u Publish, r / R refresh, p the profiles, Esc closes the
+// drawer or leaves a text field, Tab moves between buttons and fields, Ctrl+Q quits.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
@@ -10,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext } from "../lib/focus"
 import { cellLen, segsLen, type Segs } from "../lib/styled"
-import { DASH, mix } from "../theme"
+import { DASH, MARK, mix } from "../theme"
 import { Cells } from "../ui/Cells"
 import { bell, BELL_WIDTH, logoCells, shade, widthOf } from "../ui/Graphics"
 import { ActionContext, Line } from "../ui/Line"
@@ -25,8 +26,8 @@ import { ProfileButton } from "./Profiles"
 import { Publish } from "./Publish"
 import { Settings } from "./Settings"
 import { Stats } from "./Stats"
-import { DashContext, DashState, TAB_NAMES, tabOrder, useDash, type Nav } from "./state"
-import type { Init, NotesView, UpdateView } from "./types"
+import { DashContext, DashState, PUBLISH_KEY, TAB_NAMES, tabOrder, useDash, type Nav } from "./state"
+import type { Init, NotesView, ProfileView, UpdateView } from "./types"
 import { Updates } from "./Updates"
 import { Videos } from "./Videos"
 
@@ -76,7 +77,8 @@ function Window({ focus }: { focus: FocusManager }) {
     }
     if (focus.handleKey(key)) return
     if (s.dialog || focus.typing || key.ctrl || key.meta) return
-    if (/^[1-8]$/.test(key.name)) return s.setTab(s.order[Number(key.name) - 1]!)
+    const tab = /^[1-9]$/.test(key.name) ? s.order[Number(key.name) - 1] : key.name === PUBLISH_KEY ? "publish" : null
+    if (tab) return s.setTab(tab)
     if (key.name === "r") return s.bridge.send("refresh", key.shift)
     if (key.name === "p") return s.openProfiles()
     if (key.name === "?" || key.sequence === "?") return s.set({ dialog: { kind: "help" } })
@@ -93,11 +95,12 @@ function Window({ focus }: { focus: FocusManager }) {
   )
 }
 
-/** The open tab. A tab you switch to slides in a few columns from the side you moved towards and comes up out of the
- * window's colour. */
+/** The open tab. A tab you switch to slides in a few columns from the side you moved towards (Publish, from the right,
+ * where its button is) and comes up out of the window's colour. */
 function TabContent() {
   const s = useDash()
-  const i = Math.max(s.order.indexOf(s.tab), 0)
+  const at = s.order.indexOf(s.tab)
+  const i = at < 0 ? s.order.length : at
   const last = useRef(i)
   const dir = i >= last.current ? 1 : -1
   useEffect(() => {
@@ -125,27 +128,62 @@ function TabContent() {
 
 const ANVIL_STOPS = ["#ffffff", "#d3d8de", "#8e97a3"]
 
-/** How the header fits the window's width: the gap between tabs, the actions as words or signs, the profile's name
- * cut short, and the anvil, given up in that order. */
-function headerFit(width: number, name: string, anvilW: number, tabsW: (gap: number) => number) {
+/** How the header fits: the anvil, the gap between tabs, Refresh / Help / Quit as words or signs, the room for the
+ * profile's name, and tight, the narrowest windows' header (the signs a space apart, and less room round the tabs and
+ * inside the Publish button's box). */
+interface Fit {
+  anvil: boolean
+  gap: number
+  words: boolean
+  tight: boolean
+  nameRoom: number
+}
+
+/** The Publish button's label: with its arrow while Refresh, Help and Quit beside it are words, without once they're
+ * signs. */
+const publishLabel = (words: boolean) => (words ? "↑ Publish" : "Publish")
+/** Columns the Publish button takes: the gap it keeps from the tabs, its label (a space either side unless tight), its
+ * box, and the gap after it. */
+const publishW = (words: boolean, tight: boolean) =>
+  (tight ? 1 : 2) + cellLen(publishLabel(words)) + (tight ? 2 : 4) + (words ? 4 : tight ? 2 : 3)
+
+/** Refresh, Help and Quit: as words, or as signs (a space apart when tight). */
+function actions(words: boolean, tight: boolean): Segs {
+  const gap = words ? "    " : tight ? " " : "   "
+  const [refresh, help, quit] = words ? ["↻ Refresh", "? Help", "Quit"] : ["↻", "?", "×"]
+  return [
+    [refresh, DASH.muted, ["refresh"]],
+    [gap, ""],
+    [help, DASH.muted, ["help"]],
+    [gap, ""],
+    [quit, DASH.muted, ["quit"]],
+  ]
+}
+
+/** How the header fits the window's width (less the profile button's red dot, when it has one): the gap between tabs,
+ * the actions as words or signs, the profile's name cut short, the anvil, and then the room round everything, given up
+ * in that order. The Publish button always stays. */
+function headerFit(width: number, name: string, anvilW: number, tabsW: (gap: number) => number): Fit {
   const bellW = BELL_WIDTH + 4
-  const fixed = (anvil: boolean) => 1 + (anvil ? anvilW + 2 : 0) + 4 + bellW + 2
+  // the padding, the anvil, the tabs' margin, the bell and the margin before it; then the actions and Publish
+  const fixed = (anvil: boolean, tight = false) => 1 + (anvil ? anvilW + 2 : 0) + (tight ? 2 : 3) + bellW + 2
+  const rest = (words: boolean, tight = false) => segsLen(actions(words, tight)) + publishW(words, tight)
   for (const anvil of [true, false])
     for (const [gap, words] of [
       [4, true],
       [3, false],
       [2, false],
     ] as const) {
-      const actions = words ? 29 : 10
-      const room = width - fixed(anvil) - tabsW(gap) - actions
-      if (room >= Math.min(cellLen(name), 12) + 6) return { anvil, gap, words, nameRoom: room - 6 }
+      const room = width - fixed(anvil) - tabsW(gap) - rest(words)
+      if (room >= Math.min(cellLen(name), 12) + 6) return { anvil, gap, words, tight: false, nameRoom: room - 6 }
     }
-  // A narrow window: the tabs closer together and the profile's name cut to a few letters.
-  for (const gap of [2, 1]) {
-    const room = width - fixed(false) - tabsW(gap) - 10
-    if (room >= Math.min(cellLen(name), 4) + 6) return { anvil: false, gap, words: false, nameRoom: room - 6 }
-  }
-  return { anvil: false, gap: 1, words: false, nameRoom: 4 }
+  // A narrow window: the tabs closer together and the profile's name cut to a few letters, then everything tight.
+  for (const tight of [false, true])
+    for (const gap of [2, 1]) {
+      const room = width - fixed(false, tight) - tabsW(gap) - rest(false, tight)
+      if (room >= Math.min(cellLen(name), 4) + 6) return { anvil: false, gap, words: false, tight, nameRoom: room - 6 }
+    }
+  return { anvil: false, gap: 1, words: false, tight: true, nameRoom: 4 }
 }
 
 function Header() {
@@ -155,35 +193,21 @@ function Header() {
   const update = useView<UpdateView>(s.bridge, "update")
   const labels = s.order.map((t) => TAB_NAMES[t] + (t === "updates" && update?.newer ? " ●" : ""))
   const tabsW = (gap: number) => labels.reduce((n, l) => n + cellLen(l), 0) + gap * (labels.length - 1)
-  const profile = useView<{ name: string }>(s.bridge, "profile") ?? s.init.profile
-  const fit = headerFit(width, profile.name, widthOf(anvil), tabsW)
+  const profile = useView<ProfileView>(s.bridge, "profile") ?? s.init.profile
+  const fit = headerFit(width - (profile.elsewhere > 0 ? 2 : 0), profile.name, widthOf(anvil), tabsW)
+  const buttons = actions(fit.words, fit.tight)
   return (
     <box flexDirection="column" flexShrink={0}>
       <box flexDirection="row" height={3} flexShrink={0} paddingLeft={1}>
         {fit.anvil && anvil.length ? <Cells grid={anvil} marginRight={2} /> : null}
         <ProfileButton room={fit.nameRoom} />
-        <Tabs labels={labels} gap={fit.gap} />
+        <Tabs labels={labels} gap={fit.gap} tight={fit.tight} />
         <box flexGrow={1} />
-        <box flexDirection="column" justifyContent="center" flexShrink={0} marginRight={2}>
-          <Line
-            segs={
-              fit.words
-                ? [
-                    ["↻ Refresh", DASH.muted, ["refresh"]],
-                    ["    ", ""],
-                    ["? Help", DASH.muted, ["help"]],
-                    ["    ", ""],
-                    ["Quit", DASH.muted, ["quit"]],
-                  ]
-                : [
-                    ["↻", DASH.muted, ["refresh"]],
-                    ["   ", ""],
-                    ["?", DASH.muted, ["help"]],
-                    ["   ", ""],
-                    ["×", DASH.muted, ["quit"]],
-                  ]
-            }
-          />
+        <PublishButton words={fit.words} tight={fit.tight} />
+        <box flexDirection="column" height={3} flexShrink={0} marginRight={2}>
+          <box height={1} />
+          <Line segs={buttons} />
+          <Refreshed words={fit.words} room={segsLen(buttons) + 3} />
         </box>
         <Bell />
       </box>
@@ -194,9 +218,27 @@ function Header() {
   )
 }
 
+/** Under ↻ Refresh: when the stats were last read ("updated 3m ago", or "3m ago" beside the signs), or amber while a
+ * read is under way, in this window or another (which platforms, while there's room). It never makes the header wider:
+ * room is the columns it has before the bell. */
+function Refreshed({ words, room }: { words: boolean; room: number }) {
+  const s = useDash()
+  const v = useView<{ ago: string; reading: string }>(s.bridge, "refreshed")
+  if (!v) return null
+  const text = v.reading ? (!words ? "reading…" : cellLen(v.reading) <= room ? v.reading : "refreshing…") : words ? `updated ${v.ago}` : v.ago
+  return (
+    <box position="absolute" left={0} top={2} width={cellLen(text)} height={1}>
+      <text fg={v.reading ? MARK : DASH.faint} wrapMode="none" selectable={false}>
+        {text}
+      </text>
+    </box>
+  )
+}
+
 /** The tabs, in the order picked on the Settings tab: the open one white and bold with a short bar under it that slides
- * to whichever you pick; a red dot on Updates when a new version is out. */
-function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
+ * to whichever you pick (and off the right-hand end, towards the Publish button, while Publish is open); a red dot on
+ * Updates when a new version is out. */
+function Tabs({ labels, gap, tight }: { labels: string[]; gap: number; tight: boolean }) {
   const s = useDash()
   const [hover, setHover] = useState<number | null>(null)
   const starts: number[] = []
@@ -205,12 +247,14 @@ function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
     starts.push(x)
     x += cellLen(l) + gap
   }
-  const i = Math.max(s.order.indexOf(s.tab), 0)
-  const at = useTween(starts[i]!, { ms: 220, ease: "outQuad" })
-  const wide = useTween(cellLen(TAB_NAMES[s.order[i]!]), { ms: 220, ease: "outQuad" })
+  const end = Math.max(x - gap, 0)
+  const i = s.order.indexOf(s.tab) // -1 while Publish is open: no tab is lit
+  const at = useTween(i >= 0 ? starts[i]! : end, { ms: 220, ease: "outQuad" })
+  const wide = useTween(i >= 0 ? cellLen(TAB_NAMES[s.order[i]!]) : 0, { ms: 220, ease: "outQuad" })
   const from = Math.round(at)
+  const bar = Math.min(Math.round(at + wide), end) - from
   return (
-    <box flexDirection="column" flexShrink={0} marginLeft={3}>
+    <box flexDirection="column" flexShrink={0} marginLeft={tight ? 2 : 3}>
       <box height={1} />
       <box flexDirection="row" height={1}>
         {s.order.map((tab, k) => {
@@ -235,7 +279,40 @@ function Tabs({ labels, gap }: { labels: string[]; gap: number }) {
       </box>
       <text wrapMode="none" height={1}>
         <span>{" ".repeat(Math.max(from, 0))}</span>
-        <span fg={DASH.text}>{"▔".repeat(Math.max(Math.round(at + wide) - from, 1))}</span>
+        <span fg={DASH.text}>{"▔".repeat(Math.max(bar, i >= 0 ? 1 : 0))}</span>
+      </text>
+    </box>
+  )
+}
+
+/** Publish, at the right of the header: a green button in a box (u opens it too). While Publish is open it's filled
+ * green, the way the open tab is lit along the top. */
+function PublishButton({ words, tight }: { words: boolean; tight: boolean }) {
+  const s = useDash()
+  const [hover, setHover] = useState(false)
+  const open = s.tab === "publish"
+  const green = hover ? mix(DASH.good, "#ffffff", 0.3) : DASH.good
+  return (
+    <box
+      border
+      borderStyle="rounded"
+      borderColor={green}
+      height={3}
+      flexShrink={0}
+      marginLeft={tight ? 1 : 2}
+      marginRight={words ? 4 : tight ? 2 : 3}
+      onMouseOver={() => setHover(true)}
+      onMouseOut={() => setHover(false)}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return
+        e.stopPropagation()
+        s.setTab("publish")
+      }}
+    >
+      <text wrapMode="none" selectable={false}>
+        <span fg={open ? DASH.bg : green} bg={open ? green : hover ? mix(DASH.bg, DASH.good, 0.14) : undefined} attributes={TextAttributes.BOLD}>
+          {tight ? publishLabel(words) : ` ${publishLabel(words)} `}
+        </span>
       </text>
     </box>
   )
@@ -282,20 +359,23 @@ function Bell() {
 
 // ---------------------------------------------------------------- the status bar
 
-const KEYS: [string, string][] = [
-  ["1-8", "tabs"],
+/** The keys at the foot of the window, with as many tabs as there are along the top. */
+const keysFor = (tabs: number): [string, string][] => [
+  [`1-${tabs}`, "tabs"],
+  [PUBLISH_KEY, "publish"],
   ["r", "refresh"],
   ["p", "profiles"],
   ["?", "help"],
 ]
 
-/** The foot of the window: each platform (click one for Accounts), when the stats were read and any read under way
- * (the Python side's header line), and the keys at the right while there's room. */
+/** The foot of the window: the Python side's header line (the DEMO or TEST badge, a nudge to connect an account
+ * while none is, and a platform whose last read failed: click it for Accounts), and the keys at the right while there's
+ * room. When the stats were read is under Refresh, at the top (Refreshed). */
 function StatusBar() {
   const s = useDash()
   const header = useView<{ line: Segs; short?: Segs }>(s.bridge, "header")
   const [width, setWidth] = useState(0)
-  const keys: Segs = KEYS.flatMap(([k, what], i) => [
+  const keys: Segs = keysFor(s.order.length).flatMap(([k, what], i) => [
     [i ? "   " : "", ""],
     [k, DASH.muted],
     [` ${what}`, DASH.faint],
