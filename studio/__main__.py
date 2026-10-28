@@ -24,7 +24,7 @@
       --answers FILE.json      write everything from saved answers, no questions
       --regenerate             rebuild everything from my-studio/answers.json (e.g. after an update), every profile's
       --new                    for a new profile (with --answers too, for an AI running the interview in chat)
-  reelforge doctor [--render-test]    check everything the pipeline needs
+  reelforge doctor [--render-test] [--json]    check everything the pipeline needs
   reelforge stats [on|off]     the hourly job that reads your stats while ReelForge is closed
   reelforge command [on|off]   the reelforge command itself (on your PATH)
   reelforge sounds             download the Mixkit sound effects
@@ -473,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         return setup_flow.run(yes=yes, onboard="--no-onboard" not in rest)
     if cmd == "doctor":
         from . import doctor
-        return doctor.run(render_test="--render-test" in rest)
+        return doctor.run(render_test="--render-test" in rest, json_output="--json" in rest)
     if cmd == "stats":
         from . import stats_schedule
         return stats_schedule.main(rest)

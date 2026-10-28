@@ -469,7 +469,10 @@ or point `STUDIO_BLENDER` at it.
   `reelforge profiles restore` brings it back.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.
-- `reelforge doctor` checks everything.
+- `reelforge doctor` checks everything. `--render-test` also builds an example scene and renders one frame.
+  `reelforge doctor --json` writes one JSON document to stdout with `version`, `root`, `failed`, and `checks`
+  (`status`, `what`, and `detail` for each check). Status values are `ok`, `warn`, and `FAIL`.
+  With `--render-test --json`, progress goes to stderr. Both formats exit with code 1 if any check fails, or 0 otherwise.
 - `reelforge stats on` and `reelforge stats off` turn the hourly stats on and off.
 - `reelforge reset` starts over (a factory reset), and `reelforge uninstall` removes ReelForge.
 - `reelforge help` lists the rest.

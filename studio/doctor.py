@@ -39,7 +39,16 @@ class Report:
         return any(s == FAIL for s, _, _ in self.rows)
 
 
-def run(render_test: bool = False) -> int:
+def run(render_test: bool = False, json_output: bool = False) -> int:
+    if json_output:
+        r = checks(render_test, quiet=True)
+        print(json.dumps({
+            "version": KIT_VERSION,
+            "root": str(P.ROOT),
+            "failed": r.failed,
+            "checks": [{"status": status, "what": what, "detail": detail} for status, what, detail in r.rows],
+        }, indent=2))
+        return 1 if r.failed else 0
     print(f"{KIT_NAME} {KIT_VERSION}: checking {P.ROOT}\n")
     r = checks(render_test)
     print()
@@ -197,7 +206,8 @@ def render_check(r: Report) -> None:
         spec["id"] = tmp.name
         (tmp / "episode.json").write_text(json.dumps(spec), encoding="utf-8")
         t0 = time.time()
-        print("        building the example scene in Blender (about a minute)...", flush=True)
+        print("        building the example scene in Blender (about a minute)...",
+              file=sys.stderr if r.quiet else sys.stdout, flush=True)
         cmd = [sys.executable, str(P.ROOT / "pipeline" / "make_episode.py"), str(tmp), "--steps", "build,stills",
                "--stills", "21"]
         res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
