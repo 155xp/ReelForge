@@ -1451,7 +1451,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             self._safe(lambda: notify.check_videos(self.cfg), 0)
             self.show_new_notes()
         hidden = db.get_meta("hidden_videos", [])
-        hidden_names = {Path(h).name.lower() for h in hidden}
+        hidden_names = {db.video_file(h).name.lower() for h in hidden}
         every = videos.find(self.cfg)
         files = [f for f in every if f.name.lower() not in hidden_names]
         posted = self.posted_platforms()
@@ -1498,7 +1498,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         out: dict[str, set[str]] = {}
         for e in self.episodes:
             if e["video"]:
-                out.setdefault(Path(e["video"]).name.lower(), set()).update(by_episode.get(e["id"], set()))
+                out.setdefault(db.video_file(e["video"]).name.lower(), set()).update(by_episode.get(e["id"], set()))
         return out
 
     @rpc
@@ -1721,7 +1721,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
 
     def update_uploads(self) -> None:
         """Upload pages you opened, and whether the post has turned up since."""
-        episodes = {Path(e["video"]).name.lower(): e["id"] for e in self.episodes if e["video"]}
+        episodes = {db.video_file(e["video"]).name.lower(): e["id"] for e in self.episodes if e["video"]}
         found = {}
         for q in self.posts:
             if q["episode_id"]:
@@ -2238,7 +2238,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         if path is None:
             self.notify(f"{name} isn't in your video folders any more.", severity="warning")
             return
-        if path.name.lower() in {Path(h).name.lower() for h in db.get_meta("hidden_videos", [])}:
+        if path.name.lower() in {db.video_file(h).name.lower() for h in db.get_meta("hidden_videos", [])}:
             self.notify(f"{path.name} is hidden. Show hidden (top of the list) brings it back.", severity="warning")
             return
         self.pick(path)

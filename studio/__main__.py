@@ -369,8 +369,7 @@ def new_episode(argv: list[str]) -> int:
         cta.setdefault("sub", "")
         spec["cta"] = cta
     tags = S.tag_list(s["captions"]["default_tags"])[: s["captions"]["max_hashtags"]]
-    if tags:
-        spec["hashtags"] = tags
+    spec["hashtags"] = tags
     dest = P.EPISODES / ep_id
     dest.mkdir()
     from . import jsonfmt

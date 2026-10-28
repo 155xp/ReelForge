@@ -126,7 +126,8 @@ def find(cfg: dict) -> list[Path]:
 
     newest: dict[str, Path] = {}
     # newest first; a copy with the same time (completed videos/ keeps it) loses to the pipeline's final/ file
-    for f in sorted({f.resolve() for f in found}, key=lambda f: (mtime(f), from_pipeline(f)), reverse=True):
+    for f in sorted({f.resolve() for f in found if f.is_file()},
+                    key=lambda f: (mtime(f), from_pipeline(f)), reverse=True):
         if mtime(f) >= 0:
             newest.setdefault(f.name.lower(), f)
     return list(newest.values())

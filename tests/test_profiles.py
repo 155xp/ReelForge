@@ -57,6 +57,13 @@ class Scratch(unittest.TestCase):
 
 
 class Finding(Scratch):
+    def test_windows_device_names_get_portable_profile_folders(self):
+        for name in ("CON", "PRN", "AUX", "NUL", "COM1", "COM9", "LPT1", "LPT9"):
+            with self.subTest(name=name):
+                p = profiles.create(name)
+                self.assertEqual(p.folder.name, name.lower() + "-channel")
+                self.assertEqual(profiles.get(p.key), p)
+
     def test_the_first_profile_is_the_reelforge_folder_itself(self):
         main = profiles.main()
         self.assertEqual(profiles.every(), [main])
@@ -382,13 +389,17 @@ class Pipeline(Scratch):
                       "import config\n"
                       "print(config.SETTINGS['channel']['name'], config.MIN_SECONDS, config.PROFILE.key, "
                       "config.COMPLETED, sep='|')\n")
-            env = {k: v for k, v in os.environ.items() if k != profiles.ENV}
-            out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env,
-                                 encoding="utf-8")
-            self.assertEqual(out.returncode, 0, out.stderr)
-            name, seconds, key, completed = out.stdout.strip().split("|")
-            self.assertEqual((name, float(seconds), key), want)
-            self.assertEqual(Path(completed), profiles.get(key).completed)
+            for inherited in (None, ".", a.key):
+                with self.subTest(episode=folder, inherited=inherited):
+                    env = {k: v for k, v in os.environ.items() if k != profiles.ENV}
+                    if inherited is not None:
+                        env[profiles.ENV] = inherited
+                    out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env,
+                                         encoding="utf-8")
+                    self.assertEqual(out.returncode, 0, out.stderr)
+                    name, seconds, key, completed = out.stdout.strip().split("|")
+                    self.assertEqual((name, float(seconds), key), want)
+                    self.assertEqual(Path(completed), profiles.get(key).completed)
 
 
 class Command(Scratch):

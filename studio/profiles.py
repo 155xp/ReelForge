@@ -272,6 +272,8 @@ def slug_for(name: str) -> str:
     """'Cool Epic Facts!' -> 'cool-epic-facts': a folder name that works on every system."""
     plain = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode("ascii").lower()
     slug = re.sub(r"[^a-z0-9]+", "-", plain).strip("-")[:40].strip("-")
+    if re.fullmatch(r"con|prn|aux|nul|com[1-9]|lpt[1-9]", slug):
+        slug += "-channel"
     return slug or "channel"
 
 

@@ -5,7 +5,6 @@ writes; without it the defaults in studio/settings.py apply. They're the rules o
 an episode in another profile's folder (profiles/<name>/episodes/<id>, see studio/profiles.py) follows that
 channel's settings, and ships to its own completed videos/.
 """
-import os
 import sys
 from pathlib import Path
 
@@ -30,10 +29,9 @@ def _episode_profile():
     return None
 
 
-if not _profiles.get(os.environ.get(_profiles.ENV)):
-    _here = _episode_profile()
-    if _here is not None:
-        _profiles.use(_here)  # the scripts this one starts (the mixers, compose, QA) follow it too
+_here = _episode_profile()
+if _here is not None:
+    _profiles.use(_here)  # the scripts this one starts (the mixers, compose, QA) follow it too
 
 from studio import settings as _settings  # noqa: E402
 from studio import tools as _tools  # noqa: E402

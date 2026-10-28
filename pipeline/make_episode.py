@@ -175,7 +175,8 @@ def write_captions(spec, final):
     if len(tags) > n:
         raise SystemExit(f"caption: {len(tags)} hashtags in episode.json, the channel's maximum is {n}")
     first = config.TIKTOK_FIRST_TAG
-    if "tiktok" in config.PLATFORMS and first and first.lower() not in (t.lower() for t in tags) and len(tags) >= n:
+    if (n > 0 and "tiktok" in config.PLATFORMS and first and
+            first.lower() not in (t.lower() for t in tags) and len(tags) >= n):
         raise SystemExit(f"caption: TikTok needs #{first} first and max {n} hashtags; drop one hashtag from "
                          "episode.json")
     hook = " ".join(spec["title"].split())
