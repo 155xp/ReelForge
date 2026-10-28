@@ -146,7 +146,7 @@ export interface TotalsRow {
   stale: string | null // "last read 34h ago": a platform whose reads stopped a while ago
 }
 
-/** One of the Stats tab's charts (dashboard/stats_tab.py totals_metric): followers or likes added up. */
+/** One of the Stats tab's charts (dashboard/stats_tab.py totals_metric): views, followers or likes added up. */
 export interface TotalsMetric {
   name: string
   empty?: string | null

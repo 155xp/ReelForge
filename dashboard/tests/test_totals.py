@@ -1,4 +1,4 @@
-"""The Stats tab (dashboard/stats_tab.py): followers and likes added up across the platforms you count, over time,
+"""The Stats tab (dashboard/stats_tab.py): views, followers and likes added up across the platforms you count, over time,
 from ReelForge's readings, with the gaps between them estimated; the platforms you leave out; the ranges; and what the
 window is sent. The window's own tab (the pills, the ranges, the hover read-out) is tested in ui/test/stats.test.tsx."""
 
@@ -225,14 +225,15 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(tab_for("totals"), "totals")
         self.assertIsNone(tab_for("stats"))  # reelforge stats is the hourly job
 
-    def test_both_charts_and_their_breakdowns(self):
+    def test_the_charts_and_their_breakdowns(self):
         w = self.open()
         v = w.view("totals")
         self.assertEqual(v["range"], "all")
         self.assertEqual([t["key"] for t in v["toggles"]], list(PLATFORM_KEYS))
         self.assertTrue(all(t["counted"] and t["has"] for t in v["toggles"]))
         self.assertIn("ALL", plain(v["ranges"]))
-        for metric in ("followers", "likes"):
+        self.assertEqual(list(v["metrics"]), ["views", "followers", "likes"])
+        for metric in ("views", "followers", "likes"):
             m = v["metrics"][metric]
             self.assertFalse(m.get("empty"))
             self.assertTrue(m["series"] and all(s["style"] == "area" for s in m["series"]))
@@ -295,15 +296,15 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(w.view("totals")["range"], "7d")
 
     def test_a_night_the_computer_was_off_is_estimated_here_and_on_the_other_charts(self):
-        """No readings for most of a night two days ago: both charts carry on through it, hatched from the last reading
-        before it to the first after it, with the key to the hatching over them; the Overview's 7D bars and the
+        """No readings for most of a night two days ago: every chart carries on through it, hatched from the last
+        reading before it to the first after it, with the key to the hatching over it; the Overview's 7D bars and the
         Accounts tab's followers charts fill it in with an estimate too."""
         night = datetime.now(UTC) - timedelta(days=2)
         with db.connect() as c:  # the demo reads on the hour: nine hours between the readings either side
             c.execute("DELETE FROM account_stats WHERE ts > ? AND ts < ?",
                       (night.isoformat(timespec="seconds"), (night + timedelta(hours=8)).isoformat(timespec="seconds")))
         v = self.open().view("totals")
-        for metric in ("followers", "likes"):
+        for metric in ("views", "followers", "likes"):
             m = v["metrics"][metric]
             self.assertEqual(len(m["series"]), 1)  # no hole
             (a, b), = m["series"][0]["est"]

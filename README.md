@@ -168,7 +168,7 @@ their views in their first day, and when it next comes round, once there are eno
 
 ### Stats
 
-Your followers and your likes added up across your platforms, over time. **Add up** at the top ticks the platforms
+Your views, followers and likes added up across your platforms, over time. **Add up** at the top ticks the platforms
 the totals count: click one to leave it out, and again to bring it back. Pick 24H, 48H, 7D, 30D or ALL at the right.
 Each chart draws the total from ReelForge's own readings, with a mark where each video went up. A stretch when your
 computer was off is filled in with an estimate, the straight line between the readings either side, hatched so you can
@@ -176,7 +176,7 @@ tell it from a reading. Point at a chart to see the totals then, with each platf
 chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
 its share of the total. `reelforge totals` opens it (`reelforge stats` is the hourly stats job).
 
-![The Stats tab: followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
+![The Stats tab: views, followers and likes added up across your platforms, with what each platform adds](docs/screenshots/app-stats.png)
 
 ### Accounts
 

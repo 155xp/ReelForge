@@ -137,7 +137,7 @@ def _no_browser() -> None:
 
 def _night_off() -> None:
     """The Stats tab's picture: the demo's readings with a night the computer was off taken out, from 9 PM four days ago
-    until 1 PM the next day, so both charts show what an estimate looks like."""
+    until 1 PM the next day, so its charts show what an estimate looks like."""
     if os.environ.get("REELFORGE_SHOT") != "app-stats":
         return
     from datetime import datetime, timedelta

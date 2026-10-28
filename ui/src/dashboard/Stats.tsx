@@ -1,9 +1,9 @@
-// The Stats tab: your followers and your likes added up across the platforms you count, over time. The platforms
+// The Stats tab: your views, followers and likes added up across the platforms you count, over time. The platforms
 // at the top left are ticked while they count in the totals (click one to leave it out, or back in), the range is at
 // the top right, and each chart is the total as a filled area, hatched where it's an estimate (the computer was off),
 // with a mark where each video went up; point at it for the totals then, with each platform's part. Beside each chart
 // (under it in a narrow window): every platform's number now, what it gained over the range, its share of the total
-// and what it gained bucket by bucket.
+// and what it gained bucket by bucket. A window too short for the three charts scrolls.
 
 import type { Renderable } from "@opentui/core"
 import { useCallback, useState } from "react"
@@ -20,11 +20,21 @@ import { Panel, Scroll } from "../ui/Panels"
 import { useDash } from "./state"
 import type { TotalsMetric, TotalsRow, TotalsToggle, TotalsView } from "./types"
 
-const METRICS = ["followers", "likes"] as const
+const METRICS = ["views", "followers", "likes"] as const // the Overview's order
 /** Narrower than this, each chart's breakdown goes under it instead of beside it. */
 export const SIDE_BY_SIDE = 120
 /** The breakdown's width beside its chart: about a quarter of the window, within these. */
 export const BREAKDOWN_WIDTH: [number, number] = [46, 60]
+/** The charts share the window's height while each gets this many rows; in a shorter one each gets ROW and the tab
+ * scrolls. */
+export const MIN_ROW = 10
+const ROW = 14
+
+/** Whether every chart (with its breakdown beside it) fits in `height` rows, at least MIN_ROW each: under the controls
+ * and the space below them, with a row between charts. */
+export function shareHeight(height: number): boolean {
+  return height - 2 - (METRICS.length - 1) >= METRICS.length * MIN_ROW
+}
 
 /** A count in full: 21,034. */
 export function exact(n: number | null | undefined): string {
@@ -41,7 +51,7 @@ export function signed(n: number | null | undefined): string {
 export function Stats() {
   const s = useDash()
   const view = useView<TotalsView>(s.bridge, "totals")
-  const [width, setWidth] = useState(0)
+  const [[width, height], setSize] = useState<[number, number]>([0, 0])
   const side = width >= SIDE_BY_SIDE
   const beside = Math.min(Math.max(Math.round(width * 0.28), BREAKDOWN_WIDTH[0]), BREAKDOWN_WIDTH[1])
   // The charts grow in again on a new range, or when a platform goes in or out of the totals.
@@ -52,11 +62,11 @@ export function Stats() {
       flexGrow={1}
       marginTop={1}
       onSizeChange={function (this: Renderable) {
-        setWidth(this.width)
+        if (this.width !== width || this.height !== height) setSize([this.width, this.height])
       }}
     >
       <Controls view={view} width={width} />
-      {side ? (
+      {side && shareHeight(height) ? (
         <box flexDirection="column" flexGrow={1} flexBasis={0} marginTop={1} gap={1}>
           {METRICS.map((m) => (
             <box key={m} flexDirection="row" flexGrow={1} flexBasis={0} gap={1}>
@@ -65,6 +75,16 @@ export function Stats() {
             </box>
           ))}
         </box>
+      ) : side ? (
+        // A short window: each chart and its breakdown beside it ROW rows high, scrolling.
+        <Scroll flexGrow={1} scrollY>
+          {METRICS.map((m) => (
+            <box key={m} flexDirection="row" flexShrink={0} height={ROW} marginTop={1} gap={1}>
+              <TotalChart metric={m} view={view?.metrics[m]} animate={animate} flexGrow={1} />
+              <Breakdown view={view?.metrics[m]} animate={animate} width={beside} />
+            </box>
+          ))}
+        </Scroll>
       ) : (
         // A narrow window: each chart with its breakdown under it, scrolling.
         <Scroll flexGrow={1} scrollY>

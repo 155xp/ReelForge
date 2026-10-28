@@ -1,4 +1,4 @@
-"""The Stats tab: your followers and your likes added up across the platforms you count, over time.
+"""The Stats tab: your views, followers and likes added up across the platforms you count, over time.
 
 Each platform reports its own running total, read on every refresh. The tab adds them up at each moment of its time
 axis (level_at: between two readings close together, the straight line joining them; past the newest one, the newest
@@ -7,8 +7,8 @@ number is estimated: the straight line between its readings either side (between
 estimated (every platform's gap, when the computer was off) the chart draws that stretch hatched, its hover read-out
 says so, and it's never the best day or hour over the chart. A platform whose reads stopped (no reading since)
 counts with its last reading, as on the Overview's tiles. There's no total from before a counted platform's first
-reading: leave that platform out to see further back. Followers are taken as read, so unfollows show; likes are held
-at their highest reading, as on the other charts (trends.points).
+reading: leave that platform out to see further back. Followers are taken as read, so unfollows show; views and
+likes are held at their highest reading, as on the other charts (trends.points).
 
 A mixin of the window's service (dashboard/service.py): the tab calls these, and "totals" is the view it draws. The
 tab's id is "totals" because `reelforge stats` is the hourly job's command; `reelforge totals` opens it.
@@ -26,7 +26,7 @@ from . import db, trends
 from .analytics import fmt_age, fmt_clock
 from .view import BAD, GOOD, MUTED, SHORT, Text, act, chip, parts
 
-METRICS = ("followers", "likes")
+METRICS = ("views", "followers", "likes")
 # The ranges at the top right: (label, span, bucket). All runs from the first moment there's a total.
 RANGES = {
     "24h": ("24H", timedelta(hours=24), timedelta(hours=1)),
@@ -327,7 +327,7 @@ class StatsTab:
             pass
 
     def update_totals(self) -> None:
-        """The tab's view: the platforms you can count, the ranges, and the followers and likes charts."""
+        """The tab's view: the platforms you can count, the ranges, and the views, followers and likes charts."""
         now = datetime.now(timezone.utc)
         history = getattr(self, "account_history", {})
         ranges = Text()
@@ -350,7 +350,7 @@ class StatsTab:
         chart, and every platform's number now, gain in the range and share."""
         from .service import NOTHING_CONNECTED, slot_info
 
-        hold = metric != "followers"  # unfollows show; a dip in likes is held, as on the other charts
+        hold = metric != "followers"  # unfollows show; a dip in views or likes is held, as on the other charts
         pts = {k: trends.points(history.get(k, []), metric, hold) for k in self.platforms}
         counted = [k for k in self.platforms if k not in self.left_out and pts[k]]
         name = metric.upper()

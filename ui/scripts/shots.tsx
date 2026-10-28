@@ -45,7 +45,7 @@ export const SHOTS: Record<string, Shot> = {
   // the Settings tab: the channel's answers, the FAQ with its first answer open, this computer, the profiles (with the
   // demo's deleted one), and the danger zone (tall enough for all of it)
   "app-settings": { screen: "dashboard", options: demo("settings"), size: [180, 82], folder: "docs/screenshots", then: openFirstAnswer },
-  // the Stats tab: followers and likes added up across the platforms, each with its breakdown
+  // the Stats tab: views, followers and likes added up across the platforms, each with its breakdown
   "app-stats": { screen: "dashboard", options: demo("totals"), size: APP, folder: "docs/screenshots" },
   "app-updates": { screen: "dashboard", options: demo("updates"), size: APP, folder: "docs/screenshots" },
   "app-notification-click": { screen: "dashboard", options: demo("overview", true), size: APP, folder: "docs/screenshots", then: clickAVideoNote },

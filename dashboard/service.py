@@ -123,7 +123,7 @@ HELP = [
                  "puts every channel's settings, log-ins and stats in a backup and starts first-time setup again "
                  "(your videos stay), and Uninstall removes ReelForge, keeping your videos in a folder beside it. "
                  f"Neither deletes anything: what they clear goes to a backup or the {desktop.BIN}.", "settings"),
-    ("Stats", "Your followers and your likes added up across your platforms, over time: tick or untick a platform at "
+    ("Stats", "Your views, followers and likes added up across your platforms, over time: tick or untick a platform at "
               "the top to count it in the totals or leave it out, and pick 24H, 48H, 7D, 30D or ALL. Point at a chart "
               "to see the totals then, with each platform's part; yellow marks show when each video went up. Beside "
               "each chart: every platform's number now, what it gained over the range and its share of the total. A "

@@ -8,7 +8,7 @@ import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
 import { clickText, find } from "../scripts/shots"
 import { ROOT } from "../src/bridge"
-import { columns, exact, hoverTitle, signed, timeLabels, trimmed } from "../src/dashboard/Stats"
+import { columns, exact, hoverTitle, shareHeight, signed, timeLabels, trimmed } from "../src/dashboard/Stats"
 import { TAB_NAMES } from "../src/dashboard/state"
 import type { TotalsMetric, TotalsRow, TotalsView } from "../src/dashboard/types"
 import type { Slot } from "../src/lib/chart"
@@ -48,19 +48,31 @@ async function until(h: Headless, ok: () => boolean) {
 }
 
 describe("the Stats tab", () => {
-  test("5 opens it: both charts with their numbers, a breakdown beside each, the pills and the ranges", async () => {
+  test("5 opens it: views, followers and likes with their numbers, a breakdown beside each, the pills and the ranges", async () => {
     const h = await window([180, 50], "overview")
     h.t.mockInput.pressKey("5") // Stats is 5th by default
     await until(h, () => frame(h).includes("BY PLATFORM"))
     expect(activeTab(h)).toBe("Stats")
     const f = frame(h)
-    for (const text of ["FOLLOWERS", "LIKES", "Add up", "✓ TikTok", "✓ YouTube", "✓ Instagram", "✓ X", "24H", "ALL", "Added up", "gained", "share"])
+    for (const text of ["VIEWS", "FOLLOWERS", "LIKES", "Add up", "✓ TikTok", "✓ YouTube", "✓ Instagram", "✓ X", "24H", "ALL", "Added up", "gained", "share"])
       expect(f).toContain(text)
-    expect(f.split("BY PLATFORM").length - 1).toBe(2)
-    const followers = view(h).metrics.followers!
-    expect(f).toContain(exact(followers.total!.value))
-    expect(f).toContain(signed(followers.total!.gained))
+    expect(f.split("BY PLATFORM").length - 1).toBe(3)
+    expect(f.indexOf("VIEWS")).toBeLessThan(f.indexOf("FOLLOWERS")) // the Overview's order
+    for (const metric of ["views", "followers"]) {
+      const m = view(h).metrics[metric]!
+      expect(f).toContain(exact(m.total!.value))
+      expect(f).toContain(signed(m.total!.gained))
+    }
     expect(f).toMatch(/since \w+ \d+/) // ALL: since the first reading
+  })
+
+  test("a window too short for the three charts scrolls, each with its breakdown beside it", async () => {
+    expect([shareHeight(44), shareHeight(36), shareHeight(28)]).toEqual([true, true, false])
+    const h = await window([140, 34])
+    const top = rows(h)
+    const views = top.findIndex((r) => r.includes("VIEWS"))
+    expect(top[views]).toContain("BY PLATFORM") // beside it, not under
+    expect(frame(h)).not.toContain("LIKES  ") // below the fold, a scroll away
   })
 
   test("a pill leaves its platform out of the totals, and back in", async () => {
@@ -79,11 +91,12 @@ describe("the Stats tab", () => {
     expect(frame(h)).not.toContain("left out")
   })
 
-  test("the ranges change both charts", async () => {
+  test("the ranges change every chart", async () => {
     const h = await window()
     await clickText(h, "24H", 1)
     await until(h, () => frame(h).includes("in 24h"))
-    expect(frame(h).split("in 24h").length - 1).toBe(2)
+    expect(frame(h).split("in 24h").length - 1).toBe(3)
+    expect(view(h).metrics.views!.n).toBe(24)
     expect(view(h).metrics.likes!.n).toBe(24)
     await clickText(h, "7D", 1)
     await until(h, () => frame(h).includes("in 7d"))
@@ -115,7 +128,7 @@ describe("the Stats tab", () => {
       for (const name of Object.values(TAB_NAMES)) expect(all[1]).toContain(name)
       expect(all[0]).toMatch(/\d▌\s*$/) // the bell's unread count, in the top right corner
       for (const r of all) expect(cellLen(r)).toBeLessThanOrEqual(w)
-      expect(frame(h)).toContain("FOLLOWERS")
+      expect(frame(h)).toContain("VIEWS")
       expect(frame(h)).toContain("BY PLATFORM")
       expect(frame(h)).toContain("Add up")
     })
