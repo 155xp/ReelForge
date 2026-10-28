@@ -45,10 +45,12 @@ export interface Series {
   color: string
   values?: (number | null)[] // bars: one per slot
   faint?: boolean[] // bars: slots drawn dimmer (still filling up)
+  guess?: number[] // bars: how much of each slot's value is an estimate (a gap in the readings), hatched on top
   xs?: number[] // lines: x in slots
   ys?: number[]
   fill?: boolean // lines: shade the cells under the line
   style?: string // lines: "line", or "area" (filled, with a smooth top edge)
+  est?: [number, number][] // areas: stretches that are estimates, not readings (x from, x to, in slots), hatched
 }
 
 export interface Mark {
@@ -403,8 +405,9 @@ export interface Drawn {
   meta?: unknown
 }
 
-/** Stacked bars, one per slot, series stacked bottom-up in the order given. Every bar is the same width with at least
- * a one-column gap after it; a chart too narrow even for that shows only its newest bars. */
+/** Stacked bars, one per slot, series stacked bottom-up in the order given: what was read, then on top of it, hatched,
+ * what's an estimate (Series.guess). Every bar is the same width with at least a one-column gap after it; a chart too
+ * narrow even for that shows only its newest bars. */
 export function bars(
   series: Series[],
   slots: number,
@@ -440,14 +443,19 @@ export function bars(
   for (let i = lay.first; i < lay.first + lay.slots; i++) {
     const c0 = lay.columns(i)[0]
     const cols = [c0, Math.min(c0 + lay.bar, lay.pw)] as const
-    const segments: [number, number, string][] = [] // (bottom, top, colour) in eighths of a row
+    const segments: Segment[] = []
     let top = 0
-    for (const s of series) {
-      const v = s.values?.[i]
-      if (!v || !Number.isFinite(v)) continue
-      const faint = s.faint?.[i] ?? false
-      segments.push([top, top + lay.height(v) * 8 * grow, faint ? blend(s.color, 0.55) : s.color])
-      top = segments[segments.length - 1]![1]
+    for (const estimate of [false, true]) {
+      for (const s of series) {
+        const v = s.values?.[i]
+        if (!v || !Number.isFinite(v)) continue
+        const guess = Math.min(Math.max(s.guess?.[i] ?? 0, 0), v)
+        const part = estimate ? guess : v - guess
+        if (!(part > 0)) continue
+        const faint = s.faint?.[i] ?? false
+        segments.push([top, top + lay.height(part) * 8 * grow, faint ? blend(s.color, 0.55) : s.color, estimate])
+        top = segments[segments.length - 1]![1]
+      }
     }
     stack(canvas, lay, cols, segments, style.fade ?? false)
   }
@@ -455,35 +463,43 @@ export function bars(
   return { rows: frame(canvas, lay, xlabels, xaxis), lay }
 }
 
+/** A piece of a stacked bar: (bottom, top) in eighths of a row, its colour, and whether it's an estimate (hatched). */
+type Segment = [number, number, string, boolean?]
+
 /** One stacked bar. Each whole cell is the colour of the segment that fills most of it, so a boundary between
  * platforms lands on a cell edge and a platform too thin to see joins its neighbour (its number is still in the hover
  * read-out); only the top cell keeps 1/8-row precision, as an eighth block. That top piece takes the colour of the cell
- * under it unless one platform fills at least half a row of it, so it's never a thin line of another colour. */
-function stack(canvas: Canvas, lay: Layout, cols: readonly [number, number], segments: [number, number, string][], fade = false) {
+ * under it unless one platform fills at least half a row of it, so it's never a thin line of another colour. A cell
+ * whose segment is an estimate is hatched (its top piece a little dimmer). */
+function stack(canvas: Canvas, lay: Layout, cols: readonly [number, number], segments: Segment[], fade = false) {
   const tone = (col: string, k: number) => (fade ? fadeUp(col, k, lay.ph) : col)
   if (!segments.length) return
   const top = segments[segments.length - 1]![1]
   const eighths = Math.trunc(pyRound(top))
   if (eighths <= 0) return
-  const colour = (lo: number, hi: number): [string, number] => {
-    let best = segments[segments.length - 1]![2]
+  const pick = (lo: number, hi: number): [Segment, number] => {
+    let best = segments[segments.length - 1]!
     let cover = 0
-    for (const [a, b, col] of segments) {
-      const c = Math.min(b, hi) - Math.max(a, lo)
-      if (c > cover) [best, cover] = [col, c]
+    for (const seg of segments) {
+      const c = Math.min(seg[1], hi) - Math.max(seg[0], lo)
+      if (c > cover) [best, cover] = [seg, c]
     }
     return [best, cover]
   }
   const full = Math.floor(eighths / 8)
   const rest = eighths % 8
   for (let k = 0; k < Math.min(full, lay.ph); k++) {
-    const col = colour(8 * k, 8 * k + 8)[0]
-    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - k, c, " ", null, tone(col, k))
+    const [, , col, guess] = pick(8 * k, 8 * k + 8)[0]
+    for (let c = cols[0]; c < cols[1]; c++) {
+      if (guess) hatch(canvas, lay.ph - 1 - k, c, tone(col, k))
+      else canvas.put(lay.ph - 1 - k, c, " ", null, tone(col, k))
+    }
   }
   if (rest && full < lay.ph) {
-    let [col, cover] = colour(8 * full, top)
-    if (full && cover < 4) col = colour(8 * full - 8, 8 * full)[0]
-    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - full, c, EIGHTHS[rest]!, tone(col, full))
+    let [seg, cover] = pick(8 * full, top)
+    if (full && cover < 4) seg = pick(8 * full - 8, 8 * full)[0]
+    const col = tone(seg[2], full)
+    for (let c = cols[0]; c < cols[1]; c++) canvas.put(lay.ph - 1 - full, c, EIGHTHS[rest]!, seg[3] ? guessed(col) : col)
   }
 }
 
@@ -507,7 +523,24 @@ function sortedPoints(s: Series): [number[], number[]] {
   return [pts.map((p) => p[0]), pts.map((p) => p[1])]
 }
 
-/** A filled area whose top edge lands within 1/8 of a row (for running totals: views so far). */
+/** Whether x (in slots) falls in one of a series' estimated stretches. */
+export function estimated(s: Series, x: number): boolean {
+  return (s.est ?? []).some(([a, b]) => a < x && x < b)
+}
+
+/** An estimate's colour: a little dimmer than a reading's. */
+export function guessed(color: string): string {
+  return blend(color, 0.3)
+}
+
+/** A cell of an estimate: its colour a little dimmed, with every other diagonal drawn over it a little lighter (╱),
+ * cell after cell, so the stripes run on unbroken. */
+function hatch(canvas: Canvas, r: number, c: number, color: string): void {
+  canvas.put(r, c, (r + c) % 2 ? " " : "╱", mix(color, "#ffffff", 0.35), guessed(color))
+}
+
+/** A filled area whose top edge lands within 1/8 of a row (for running totals: views so far). Its estimated
+ * stretches (Series.est) are hatched. */
 function area(canvas: Canvas, lay: Layout, s: Series, style: BarStyle = {}): void {
   const [xs, ys] = sortedPoints(s)
   if (xs.length < 2) return
@@ -516,12 +549,17 @@ function area(canvas: Canvas, lay: Layout, s: Series, style: BarStyle = {}): voi
   const first = Math.max(Math.trunc((xs[0]! - lay.first) * lay.per), 0)
   const last = drawnTo(lay, first, xs, style.grow)
   for (let c = first; c <= last; c++) {
-    const x = Math.min(Math.max((c + 0.5) / lay.per + lay.first, xs[0]!), xs[xs.length - 1]!)
+    const mid = (c + 0.5) / lay.per + lay.first
+    const x = Math.min(Math.max(mid, xs[0]!), xs[xs.length - 1]!)
+    const est = estimated(s, mid)
     const eighths = Math.trunc(pyRound(Math.min(Math.max(lay.height(interp(xs, ys, x)), 0), lay.ph) * 8))
     const full = Math.floor(eighths / 8)
     const part = eighths % 8
-    for (let k = 0; k < Math.min(full, lay.ph); k++) canvas.put(lay.ph - 1 - k, c, " ", null, tone(k))
-    if (part && full < lay.ph) canvas.put(lay.ph - 1 - full, c, EIGHTHS[part]!, tone(full))
+    for (let k = 0; k < Math.min(full, lay.ph); k++) {
+      if (est) hatch(canvas, lay.ph - 1 - k, c, tone(k))
+      else canvas.put(lay.ph - 1 - k, c, " ", null, tone(k))
+    }
+    if (part && full < lay.ph) canvas.put(lay.ph - 1 - full, c, EIGHTHS[part]!, est ? guessed(tone(full)) : tone(full))
   }
 }
 

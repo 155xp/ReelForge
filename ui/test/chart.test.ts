@@ -7,6 +7,7 @@ import {
   Canvas,
   clockLabels,
   EIGHTHS,
+  estimated,
   fmtTick,
   HOVER,
   internals,
@@ -161,6 +162,35 @@ describe("lines and marks", () => {
     expect(rows.length).toBe(14)
     const body = rows.map(plain).join("")
     expect([..."─╭╯╮╰"].some((ch) => body.includes(ch))).toBe(true)
+  })
+
+  test("a bar's estimate is hatched, on top of what was read", () => {
+    const a: Series = { key: "a", name: "a", color: "#25f4ee", values: [10, 10, 10], guess: [0, 10, 4] }
+    const { rows, lay } = bars([a], 3, 40, 12)
+    const plot = rows.slice(0, lay.ph).map((r) => r.slice(lay.lw + 1))
+    const striped = (slot: number) =>
+      plot.flatMap((r, k) => (r.slice(lay.columns(slot)[0], lay.columns(slot)[0] + lay.bar).some((c) => c.ch === "╱") ? [k] : []))
+    expect(striped(0)).toEqual([]) // read
+    expect(striped(1).length).toBeGreaterThan(lay.ph / 3) // an estimate from top to bottom
+    // 6 read, 4 estimated: the stripes only above the read part
+    expect(striped(2).length).toBeGreaterThan(0)
+    expect(Math.max(...striped(2))).toBeLessThan(lay.ph - Math.floor(lay.height(6)))
+  })
+
+  test("an area's estimates are hatched, and only they are", () => {
+    const s: Series = { key: "total", name: "total", color: "#e8eaed", xs: [0, 4, 6, 10], ys: [10, 50, 70, 100], style: "area", est: [[4, 6]] }
+    expect([estimated(s, 5), estimated(s, 4), estimated(s, 6), estimated(s, 8)]).toEqual([true, false, false, false])
+    const { rows, lay } = lines([s], 10, 60, 14)
+    const plot = rows.slice(0, lay.ph).map((r) => r.slice(lay.lw + 1))
+    const col = (x: number) => Math.trunc((x - lay.first) * lay.per)
+    const stripes = (c: number) => plot.filter((r) => r[c]!.ch === "╱").length
+    for (const x of [4.5, 5, 5.5]) expect(stripes(col(x))).toBeGreaterThan(0)
+    for (const x of [1, 3, 7, 9]) expect(stripes(col(x))).toBe(0)
+    // filled under its top like the rest (dimmer), the stripes on every other diagonal so they join up cell to cell
+    const c = col(5)
+    const filled = plot.filter((r) => r[c]!.bg !== null || r[c]!.ch !== " ").length
+    expect(filled).toBeGreaterThan(lay.ph / 2)
+    plot.forEach((r, k) => r.forEach((cell, j) => cell.ch === "╱" && expect((k + j) % 2).toBe(0)))
   })
 
   test("marks close together share a label", () => {

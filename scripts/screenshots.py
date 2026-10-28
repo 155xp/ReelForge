@@ -7,8 +7,9 @@ first-run screens, every tab of the ReelForge window on its demo data, the profi
 Nothing on this computer changes (STUDIO_DRY_SYSTEM=1), the demo data goes to a scratch database, and no window
 opens: ui/scripts/shots.tsx draws each screen with OpenTUI's test renderer and the real Python side (with the sample
 data in scripts/shots_preload.py), clicks through it where a picture needs that, and saves it as an SVG of a terminal
-window, block characters (the logo's, the bell's, the charts' bars) drawn as exact rectangles the way Windows Terminal
-draws them. Playwright's browser then turns each SVG into a PNG.
+window, block characters (the logo's, the bell's, the charts' bars) drawn as exact rectangles and diagonals (an
+estimate's hatching) corner to corner, the way Windows Terminal draws them. Playwright's browser then turns each SVG
+into a PNG.
 
 Retaking all of them also writes docs/screenshots/SOURCES.txt (scripts/shot_sources.py): what they were drawn from.
 A release won't build once any of that changes, so every release has screenshots of the ReelForge it ships.

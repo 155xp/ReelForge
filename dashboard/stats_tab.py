@@ -1,12 +1,14 @@
 """The Stats tab: your followers and your likes added up across the platforms you count, over time.
 
 Each platform reports its own running total, read on every refresh. The tab adds them up at each moment of its time
-axis where ReelForge was reading (level_at: between two readings close together, the straight line joining them;
-past the newest one, the newest while it's recent). A platform whose reads stopped meanwhile (a log-in ran out, say)
-counts with its last reading, as on the Overview's tiles; a gap in every platform's readings (the computer was off)
-leaves the total out for that stretch rather than drawing a line across it. There's no total from before a counted
-platform's first reading: leave that platform out to see further back. Followers are taken as read, so unfollows
-show; likes are held at their highest reading, as on the other charts (trends.points).
+axis (level_at: between two readings close together, the straight line joining them; past the newest one, the newest
+while it's recent). In a gap in a platform's readings (the computer was off, or its log-in ran out for a while) its
+number is estimated: the straight line between its readings either side (between). Where most of the total is
+estimated (every platform's gap, when the computer was off) the chart draws that stretch hatched, its hover read-out
+says so, and it's never the best day or hour over the chart. A platform whose reads stopped (no reading since)
+counts with its last reading, as on the Overview's tiles. There's no total from before a counted platform's first
+reading: leave that platform out to see further back. Followers are taken as read, so unfollows show; likes are held
+at their highest reading, as on the other charts (trends.points).
 
 A mixin of the window's service (dashboard/service.py): the tab calls these, and "totals" is the view it draws. The
 tab's id is "totals" because `reelforge stats` is the hourly job's command; `reelforge totals` opens it.
@@ -68,6 +70,14 @@ def level_at(pts: trends.Points, t: datetime, step: timedelta, now: datetime) ->
     if t1 - t0 > spaced(t0, step, now):
         return None
     return v0 + (v1 - v0) * ((t - t0) / (t1 - t0))
+
+
+def between(pts: trends.Points, t: datetime) -> float | None:
+    """A platform's number at moment t estimated from its readings either side: the straight line joining them. None
+    before its first reading and after its newest (there's nothing on that side to go by)."""
+    if not pts or not pts[0][0] <= t <= pts[-1][0]:
+        return None
+    return trends.value_at(pts, t)
 
 
 def last_at(pts: trends.Points, t: datetime) -> float | None:
@@ -152,8 +162,9 @@ def signed(n: float | None) -> str:
 class Totals:
     """One metric added up over a frame: the moments it's drawn through (each bucket's start, the first moment
     there's a total, either side of each gap, and now), where each one sits on the axis, every platform's reading
-    then (its last one while it wasn't being read) and the counted platforms' added up: None where none of them was
-    being read, or one hadn't been read yet."""
+    then (estimated in a gap in its readings, its last one once they've stopped) and the counted platforms' added up:
+    None where there's nothing to add up (before one's first reading, or once none of them is being read), and
+    which stretches between the moments are estimates (estimated)."""
 
     def __init__(self, pts: dict[str, trends.Points], counted: list[str], fr: trends.Frame):
         self.fr, self.pts, self.counted = fr, pts, counted
@@ -173,23 +184,65 @@ class Totals:
         self.total = [self.at(t) for t in self.moments]
         self.known = [j for j, v in enumerate(self.total) if v is not None]
         self.index = {t: j for j, t in enumerate(self.moments)}
+        # Each stretch between two moments with a total, by its first one: whether it's an estimate (most of the total
+        # comes from platforms in a gap in their readings), judged halfway along.
+        self.estimated = [self.total[j] is not None and self.total[j + 1] is not None
+                          and self.guessed(a + (b - a) / 2)
+                          for j, (a, b) in enumerate(zip(self.moments, self.moments[1:]))]
 
-    def reading(self, key: str, t: datetime) -> float | None:
-        """A platform's number at moment t: as read (level_at), or while it wasn't being read, its last reading."""
+    def state(self, key: str, t: datetime) -> tuple[float | None, str]:
+        """A platform's number at moment t and where it's from: "read" (level_at), "estimated" (in a gap in its
+        readings: between), "held" (its reads stopped: its last reading) or "none" (before its first)."""
         pts = self.pts.get(key, [])
         v = level_at(pts, t, self.fr.step, self.now)
-        return last_at(pts, t) if v is None else v
+        if v is not None:
+            return v, "read"
+        v = between(pts, t)
+        if v is not None:
+            return v, "estimated"
+        v = last_at(pts, t)
+        return (v, "held") if v is not None else (None, "none")
+
+    def reading(self, key: str, t: datetime) -> float | None:
+        """A platform's number at moment t: as read, estimated in a gap in its readings, or once they've stopped, its
+        last reading."""
+        return self.state(key, t)[0]
 
     def at(self, t: datetime) -> float | None:
-        """The total at any moment: None in a gap in every counted platform's readings, or before one's first."""
-        pts = [self.pts.get(k, []) for k in self.counted]
-        if not any(level_at(p, t, self.fr.step, self.now) is not None for p in pts):
+        """The total at any moment, estimates and all: None before a counted platform's first reading, and once none
+        of them is being read (every one's reads stopped, or the computer is off now)."""
+        states = [self.state(k, t) for k in self.counted]
+        if not states or any(how == "none" for _, how in states) or all(how == "held" for _, how in states):
             return None
-        vals = [self.reading(k, t) for k in self.counted]
-        return sum(vals) if all(v is not None for v in vals) else None
+        return sum(v for v, _ in states)
+
+    def guessed(self, t: datetime) -> bool:
+        """Whether the total at moment t is an estimate: the counted platforms estimated then (in a gap in their
+        readings) make up at least half of it. A platform whose own reads paused while the others' went on (a log-in
+        that ran out for a while) is estimated too, but the total is only an estimate when that platform is most of
+        it."""
+        states = [self.state(k, t) for k in self.counted]
+        guess = [v for v, how in states if how == "estimated"]
+        return bool(guess) and all(v is not None for v, _ in states) and 2 * sum(guess) >= sum(v for v, _ in states)
+
+    def measured(self, t: datetime) -> float | None:
+        """The total at moment t where it isn't an estimate (None where it is): what the best day goes by."""
+        return None if self.guessed(t) else self.at(t)
+
+    def spans(self, run: list[int]) -> list[list[float]]:
+        """The stretches of a run of moments drawn as estimates: [x from, x to] on the time axis, in buckets."""
+        out: list[list[float]] = []
+        for j in run[:-1]:
+            if not self.estimated[j]:
+                continue
+            if out and out[-1][1] == self.xs[j]:
+                out[-1][1] = self.xs[j + 1]
+            else:
+                out.append([self.xs[j], self.xs[j + 1]])
+        return out
 
     def runs(self) -> list[list[int]]:
-        """The moments with a total, in unbroken runs (a gap between them)."""
+        """The moments with a total, in unbroken runs (nothing to add up between them)."""
         out: list[list[int]] = []
         for j in self.known:
             if out and out[-1][-1] == j - 1:
@@ -199,11 +252,19 @@ class Totals:
         return out
 
     def slots(self) -> list[dict | None]:
-        """Each bucket for the hover read-out: the total at its last moment with one (its end, or now), what it gained
-        in the bucket and each counted platform's reading then; None for a bucket with no total."""
+        """Each bucket for the hover read-out: the total at its last moment with one (its end, or now) and whether
+        that's an estimate, what it gained in the bucket and how much of the bucket is drawn as an estimate (share,
+        0 to 1), and each counted platform's reading then (est: the ones estimated then); None for a bucket with no
+        total."""
         last: dict[int, int] = {}
         for j in self.known:
             last[max(math.ceil(self.xs[j]) - 1, 0)] = j
+        share = [0.0] * self.fr.n
+        for j, est in enumerate(self.estimated):
+            if est:  # the part of each bucket this stretch runs through
+                a, b = self.xs[j], self.xs[j + 1]
+                for i in range(max(math.floor(a), 0), min(math.ceil(b), self.fr.n)):
+                    share[i] += min(b, i + 1) - max(a, i)
         out: list[dict | None] = []
         for i in range(self.fr.n):
             j = last.get(i)
@@ -212,8 +273,11 @@ class Totals:
                 continue
             b = self.index.get(self.fr.starts[i])
             begin = self.total[b] if b is not None and b != j else None
+            t = self.moments[j]
             out.append({"total": self.total[j], "gain": None if begin is None else self.total[j] - begin,
-                        "each": {k: self.each[k][j] for k in self.counted}})
+                        "each": {k: self.each[k][j] for k in self.counted},
+                        "est": [k for k in self.counted if self.state(k, t)[1] == "estimated"],
+                        "estimated": self.guessed(t), "share": min(share[i], 1.0)})
         return out
 
     def gains(self, key: str) -> list[float | None]:
@@ -281,9 +345,9 @@ class StatsTab:
                              "metrics": metrics})
 
     def totals_metric(self, metric: str, history: dict, now: datetime) -> dict:
-        """One chart and its breakdown: the counted platforms added up over the range, as filled runs (broken at
-        gaps), the hover read-out for each bucket, marks where videos went up, the numbers over the chart, and every
-        platform's number now, gain in the range and share."""
+        """One chart and its breakdown: the counted platforms added up over the range, as a filled area (its estimated
+        stretches hatched: est), the hover read-out for each bucket, marks where videos went up, the numbers over the
+        chart, and every platform's number now, gain in the range and share."""
         from .service import NOTHING_CONNECTED, slot_info
 
         hold = metric != "followers"  # unfollows show; a dip in likes is held, as on the other charts
@@ -309,7 +373,7 @@ class StatsTab:
                             f"Not enough readings in the last {_span_words(self.totals_range)}: pick a longer range.")
             return out
         out["series"] = [{"key": "total", "name": "added up", "color": TOTAL, "xs": [t.xs[j] for j in run],
-                          "ys": [t.total[j] for j in run], "style": "area"} for run in t.runs()]
+                          "ys": [t.total[j] for j in run], "style": "area", "est": t.spans(run)} for run in t.runs()]
         out["hover"] = t.slots()
         out["marks"] = [{"x": x, "label": label} for x, label in self.post_marks(fr)]
         out["title"] = self.totals_title(name, t, pts)
@@ -342,11 +406,14 @@ class StatsTab:
         best = self.totals_best(t, hours > 48)
         if best:
             items.append((Text(best, MUTED), 4))
+        if any(t.estimated):  # the key to the hatching
+            items.append((Text(f"{'   ' if best else ''}╱╱ estimated", MUTED), 5))
         return parts(items)
 
     def totals_best(self, t: Totals, daily: bool) -> str | None:
         """The day (or, on a range of two days or less, the hour) that added the most, while there are two to
-        compare."""
+        compare. Only measured ones count: a day that starts or ends in an estimate, or an hour with any of one, is
+        left out."""
         a, b = t.moments[t.known[0]], t.moments[t.known[-1]]
         if daily:
             local = a.astimezone()
@@ -360,7 +427,7 @@ class StatsTab:
             spans = [(cuts[i], cuts[i + 1]) for i in range(1 if len(cuts) > 2 else 0, len(cuts) - 1)]
             found = []
             for s, e in spans:
-                v0, v1 = t.at(s), t.at(e)
+                v0, v1 = t.measured(s), t.measured(e)
                 if v0 is not None and v1 is not None:
                     found.append((v1 - v0, s))
             if len(found) < 2:
@@ -375,7 +442,7 @@ class StatsTab:
             return f"best day {signed(gain)} {which}"
         if not t.fr.hourly:
             return None
-        found = [(h["gain"], i) for i, h in enumerate(t.slots()) if h and h["gain"] is not None]
+        found = [(h["gain"], i) for i, h in enumerate(t.slots()) if h and h["gain"] is not None and not h["share"]]
         if len(found) < 2:
             return None
         gain, i = max(found, key=lambda f: (f[0], f[1]))

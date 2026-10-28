@@ -87,9 +87,10 @@ NOTHING_CONNECTED = "Connect an account on the Accounts tab to see your stats he
 # along the top, each with the number that opens it.
 HELP = [
     ("Overview", "Totals for every platform, then views, followers and likes gained per hour (or per 6 hours / per day "
-                 "on the longer ranges), stacked by platform. Yellow marks show when each video went up. Point at a "
-                 "bar to see that hour's numbers by platform; click a platform in the key to hide it. Under the cards: "
-                 "today's badges, like \"Today: top 10% of your days for new TikTok followers\".", "overview"),
+                 "on the longer ranges), stacked by platform. Yellow marks show when each video went up, and hours "
+                 "the computer was off are filled in with an estimate, hatched. Point at a bar to see that hour's "
+                 "numbers by platform; click a platform in the key to hide it. Under the cards: today's badges, like "
+                 "\"Today: top 10% of your days for new TikTok followers\".", "overview"),
     ("Videos", "Every video on every platform. Views 12h is each one's views 12 hours after it went up, so new and old "
                "videos compare fairly (\"in 5h\" until it's that old, — when the computer was off then). Show picks a "
                "platform, a header sorts, and clicking a highlighted row (or Open post) opens it. Above the chart: the "
@@ -126,8 +127,8 @@ HELP = [
               "the top to count it in the totals or leave it out, and pick 24H, 48H, 7D, 30D or ALL. Point at a chart "
               "to see the totals then, with each platform's part; yellow marks show when each video went up. Beside "
               "each chart: every platform's number now, what it gained over the range and its share of the total. A "
-              "stretch the computer was off for stays empty, and the totals start once every platform you count has "
-              "a first reading.", "totals"),
+              "stretch the computer was off for is filled in with an estimate, hatched, and the totals start once "
+              "every platform you count has a first reading.", "totals"),
     ("Notifications", "The bell at the top right opens the drawer: updates, milestones, badges, finished videos and "
                       "log-ins that need you. A red dot on the bell means something's unread; click one to go "
                       "to it, or the × at its right to delete it (Delete deletes the highlighted one), and Clear "
@@ -1016,13 +1017,14 @@ class Dashboard(StatsTab, SettingsTab, Service):
 
     def trend_variant(self, fr: trends.Frame, pts: dict, visible: list[Platform]) -> dict:
         """One bucket size of a chart: its buckets (labels for the axis and the hover read-out), each platform's gains
-        per bucket (the last one still filling up, so drawn dimmer) and the marks where videos went up."""
+        per bucket (the last one still filling up, so drawn dimmer; guess: how much of each is an estimate, filling a
+        gap in the readings, drawn hatched) and the marks where videos went up."""
         series = []
         for p in visible:
             if p.key in pts:
-                b = trends.bucket(pts[p.key], fr)
+                b = trends.bucket(pts[p.key], fr, estimate=True)
                 series.append({"key": p.key, "name": p.name, "color": p.color, "values": b.gains,
-                               "faint": [i == fr.n - 1 for i in range(fr.n)]})
+                               "faint": [i == fr.n - 1 for i in range(fr.n)], "guess": b.est})
         unit = {"h": "per hour", "day": "per day"}.get(fr.unit(), f"per {fr.unit()}")
         return {"step_h": fr.step.total_seconds() / 3600, "n": fr.n, "unit": unit, "slots": slot_info(fr),
                 "series": series, "marks": [{"x": m[0], "label": m[1]} for m in self.post_marks(fr)]}
@@ -1843,17 +1845,28 @@ class Dashboard(StatsTab, SettingsTab, Service):
 
     def followers_chart(self, p: Platform, rows: list) -> dict | None:
         """An account's followers over the time ReelForge has been reading them: the heading, the points, and each
-        bucket's label and number for the hover read-out."""
+        bucket's label and number for the hover read-out. A bucket whose middle fell in a gap between readings (the
+        computer was off) is an estimate, the straight line between the readings either side: hatched (est), and
+        guessed for the read-out."""
         pts = trends.points(rows, "followers", hold=False)
         if len(pts) < 2:
             return None
         days = (analytics.now() - pts[0][0]).total_seconds() / 86400
         fr = trends.frame_since(pts[0][0]) if days < 30 else trends.frame("30d")
-        b = trends.bucket(pts, fr)
+        b = trends.bucket(pts, fr, estimate=True)
         xs = [i + 1 for i, v in enumerate(b.totals) if v is not None]
         ys = [v for v in b.totals if v is not None]
         if not ys:
             return None
+        longest = max(trends.GAP, fr.step)
+        holes = [(t0, t1) for (t0, _), (t1, _) in zip(pts, pts[1:]) if t1 - t0 > longest]
+        guessed = [any(t0 < a + (z - a) / 2 < t1 for t0, t1 in holes) for a, z in zip(fr.starts, fr.ends)]
+        est: list[list[int]] = []
+        for i, guess in enumerate(guessed):
+            if guess and est and est[-1][1] == i:
+                est[-1][1] = i + 1
+            elif guess:
+                est.append([i, i + 1])
         first = pts[0][0].astimezone()  # the first reading, not the start of its hour, so the date matches the panel
         heading = Text.assemble(("FOLLOWERS  ", "bold"),
                                 (f"since {first:%b} {first.day}  " if days < 30 else "last 30 days  ", MUTED),
@@ -1861,8 +1874,9 @@ class Dashboard(StatsTab, SettingsTab, Service):
         heading.append("  ")
         heading.append_text(change_text(pts[-1][1] - (ys[0] if len(ys) > 1 else pts[0][1])))
         return {"heading": heading.json(), "n": fr.n, "step_h": fr.step.total_seconds() / 3600,
-                "slots": slot_info(fr), "values": b.totals,
-                "series": [{"key": p.key, "name": p.name, "color": p.color, "xs": xs, "ys": ys, "style": "area"}]}
+                "slots": slot_info(fr), "values": b.totals, "guessed": guessed,
+                "series": [{"key": p.key, "name": p.name, "color": p.color, "xs": xs, "ys": ys, "style": "area",
+                            "est": est}]}
 
     @rpc
     def login(self, key: str) -> None:

@@ -18,7 +18,13 @@ export function pickVariant(variants: Variant[], columns: number): Variant {
   return variants[variants.length - 1]!
 }
 
-/** An Overview chart's title as (text, importance) parts. */
+/** How much of a bar is an estimate (Series.guess: a gap in the readings), added up over its platforms. */
+export function guessIn(series: Series[], slot: number): number {
+  return series.reduce((n, s) => n + Math.min(Math.max(s.guess?.[slot] ?? 0, 0), Math.max(s.values?.[slot] ?? 0, 0)), 0)
+}
+
+/** An Overview chart's title as (text, importance) parts. A bar that's an estimate, all of it or part, says so when
+ * the mouse is over it, its numbers marked ≈, and is never the best one. */
 export function metricTitle(metric: string, m: MetricView, v: Variant | null, slot: number | null): Parts {
   const parts: Parts = [[[[`${metric.toUpperCase()}  `, "bold"]], 0]]
   if (!v || !m.summary) return parts
@@ -35,8 +41,15 @@ export function metricTitle(metric: string, m: MetricView, v: Variant | null, sl
       out.push([[["no readings yet", MUTED]], 0])
       return out
     }
-    out.push([[[`+${fmtNum(vals.reduce((n, [, x]) => n + x, 0))}  `, "bold"]], 0])
-    for (const [s, x] of vals) out.push([[[`${SHORT[s.key] ?? s.key} ${fmtNum(x)}  `, s.color]], 1])
+    const sum = vals.reduce((n, [, x]) => n + x, 0)
+    const guess = guessIn(v.series, slot)
+    const all = guess > 0 && guess >= sum * 0.999
+    out.push([[[`${guess > 0 ? "≈" : ""}+${fmtNum(sum)}  `, "bold"]], 0])
+    if (guess > 0) out.push([[[all ? "estimated  " : "partly estimated  ", MUTED]], 0])
+    for (const [s, x] of vals) {
+      const about = !all && (s.guess?.[slot] ?? 0) > 0 ? "≈" : ""
+      out.push([[[`${SHORT[s.key] ?? s.key} ${about}${fmtNum(x)}  `, s.color]], 1])
+    }
     if (slot === v.n - 1) out.push([[["so far", MUTED]], 3])
     return out
   }
@@ -57,10 +70,10 @@ export function metricTitle(metric: string, m: MetricView, v: Variant | null, sl
     const up = s.change >= 0
     parts.push([[[`${up ? "▲" : "▼"} ${(Math.abs(s.change) * 100).toFixed(0)}% vs the ${span} before   `, up ? GOOD : BAD]], 3])
   }
-  let best: [number, number] | null = null // the tallest bar, as drawn
+  let best: [number, number] | null = null // the tallest bar, as drawn, of those with no estimate in them
   for (let i = 0; i < v.n; i++) {
     const vals = v.series.map((x) => x.values?.[i]).filter((x): x is number => x !== null && x !== undefined)
-    if (!vals.length) continue
+    if (!vals.length || guessIn(v.series, i) > 0) continue
     const sum = vals.reduce((a, b) => a + b, 0)
     if (!best || sum > best[0] || (sum === best[0] && i > best[1])) best = [sum, i]
   }

@@ -202,9 +202,12 @@ function Trends({ only }: { only?: "views" | "followers" }) {
       const gap: Segs = i ? [["  ", ""]] : []
       return seg[2] ? [...gap, [seg[0], DASH.muted, seg[2]]] : [...gap, [seg[0], `bold ${DASH.text} on ${mix(DASH.raised, "#ffffff", 0.05)}`]]
     })
-  const short = segsLen(trends?.legend) + 20 > width - 4
+  // a gap in the readings, filled in on a chart: the key says what its hatching is
+  const estimates = Object.values(trends?.metrics ?? {}).some((m) => m.variants?.some((v) => v.series.some((x) => x.guess?.some((g) => g > 0))))
+  const hatched: Segs = estimates ? [["  ╱╱ estimated", DASH.muted]] : []
+  const short = segsLen(trends?.legend) + 20 + segsLen(hatched) > width - 4
   const key = (short ? trends?.legend_short : trends?.legend) ?? []
-  const legend: Segs = key.length ? [...key, ["  ▼ video posted", DASH.warn]] : [] // no platforms shown: no key at all
+  const legend: Segs = key.length ? [...key, ["  ▼ video posted", DASH.warn], ...hatched] : [] // no platforms shown: no key at all
   const views = <Metric metric="views" view={trends?.metrics.views} range={trends?.range} flexGrow={1} right={<Line segs={ranges} />} sub={<Line segs={legend} />} />
   const small = (
     <>

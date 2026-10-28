@@ -7,6 +7,8 @@ changes: it only swaps what ReelForge would find here for the same things on a f
   - The first-run screens show a neutral folder (C:\\Users\\you\\ReelForge) and what a computer with nothing installed
     sees, and the last screen a new channel's (Night Physics) with nothing turned on here.
   - The channel's questions start from a sample channel's answers, so its later steps can be shown.
+  - The Stats tab's picture has a night the computer was off (from 9 PM four days ago until 1 PM the next day), so
+    its charts show an estimate, hatched.
   - A sign-up guide's button, Open profile and every other link open nothing: no browser ever opens from a picture
     or a test (a test that sets REELFORGE_OPENED to a file finds the pages listed there), and a second channel's
     private window is always Chrome's.
@@ -133,7 +135,29 @@ def _no_browser() -> None:
     desktop.open_url = opened
 
 
+def _night_off() -> None:
+    """The Stats tab's picture: the demo's readings with a night the computer was off taken out, from 9 PM four days ago
+    until 1 PM the next day, so both charts show what an estimate looks like."""
+    if os.environ.get("REELFORGE_SHOT") != "app-stats":
+        return
+    from datetime import datetime, timedelta
+
+    from dashboard import db, demo
+
+    seed = demo.seed
+
+    def seeded(*args, **kwargs) -> None:
+        seed(*args, **kwargs)
+        off = (datetime.now().astimezone() - timedelta(days=4)).replace(hour=21, minute=0, second=0, microsecond=0)
+        with db.connect() as conn:
+            conn.execute("DELETE FROM account_stats WHERE ts > ? AND ts < ?",
+                         (db.to_iso(off), db.to_iso(off + timedelta(hours=16))))
+
+    demo.seed = seeded
+
+
 atexit.register(_list_modules)
 _dashboard()
 _first_run()
 _no_browser()
+_night_off()

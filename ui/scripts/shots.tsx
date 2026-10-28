@@ -132,6 +132,9 @@ for (let k = 1; k <= 7; k++) BLOCKS[String.fromCodePoint(0x2590 - k)] = [[0, k, 
   if (!bits || BLOCKS[ch]) return
   BLOCKS[ch] = [0, 1, 2, 3].filter((p) => (bits >> p) & 1).map((p) => [(p % 2) * 4, (p % 2) * 4 + 4, Math.floor(p / 2) * 12, Math.floor(p / 2) * 12 + 12])
 })
+/** Diagonals drawn corner to corner, so they join up from cell to cell (the hatching of a chart's estimates): which
+ * corners, as [x0, y0, x1, y1] in cells. */
+const DIAGONALS: Record<string, [number, number, number, number]> = { "╱": [0, 1, 1, 0], "╲": [0, 0, 1, 1] }
 
 function hex(c: { toInts(): [number, number, number, number] }): string | null {
   const [r, g, b, a] = c.toInts()
@@ -144,7 +147,7 @@ function esc(s: string): string {
 }
 
 /** The frame as an SVG terminal window, block characters drawn as exact rectangles (a browser's fonts leave seams
- * between them, or have none at all), the way Windows Terminal draws them. */
+ * between them, or have none at all) and diagonals corner to corner, the way Windows Terminal draws them. */
 export function svg(frame: CapturedFrame, background: string, title = "ReelForge"): string {
   const W = frame.cols * CW + 2 * PAD
   const H = BAR + frame.rows * CH + PAD
@@ -188,6 +191,17 @@ export function svg(frame: CapturedFrame, background: string, title = "ReelForge
       }
       chars.forEach((ch, i) => {
         const at = col + i * step
+        const line = DIAGONALS[ch]
+        if (line) {
+          flush(at)
+          const [x0, y0, x1, y1] = line
+          const x = PAD + at * CW
+          rects.push(
+            `<line x1="${x + x0 * CW}" y1="${y + y0 * CH}" x2="${x + x1 * CW}" y2="${y + y1 * CH}" stroke="${fg}" stroke-width="1.6" stroke-linecap="square"/>`,
+          )
+          runStart = at + step
+          return
+        }
         const parts = BLOCKS[ch]
         if (parts) {
           flush(at)

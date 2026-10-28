@@ -150,10 +150,12 @@ function Connected({ panel: p }: { panel: AccountPanelView }) {
     if (!chart) return []
     if (hover === null || hover < 0 || hover >= chart.n) return chart.heading
     const value = chart.values[hover]
+    const guess = chart.guessed?.[hover] ?? false
     return [
       ["FOLLOWERS  ", "bold"],
       [chart.slots[hover]!.label + "  ", `bold ${MARK}`],
-      value !== null && value !== undefined ? [fmtNum(value), "bold"] : ["no reading yet", DASH.muted],
+      value !== null && value !== undefined ? [(guess ? "≈" : "") + fmtNum(value), "bold"] : ["no reading yet", DASH.muted],
+      ...(guess && value !== null && value !== undefined ? ([["  estimated", DASH.muted]] as Segs) : []),
     ]
   }
   return (

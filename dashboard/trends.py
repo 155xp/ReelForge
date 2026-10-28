@@ -1,11 +1,12 @@
 """Snapshots turned into what the charts show: gains per hour (or day), running totals and the numbers on top.
 
-Platforms report lifetime totals, so a gain is the difference between two readings. Bars show only what was
-measured: readings taken close together share their rise between the hours they span. Nothing is made up for a gap
-(the computer was off): its hours stay empty, and what was gained meanwhile counts in the totals and the numbers over
-the chart, not as a bar. With the hourly background job (reelforge stats on) gaps only happen while the computer is
-off. A total that dips (YouTube's sum of visible videos sometimes does) is held at its highest reading, so a dip and
-recovery isn't counted twice.
+Platforms report lifetime totals, so a gain is the difference between two readings: readings taken close together
+share their rise between the hours they span. A gap between readings (the computer was off) is measured only as a
+whole: what was gained meanwhile counts in the totals and the numbers over the chart. The Overview's bars fill its hours
+with an estimate, that rise shared out evenly, and draw it hatched (bucket with estimate=True); badges and the best
+bar go only by what was measured. With the hourly background job (reelforge stats on) gaps only happen while the
+computer is off. A total that dips (YouTube's sum of visible videos sometimes does) is held at its highest reading, so
+a dip and recovery isn't counted twice.
 """
 
 from __future__ import annotations
@@ -165,15 +166,18 @@ class Bucketed:
     gains: list[float | None]
     gaps: list[bool]  # part of the bucket fell in a gap between readings, so its bar leaves something out
     totals: list[float | None]
+    est: list[float] = field(default_factory=list)  # how much of each gain is an estimate (bucket(estimate=True))
 
 
-def bucket(pts: Points, fr: Frame) -> Bucketed:
+def bucket(pts: Points, fr: Frame, estimate: bool = False) -> Bucketed:
     """What the readings measured, bucket by bucket: readings close together share their rise between the buckets
     they span, by time. A gap is left out: its buckets stay empty, and what was gained during it shows in the totals
-    and the numbers over the chart (Summary.gained), not as a bar."""
+    and the numbers over the chart (Summary.gained), not as a bar. estimate=True fills a gap with an estimate instead:
+    its rise shared out over its buckets by time, the same way, and counted in est too (its buckets are still gaps)."""
     n = fr.n
     gains: list[float | None] = [None] * n
     gaps = [False] * n
+    est = [0.0] * n
     longest = max(GAP, fr.step)  # 30-day buckets don't count once-a-day readings (old history is thinned) as gaps
     f0, f1 = fr.starts[0], fr.ends[-1]
 
@@ -187,12 +191,14 @@ def bucket(pts: Points, fr: Frame) -> Bucketed:
         if t1 <= f0:
             continue
         span = (t1 - t0).total_seconds()
-        if t1 - t0 > longest:
+        gap = t1 - t0 > longest
+        if gap:
             i = fr.index(max(t0, f0))
             while i is not None and i < n and fr.starts[i] < t1:
                 gaps[i] = True
                 i += 1
-            continue
+            if not estimate:
+                continue
         rise = max(v1 - v0, 0.0)
         if span == 0:  # two readings at the same moment
             if (i := fr.index(t1)) is not None:
@@ -203,9 +209,11 @@ def bucket(pts: Points, fr: Frame) -> Bucketed:
             overlap = (min(fr.ends[i], t1) - max(fr.starts[i], t0)).total_seconds()
             if overlap > 0:
                 add(i, rise * overlap / span)
+                if gap:
+                    est[i] += rise * overlap / span
             i += 1
     totals = [value_at(pts, min(fr.ends[i], pts[-1][0])) if gains[i] is not None else None for i in range(n)]
-    return Bucketed(gains, gaps, totals)
+    return Bucketed(gains, gaps, totals, est)
 
 
 @dataclass

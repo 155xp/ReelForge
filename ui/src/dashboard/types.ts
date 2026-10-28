@@ -118,12 +118,16 @@ export interface TotalsToggle {
   has: boolean
 }
 
-/** A bucket on a Stats chart, for the hover read-out: the total at its end (or now), what it gained in the bucket, and
- * each counted platform's reading then. */
+/** A bucket on a Stats chart, for the hover read-out: the total at its end (or now) and whether that's an estimate,
+ * what it gained in the bucket and how much of the bucket is drawn as an estimate (share: 0 to 1), and each counted
+ * platform's reading then (est: the ones estimated then, in a gap in their readings). */
 export interface TotalsHover {
   total: number
   gain: number | null
   each: Record<string, number | null>
+  est?: string[]
+  estimated?: boolean
+  share?: number
 }
 
 /** A platform in a Stats chart's breakdown: its number now, its gain over the chart's span, its share of the total,
@@ -227,6 +231,7 @@ export interface AccountPanelView {
     step_h: number
     slots: Slot[]
     values: (number | null)[]
+    guessed?: boolean[] // buckets that are an estimate (a gap in the readings), hatched
     series: Series[]
   }
 }

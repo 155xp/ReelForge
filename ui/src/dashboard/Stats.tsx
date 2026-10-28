@@ -1,9 +1,9 @@
 // The Stats tab: your followers and your likes added up across the platforms you count, over time. The platforms
 // at the top left are ticked while they count in the totals (click one to leave it out, or back in), the range is at
-// the top right, and each chart is the total as a filled area, broken where the computer was off, with a mark where
-// each video went up; point at it for the totals then, with each platform's part. Beside each chart (under it in a
-// narrow window): every platform's number now, what it gained over the range, its share of the total and what it
-// gained bucket by bucket.
+// the top right, and each chart is the total as a filled area, hatched where it's an estimate (the computer was off),
+// with a mark where each video went up; point at it for the totals then, with each platform's part. Beside each chart
+// (under it in a narrow window): every platform's number now, what it gained over the range, its share of the total
+// and what it gained bucket by bucket.
 
 import type { Renderable } from "@opentui/core"
 import { useCallback, useState } from "react"
@@ -164,7 +164,9 @@ export function timeLabels(slots: Slot[], pw: number, stepH: number): [number, s
 }
 
 /** A chart's title while the mouse is over bucket `slot`: when it was, the total then and what the bucket added, and
- * each counted platform's part. */
+ * each counted platform's part. A bucket drawn as an estimate, all of it or part, says so with its numbers marked ≈
+ * (the total only when it's an estimate itself); so does a platform estimated then (in a gap in its readings) while
+ * the total isn't. */
 export function hoverTitle(view: TotalsMetric, slot: number): Parts {
   const head: Parts = [
     [[[`${view.name}  `, "bold"]], 2],
@@ -172,11 +174,15 @@ export function hoverTitle(view: TotalsMetric, slot: number): Parts {
   ]
   const h = view.hover?.[slot]
   if (!h) return [...head, [[["not read then", DASH.muted]], 0]]
-  const out: Parts = [...head, [[[exact(h.total), "bold"], ["  ", ""]], 0]]
-  if (h.gain !== null && Math.round(h.gain) !== 0) out.push([[[`${signed(h.gain)}  `, h.gain > 0 ? DASH.good : DASH.bad]], 1])
+  const share = h.share ?? 0
+  const out: Parts = [...head, [[[(h.estimated ? "≈" : "") + exact(h.total), "bold"], ["  ", ""]], 0]]
+  if (h.gain !== null && Math.round(h.gain) !== 0)
+    out.push([[[`${share > 0 ? "≈" : ""}${signed(h.gain)}  `, h.gain > 0 ? DASH.good : DASH.bad]], 1])
+  if (share > 0) out.push([[[`${share >= 0.999 ? "estimated" : "partly estimated"}  `, DASH.muted]], 0])
   for (const r of view.rows ?? []) {
     const v = h.each[r.key]
-    if (v !== undefined && v !== null) out.push([[[`${r.short} ${exact(v)}  `, r.color]], 3])
+    const guess = !h.estimated && h.est?.includes(r.key) ? "≈" : ""
+    if (v !== undefined && v !== null) out.push([[[`${r.short} ${guess}${exact(v)}  `, r.color]], 3])
   }
   if (slot === (view.n ?? 0) - 1) out.push([[["now", DASH.muted]], 4])
   return out

@@ -89,6 +89,19 @@ describe("chart titles", () => {
     const hovered = plain(fit(metricTitle("views", m, v, 5), 200))
     expect(hovered).toBe("VIEWS  Fri 5 PM  +6  TT 6  ")
   })
+
+  test("a bar that's an estimate says so, and is never the best one", () => {
+    const m: MetricView = { span: "24h", hourly: true, summary: { latest: 52_000, gained: 1_200, pace: 80, change: null } }
+    const v = variant(1, 24)
+    v.series.push({ key: "youtube", name: "YouTube", color: "#ff3d4e", values: Array.from({ length: 24 }, () => 2) })
+    // the computer was off from 9 PM: the last three bars are estimates, all of the 10 PM and 11 PM ones, YouTube's
+    // half of the 9 PM one
+    v.series[0]!.guess = Array.from({ length: 24 }, (_, i) => (i >= 22 ? i + 1 : 0))
+    v.series[1]!.guess = Array.from({ length: 24 }, (_, i) => (i >= 22 ? 2 : i === 21 ? 1 : 0))
+    expect(plain(fit(metricTitle("views", m, v, null), 200))).toContain("best 23 at 20 PM")
+    expect(plain(fit(metricTitle("views", m, v, 23), 200))).toBe("VIEWS  Fri 23 PM  ≈+26  estimated  TT 24  YT 2  so far")
+    expect(plain(fit(metricTitle("views", m, v, 21), 200))).toBe("VIEWS  Fri 21 PM  ≈+24  partly estimated  TT 22  YT ≈2  ")
+  })
 })
 
 describe("release notes' Markdown", () => {

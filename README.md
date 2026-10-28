@@ -127,9 +127,9 @@ sharpest in Windows Terminal.
 A tile for each platform you've connected, and one for them all: your followers in big numbers, today's change,
 your views and likes, and your views hour by hour (on All platforms, each platform's share). Under them, today's
 badges, then the views, followers and likes you gained each hour (or each few hours, or day: pick 24H, 48H, 7D or
-30D), stacked by platform, with a mark where each video went up. Point at a bar to read its numbers, and click a
-platform's name to hide it. Beside the charts are your top videos (with their views 12 hours in) and how the latest
-one is doing. The bell at the top right
+30D), stacked by platform, with a mark where each video went up. Hours your computer was off are filled in with an
+estimate, hatched. Point at a bar to read its numbers, and click a platform's name to hide it. Beside the charts are
+your top videos (with their views 12 hours in) and how the latest one is doing. The bell at the top right
 collects milestones, new videos ready to post and updates, and shows how many are new on its shoulder. Click a
 notification to see what it's about: a video that's taking off opens on the Videos tab, highlighted, and a finished
 video is picked out on Publish. The × beside a notification deletes it, and Clear all deletes them all.
@@ -170,8 +170,9 @@ their views in their first day, and when it next comes round, once there are eno
 
 Your followers and your likes added up across your platforms, over time. **Add up** at the top ticks the platforms
 the totals count: click one to leave it out, and again to bring it back. Pick 24H, 48H, 7D, 30D or ALL at the right.
-Each chart draws the total from ReelForge's own readings, with a mark where each video went up, and a stretch when
-your computer was off stays empty. Point at a chart to see the totals then, with each platform's part. Beside each
+Each chart draws the total from ReelForge's own readings, with a mark where each video went up. A stretch when your
+computer was off is filled in with an estimate, the straight line between the readings either side, hatched so you can
+tell it from a reading. Point at a chart to see the totals then, with each platform's part. Beside each
 chart is every platform's number now, what it gained over the range, what it gained hour by hour (or day by day) and
 its share of the total. `reelforge totals` opens it (`reelforge stats` is the hourly stats job).
 

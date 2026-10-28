@@ -75,6 +75,24 @@ class BucketTest(unittest.TestCase):
         self.assertIsNone(b.gains[j])
         # ...and the numbers over the chart still count everything.
         self.assertAlmostEqual(trends.summarise({"tiktok": pts}, self.fr).gained, 1900, places=6)
+        self.assertEqual(b.est, [0.0] * self.fr.n)
+
+    def test_the_overviews_bars_fill_a_gap_with_an_estimate(self):
+        """estimate=True, the Overview's charts: a gap's rise shared out evenly over its hours, and counted as an
+        estimate. Its hours are still gaps (badges leave out the days they're in)."""
+        r = rows(("2026-10-23T12:00:00+00:00", 100), ("2026-10-23T13:00:00+00:00", 400),
+                 ("2026-10-23T18:00:00+00:00", 1400), ("2026-10-24T00:30:00+00:00", 2000))
+        b = trends.bucket(trends.points(r, "views"), self.fr, estimate=True)
+        read = self.fr.index(datetime(2026, 10, 23, 12, 10, tzinfo=UTC).astimezone())
+        self.assertEqual((b.gains[read], b.est[read], b.gaps[read]), (300, 0, False))
+        off = self.fr.index(datetime(2026, 10, 23, 15, 10, tzinfo=UTC).astimezone())
+        self.assertAlmostEqual(b.gains[off], 200, places=6)  # 1000 over the 5 hours from 13:00 to 18:00
+        self.assertEqual(b.est[off], b.gains[off])
+        self.assertTrue(b.gaps[off])
+        # every hour from 12:00 has its bar, and they add up to everything the readings gained
+        self.assertTrue(all(g is not None for g in b.gains[read:]))
+        self.assertAlmostEqual(sum(g for g in b.gains if g is not None), 1900, places=6)
+        self.assertAlmostEqual(sum(b.est), 1600, places=6)
 
     def test_summary(self):
         a = rows(("2026-10-23T01:00:00+00:00", 0), ("2026-10-23T23:50:00+00:00", 1000),

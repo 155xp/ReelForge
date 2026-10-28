@@ -8,11 +8,11 @@ import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
 import { clickText, find } from "../scripts/shots"
 import { ROOT } from "../src/bridge"
-import { columns, exact, signed, timeLabels, trimmed } from "../src/dashboard/Stats"
+import { columns, exact, hoverTitle, signed, timeLabels, trimmed } from "../src/dashboard/Stats"
 import { TAB_NAMES } from "../src/dashboard/state"
-import type { TotalsRow, TotalsView } from "../src/dashboard/types"
+import type { TotalsMetric, TotalsRow, TotalsView } from "../src/dashboard/types"
 import type { Slot } from "../src/lib/chart"
-import { cellLen } from "../src/lib/styled"
+import { cellLen, type Parts } from "../src/lib/styled"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
 setDefaultTimeout(30_000)
@@ -169,6 +169,32 @@ describe("its pieces", () => {
     expect(long[long.length - 1]![1]).toBe("Oct 11") // today always has its date
     const week = timeLabels(slots(168, 1), 110, 1)
     expect(week.some(([, l]) => l === "Mon")).toBe(true)
+  })
+
+  test("pointing at an estimate says so, and at a platform estimated in a measured hour, marks its number", () => {
+    const slot = (label: string): Slot => ({ label, when: "", hour: 0, day: 1, weekday: "Fri", clock: "", date: "" })
+    const view: TotalsMetric = {
+      name: "FOLLOWERS",
+      n: 4,
+      slots: [slot("Fri 9 PM"), slot("Sat 3 AM"), slot("Sat 11 AM"), slot("Sat 2 PM")],
+      rows: [row("TikTok", 80, 20, []), row("YouTube", 50, 10, [])],
+      hover: [
+        { total: 100, gain: 5, each: { tiktok: 60, youtube: 40 }, est: [], estimated: false, share: 0 },
+        { total: 120, gain: 20, each: { tiktok: 75, youtube: 45 }, est: ["tiktok", "youtube"], estimated: true, share: 1 },
+        { total: 125, gain: 5, each: { tiktok: 78, youtube: 47 }, est: [], estimated: false, share: 0.4 },
+        { total: 130, gain: 5, each: { tiktok: 80, youtube: 50 }, est: ["youtube"], estimated: false, share: 0 },
+      ],
+    }
+    const words = (p: Parts) => p.flatMap(([segs]) => segs.map((s) => s[0])).join("")
+    expect(words(hoverTitle(view, 0))).not.toMatch(/≈|estimated/)
+    const off = words(hoverTitle(view, 1)) // the computer was off
+    for (const text of ["≈120", "≈+20", "estimated", "Ti 75", "Yo 45"]) expect(off).toContain(text)
+    expect(off).not.toContain("partly")
+    const back = words(hoverTitle(view, 2)) // read again from 11:24: the total at its end is a reading
+    for (const text of [" 125", "≈+5", "partly estimated"]) expect(back).toContain(text)
+    const lapsed = words(hoverTitle(view, 3)) // YouTube's log-in ran out for a while
+    for (const text of [" 130", "+5", "Ti 80", "Yo ≈50"]) expect(lapsed).toContain(text)
+    expect(lapsed).not.toMatch(/≈1|≈\+|estimated/)
   })
 
   test("numbers in full: 21,034, +1,203 and −40", () => {
