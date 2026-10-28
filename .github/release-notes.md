@@ -1,25 +1,20 @@
+## What's new in 1.0.9
+
+- **Publish is a green button at the top right.** It's no longer a tab: click it from any tab, or press **u**.
+  - It turns solid green while you're on Publish, and `reelforge publish` still opens it.
+  - The other seven tabs keep your order: **1**-**7** and `reelforge 1` to `reelforge 7` open them.
+- **When your stats were last read is under ↻ Refresh** at the top, in amber while they're being read.
+  - The bar along the bottom no longer lists your platforms: it names one only when its last refresh failed.
+  - Click it for the Accounts tab, which says why.
+- **Gaps in the charts are filled in.** The hours your computer was off are estimated and drawn hatched.
+  - That's on the Overview, the Stats tab and the Accounts tab's charts. Pointing at one says it's estimated.
+  - An estimate is never your best day, hour or bar, and badges still count only what was read.
+- **A views chart on the Stats tab** above followers and likes: your views added up across your platforms, with its own breakdown.
+
 ## What's new in 1.0.8
 
-- **Your stats come first.** The tabs now start Overview, Videos, Compare, Publish, Stats, Accounts, Settings, Updates.
-  - The number keys and `reelforge 1` to `reelforge 8` follow this order. An order you picked yourself stays as it is.
-  - **Reset to default** on the Settings tab puts the tabs in this order.
+- **Your stats come first** in the tabs' default order, and **Reset to default** on the Settings tab puts them back in it.
 - **The badges' pop-up shows whole.** Pointing at the badges on the Overview or Videos tab no longer leaves a stray box under them.
-
-## What's new in 1.0.7
-
-- **A Stats tab.** Your followers and likes added up across your platforms, over time.
-  - Tick a platform to count it in the totals, or untick it to leave it out. Pick 24H, 48H, 7D, 30D or ALL.
-  - Point at a chart for the totals at that moment and each platform's part. Yellow marks show when videos went up.
-- **Delete a channel you added.** Click **Delete** beside it in the profile menu or on the Settings tab's **Profiles** panel.
-  - You type its name first. Its folder moves into a backup in the ReelForge folder, so nothing is lost.
-  - **Restore** puts it back as it was, and **Move to the Recycle Bin** (the Trash on a Mac) frees its space.
-  - `reelforge profiles delete NAME` and `reelforge profiles restore` do the same from a terminal.
-- **Put the tabs in your order.** On the Settings tab, drag a tab where you want it, or move it with the arrows.
-  - The number keys and `reelforge 1` to `reelforge 8` follow your order, in every profile.
-- **An FAQ on the Settings tab.** Click a question for its answer.
-  - The first says which model your AI uses and how hard it thinks: your AI app decides that, and the answer says how to change it.
-- **Sort the Compare tab's episodes.** Newest first, oldest first, or by most views on every platform added up.
-- **Fixes.** **Open profile** works again, and X's **Connect** answers while pop-ups are up.
 
 Already have ReelForge? Open the **Updates** tab and click **Update and restart**.
 
@@ -48,7 +43,7 @@ Mac works too, more slowly), and about 15 GB of free disk space.
 1. Open the ReelForge folder in Claude Code (the Claude desktop app's **Code** tab, then **Open folder…**), or run
    `codex` in it.
 2. Say **"make my first video"**.
-3. Type `reelforge publish` in a terminal (or open ReelForge's icon and go to **Publish**) to post it.
+3. Type `reelforge publish` in a terminal (or open ReelForge's icon and click the green **Publish** button) to post it.
 
 Already have ReelForge? Its **Updates** tab (`reelforge updates`) installs this version in one click.
 
