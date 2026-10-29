@@ -1,8 +1,8 @@
 <!-- reelforge-bootstrap: first-time setup replaces this file with one written for your channel. -->
 # ReelForge (not set up yet)
 
-This folder is **ReelForge**, a kit for making faceless short-form videos with you (Codex): Blender builds
-and renders each scene, Python draws the text and mixes the sound, ffmpeg encodes, an automatic QA gate checks
+This folder is **ReelForge**, a kit for making faceless short-form videos with you (Codex): Blender generates
+3D scenes or optional AgentCut edits local clips and images. Python draws the text and mixes the sound, ffmpeg encodes, an automatic QA gate checks
 every video, and the **ReelForge** window (type `reelforge` in a terminal) is where the person you're working with
 sees their stats and posts from, by hand.
 
@@ -41,6 +41,25 @@ their answers (their channel, format, platforms, style, caption rules and qualit
    setup writes then lists every channel and where its notes are. A new channel's accounts are best made in a
    private window of their browser, so their first channel stays logged in: the `gmail` item's `another_channel`
    says how.
+
+## Optional AgentCut edits
+
+When asked to "open AgentCut and make a video about ...", read `docs/AGENTCUT.md` and run
+`python -m studio agentcut` for the headless command instructions. The current agent plans the video and writes
+an HTML composition in `edit/index.html`, with local media in `edit/media/`. AgentCut uses
+[HyperFrames](https://github.com/heygen-com/hyperframes), pinned to 0.8.214. Read `docs/HEADLESS-EDITING.md` for the
+engine choice. Use the channel's brief, verified local media and recorded source credits. Run `agentcut schema`
+for the HTML contract and `agentcut tool docs` for authoring references. `agentcut install` requires Node.js 22+
+and npm, installs pinned dependencies in `tools/agentcut/` and prepares headless Chrome. Run `agentcut doctor`
+before rendering. Start with `python -m studio agentcut new <slug> --topic "the requested topic"`, author and validate the
+composition, then preview, render, run QA, review and ship through the same pipeline as Blender. Never skip QA or create
+an approval before reviewing the video. Finished edits wait in Publish for manual posting.
+
+Onboarding offers AI Blender or AI AgentCut as the channel's default. Use
+`python -m studio new-episode <slug> --backend agentcut` for one edit, or `--backend blender` for a 3D scene.
+Choosing a default does not install AgentCut.
+`python -m studio hyperframes` is an alias for the AgentCut commands.
+Use the kit's Python (`.venv/bin/python` on macOS/Linux, `.venv\Scripts\python` on Windows) for these commands.
 
 ## Always
 

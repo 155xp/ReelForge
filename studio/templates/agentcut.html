@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AgentCut draft — replace with your story</title>
+  <script src="lib/gsap.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #101827; }
+    #main { position: relative; width: 1080px; height: 1920px; }
+    #draft { position: absolute; inset: 160px 100px; display: grid; place-items: center;
+      color: #fff; font: bold 64px sans-serif; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="main" data-composition-id="main" data-width="1080" data-height="1920"
+       data-fps="30" data-start="0" data-duration="__DURATION__">
+    <div id="draft" class="clip" data-start="0" data-duration="__DURATION__" data-track-index="0">
+      <div id="draft-text">DRAFT: build your edit here.<br>Add licensed footage, images and sound.</div>
+    </div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#draft-text', { y: 80 }, { y: -80, duration: __DURATION__, ease: 'none' });
+    window.__timelines = { main: tl };
+  </script>
+</body>
+</html>

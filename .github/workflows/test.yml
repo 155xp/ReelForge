@@ -11,6 +11,29 @@ on:
   workflow_dispatch:
 
 jobs:
+  headless-editing:
+    name: AgentCut headless editing and delivery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Media tools and Python packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -yq ffmpeg
+          python -m pip install --disable-pip-version-check -r requirements.txt
+      - name: Install the optional pinned editor and headless Chrome
+        run: python -m studio agentcut install
+      - name: Render footage, master audio, run QA, and verify the manual Publish handoff
+        env:
+          REELFORGE_AGENTCUT_RENDER_TEST: "1"
+        run: python -m unittest discover -s tests -p test_agentcut_render.py -v
+
   tests:
     name: Tests on ${{ matrix.os }}
     strategy:

@@ -108,6 +108,7 @@ def settings_from(a: dict) -> dict:
             "episode_label": "Ep. {n}",
         },
         "video": {
+            "backend": a.get("backend", "blender"),
             "fps": 30,
             "min_seconds": lo,
             "max_seconds": hi,
@@ -140,6 +141,7 @@ def settings_from(a: dict) -> dict:
 SETTINGS_COMMENTS = {
     "channel": "Written by first-time setup. Run reelforge channel to change these, or edit them here.",
     "video": "Every video is 9:16, 1080x1920. QA fails a video outside min_seconds..max_seconds.",
+    "video.backend": "blender or agentcut; new-episode --backend overrides this for one video",
     "video.min_seconds": "TikTok's Creator Rewards only pays for videos over a minute",
     "sound": "Ask before changing: every mix is mastered to target_lufs and QA fails anything 2 LU louder.",
     "captions.tiktok_first_tag": "empty = none",

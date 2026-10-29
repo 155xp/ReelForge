@@ -29,6 +29,12 @@ Apple Silicon is quick, an Intel Mac much slower.
 
 ## Make an episode
 
+For headless edits from local footage and images, choose the optional **AgentCut** backend:
+`python -m studio new-episode <slug> --backend agentcut`. Follow [AGENTCUT.md](AGENTCUT.md)
+for installation and timeline authoring. The same `build,stills,render`, `post` and `ship`
+steps use the episode's `backend`; an absent key means Blender. AgentCut supplies edited
+frames and audio to the existing text, loudness, captions, QA and delivery steps.
+
 From the kit folder:
 
 ```

@@ -8,6 +8,8 @@
 | **JetBrains Mono** font (`assets/fonts/`, used on macOS and Linux) | [SIL Open Font License 1.1](assets/fonts/JetBrainsMono-OFL.txt) | Yes |
 | Georgia and Consolas fonts (Windows) | Microsoft's licence, part of Windows | No: used from your Windows fonts folder |
 | **Blender** 4.5 LTS | [GPL](https://www.blender.org/about/license/); what you make with it is yours | No: setup downloads it from download.blender.org (checksum verified) |
+| **HyperFrames** 0.8.214, the renderer behind ReelForge's optional AgentCut commands | [Apache 2.0](https://github.com/heygen-com/hyperframes/blob/main/LICENSE) | No: optional `reelforge agentcut install` runs npm with the bundled dependency lockfile in `tools/agentcut/`; rendering uses headless Chrome and ffmpeg |
+| **GSAP** (AgentCut's local animation runtime) | [Standard no-charge licence](https://gsap.com/standard-license/) | No: installed by the optional editor's locked npm dependencies; copied into each edit's `lib/` folder |
 | **ffmpeg** (builds by gyan.dev for Windows, Martin Riedl for macOS, BtbN for Linux) | [GPL](https://ffmpeg.org/legal.html) | No: setup downloads it from gyan.dev, ffmpeg.martin-riedl.de or BtbN's GitHub releases (checksum verified), or use your own |
 | **Python** (macOS and Linux, only without Python 3.11+) | [PSF licence](https://docs.python.org/3/license.html) | No: setup downloads it from the python-build-standalone releases on GitHub (checksum verified) into `tools/python` |
 | **Chromium** (macOS and Linux, only without Chrome or Edge) | [BSD and others](https://www.chromium.org/chromium-projects/) | No: Playwright downloads it into its own cache folder |

@@ -92,6 +92,11 @@ QUESTIONS: list[Q] = [
       options=[(t, t.capitalize()) for t in TONES], help="Pick one or more."),
 
     # ---- format
+    Q("backend", "format", "How should your AI make videos by default?", "choice", default="blender",
+      options=[("blender", "AI Blender: generate 3D scenes (default)"),
+               ("agentcut", "AI AgentCut edits (powered by HyperFrames)")],
+      help="You can choose either for each video. AgentCut edits local clips and images headlessly with HyperFrames. "
+           "Choosing it here does not install it."),
     Q("format", "format", "Which format do you want to start with?", "choice", default="doubling",
       options=[(k, f["label"] + ("   · ready-made 3D scenes" if f["built_in"] else "")) for k, f in FORMATS.items()],
       help="Proven formats first: your AI copies what is already pulling views, then does it better. "

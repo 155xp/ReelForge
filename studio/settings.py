@@ -50,6 +50,7 @@ DEFAULTS: dict = {
         "episode_label": "Ep. {n}",
     },
     "video": {
+        "backend": "blender",          # optional AgentCut edits use local clips and images, without Blender
         "fps": 30,
         "min_seconds": 61.0,           # TikTok's Creator Rewards only pays for videos over 1 minute
         "max_seconds": 75.0,

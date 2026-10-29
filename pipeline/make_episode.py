@@ -56,6 +56,9 @@ def main():
     if not (ep / "episode.json").exists():
         raise SystemExit(f"{ep / 'episode.json'} not found")
     spec = json.loads((ep / "episode.json").read_text(encoding="utf-8"))
+    backend = spec.get("backend", "blender")
+    if backend not in ("blender", "agentcut"):
+        raise SystemExit(f"unknown episode backend {backend!r}; choose blender or agentcut")
     build = ep / "build"
     final = ep / "final"
     build.mkdir(exist_ok=True)
@@ -68,16 +71,32 @@ def main():
         if s not in ALIASES and s not in ALL_STEPS:
             raise SystemExit(f"unknown step {s!r}; steps: {', '.join(ALL_STEPS)} (or post, ship, all)")
         steps += ALIASES.get(s, [s])
-    if NEEDS_BLENDER & set(steps):
+    if backend == "blender" and NEEDS_BLENDER & set(steps):
         config.require_blender()
-    if NEEDS_FFMPEG & set(steps):
+    if NEEDS_FFMPEG & set(steps) or backend == "agentcut" and {"stills", "render"} & set(steps):
         config.require_ffmpeg()
 
-    if "build" in steps:
+    if backend == "agentcut":
+        from agentcut import Edit
+        edit = Edit(ep, spec)
+        if "build" in steps:
+            edit.validate()
+        if "stills" in steps:
+            secs = [float(s) for s in args.stills.split(",") if s] or spec.get("preview_times") or [
+                round(spec["render_until"] * i / 10, 3) for i in range(10)]
+            edit.stills(secs)
+        if "render" in steps:
+            edit.frames()
+        if {"audio", "video", "cover"} & set(steps):
+            edit.require_render()
+        if "deliver" in steps:
+            edit.require_source()
+
+    if backend == "blender" and "build" in steps:
         run([config.BLENDER, "-b", "--factory-startup", "--python-exit-code", "1",
              "-P", config.PIPELINE / "blender" / "build_scene.py", "--", ep], log=build / "build.log")
 
-    if "stills" in steps:
+    if backend == "blender" and "stills" in steps:
         secs = [float(s) for s in args.stills.split(",") if s] or spec.get("preview_times") or \
             [1, 15, 20, 26, 31, 38, 47, 55, 63, 67]
         frames = ",".join(str(int(round(s * fps)) + 1) for s in secs)
@@ -85,14 +104,17 @@ def main():
         run([config.BLENDER, "-b", build / "scene.blend", "-o", build / "stills" / "s_####", "-F", "JPEG",
              "-f", frames], log=build / "stills.log")
 
-    if "render" in steps:
+    if backend == "blender" and "render" in steps:
         run([config.BLENDER, "-b", build / "scene.blend", "-a"], log=build / "render.log")
 
     post = config.PIPELINE / "post"
     if "audio" in steps:
-        mixer = "audio_mix.py" if spec.get("audio", {}).get("mixer") == "samples" else "audio.py"
+        mixer_type = spec.get("audio", {}).get("mixer")
+        mixer = {"samples": "audio_mix.py", "agentcut": "agentcut_audio.py"}.get(mixer_type, "audio.py")
         run([sys.executable, "-I", post / mixer, ep])
     if "video" in steps:
+        if backend == "agentcut" and not (build / "audio.wav").is_file():
+            raise ValueError("AgentCut audio is missing after rendering; run --steps audio,video or --steps post")
         run([sys.executable, post / "compose.py", ep, "--video"])
     if "cover" in steps:
         run([sys.executable, post / "compose.py", ep, "--cover"])
@@ -198,4 +220,7 @@ def write_captions(spec, final):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ValueError as error:
+        raise SystemExit(str(error)) from None

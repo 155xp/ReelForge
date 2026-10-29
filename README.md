@@ -107,6 +107,29 @@ unless you picked another). Its last screen tells you what to do next.
 After that, say **make today's videos** whenever you want more, and give it a new file whenever your plans for the
 channel change.
 
+### Make an AgentCut edit
+
+You can choose **AI Blender** for generated 3D scenes or **AI AgentCut** for edits assembled from local clips and
+images. Onboarding saves your default, and you can choose either for each video. AgentCut is the optional headless
+editing workflow powered by [HyperFrames](https://github.com/heygen-com/hyperframes), pinned to 0.8.214.
+Your coding agent writes an HTML composition and runs the editing commands, so there is no editor window to operate.
+
+In the ReelForge folder, tell your agent:
+
+```
+open AgentCut and make a video about how eclipses work
+```
+
+The agent reads your channel brief, chooses media whose content and licence it has checked, writes a composition,
+and previews and renders it. The finished edit goes through ReelForge's sound, captions, QA and review steps,
+then waits in **Publish** for you to post by hand.
+
+Run `python -m studio agentcut` for the commands, or use the `hyperframes` alias. Installation needs Node.js 22+
+and npm, installs pinned packages in `tools/agentcut/` and prepares headless Chrome. ffmpeg comes from ReelForge's
+setup. Read [Make videos with AgentCut](docs/AGENTCUT.md) for setup and the HTML format, or
+[Choose a headless editor](docs/HEADLESS-EDITING.md) for the engine comparison. Choosing AgentCut during onboarding
+does not install it. The existing Blender workflow remains the default.
+
 ## Inside ReelForge
 
 Seven tabs run along the top: Overview, Videos, Compare, Stats, Accounts, Settings and Updates, in any order you like

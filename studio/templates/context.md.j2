@@ -3,8 +3,8 @@
 # {{ ch.name }}: the video studio
 
 You make the videos for **{{ ch.name }}**, {{ whose }} faceless short-form channel on {{ platform_list }}.
-Everything happens in {% if extra %}the ReelForge folder{% else %}this folder{% endif %}: Blender builds and renders each scene, Python draws the text and the counter
-and mixes the sound, ffmpeg encodes, an automatic QA gate checks the finished file, and the **ReelForge** window
+Everything happens in {% if extra %}the ReelForge folder{% else %}this folder{% endif %}: Blender generates 3D scenes or optional AgentCut edits local clips and images with HyperFrames.
+Python draws the text and the counter and mixes the sound, ffmpeg encodes, an automatic QA gate checks the finished file, and the **ReelForge** window
 (type `{{ app_cmd }}` in a terminal) is where {{ who }} posts from. **You never post, upload or send anything.**
 {% if extra %}
 
@@ -24,6 +24,7 @@ Read before making or changing a video:
 - `{{ here }}my-studio/channel-bible.md`: the channel, the format, the slate of ideas, posting
 - `docs/QUALITY.md`: the quality bar and the faults that get a video rejected
 - `docs/PIPELINE.md`: pipeline commands, every `episode.json` key, and how to add a new scene
+- `docs/AGENTCUT.md` when editing with AgentCut: headless commands and the HTML composition format
 - `docs/SOUND.md`: the sound rules (no static, the loudness target)
 - `{{ here }}completed videos/production-log.md`: what has been made, so no subject is repeated
 
@@ -85,7 +86,7 @@ file is for, ask.
   `model_reasoning_effort = "high"` (or higher, if your model offers it) in `~/.codex/config.toml`. The kit's
   `.codex/config.toml` sets "high" for this folder once you trust the project. If you are not on your strongest
   setting, say so in one line and tell {{ who }} how to switch.
-- **Rendering runs Blender** from `tools/` (or the installed copy), which writes into this folder and uses the GPU.
+- **Rendering runs {% if s.video.backend == "agentcut" %}headless Chrome through HyperFrames{% else %}Blender{% endif %}**, which writes into this folder{% if s.video.backend == "blender" %} and uses the GPU{% endif %}.
   If your sandbox blocks it, ask {{ who }} to approve the command or to give you write access to this folder.
 {% endif %}
 - **A great video, checked carefully, every time.** Fix every fault QA or your review finds, without endless optional
@@ -140,7 +141,10 @@ Why this format: {{ fmt.proof }} Re-check what is working before each new batch 
 Study these first, and again whenever views drop: {% for r in references %}{{ r }}{% if not loop.last %}; {% endif %}{% endfor %}.
 
 {% endif %}
-{% if built_in %}
+{% if s.video.backend == "agentcut" %}
+AgentCut edits the local footage and images you choose for this format. Plan the shots around the channel's brief
+and the available media, using `docs/AGENTCUT.md`.
+{% elif built_in %}
 Ready-made scenes exist for this format (`examples/`, and the worlds and effects listed in `docs/PIPELINE.md`):
 start from them, then make each episode's subject, milestones and camera its own.
 {% else %}
@@ -186,6 +190,30 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
 - The `caption` step writes `final/caption.txt` (read by the Publish tab) plus `caption_<platform>.txt`, and fails if a spec
   breaks these rules. Don't write long captions.
 
+## Choose Blender or AgentCut
+
+The channel's default is **{% if s.video.backend == "agentcut" %}AI AgentCut edits{% else %}AI Blender scenes{% endif %}**
+(`video.backend` in `{{ here }}my-studio/studio.toml`). The creator can choose either for each video.
+`new-episode <slug> --backend blender` and `--backend agentcut` override the default for one episode.
+AgentCut uses the existing [HyperFrames](https://github.com/heygen-com/hyperframes) engine, pinned to 0.8.214.
+Selecting AgentCut during onboarding does not install it. See `docs/HEADLESS-EDITING.md` for the engine choice.
+
+**When {{ who }} says "open AgentCut and make a video about ...", use AgentCut for that request.** This is a
+headless workflow. You are the agent that plans and edits the video through commands.
+
+1. Read the channel brief, this file and `docs/AGENTCUT.md`. Run `{{ py }} -m studio agentcut` for its command
+   instructions and `{{ py }} -m studio agentcut schema` for the HTML contract. `agentcut install` uses Node.js 22+
+   and npm to install the pinned dependencies in `tools/agentcut/` and prepare headless Chrome. Check
+   `{{ py }} -m studio agentcut doctor` before rendering. `hyperframes` is an alias for `agentcut`.
+2. Start with `{{ py }} -m studio{{ pflag }} agentcut new <slug> --topic "the requested topic"`. Select local media
+   whose content and licence you have checked. Run `agentcut inspect <media-file>` to read each file's streams.
+3. Write the episode's `edit/index.html` composition with local assets in `edit/media/`, and fill in `episode.json`
+   story text, sound cues and captions. Keep facts and source credits in `facts.md`. Set the composition duration
+   to match `render_until`. Run `{{ py }} -m studio agentcut validate {{ here_cmd }}episodes{{ sep }}<id>`.
+   `agentcut tool docs` provides HyperFrames' authoring references.
+4. Use the pipeline's `build,stills` steps with automatic sample times to inspect the edit, then `render` and `post`. Review the finished video
+   and ship it as below. The same QA, review and manual posting rules apply to both backends.
+
 ## Making a video
 
 1. **Pick the subject.** Never repeat one from `{{ here }}completed videos/production-log.md`. Take the next unused idea in
@@ -194,14 +222,24 @@ them on purpose, so they can't be posted. Never work round that; `new-episode` g
    `episode.json` and a `facts.md` to fill in.
 3. **Script and facts:** `title`, `lines`, `hud`, `cta`, `hashtags`, the sound cue sheet. Check every number;
    write it with its source and the second it becomes true in `facts.md`. No line appears before its fact is true.
-4. **Build the scene:** `{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills --stills {{ stills }}`
+4. **Build {% if s.video.backend == "agentcut" %}the edit{% else %}the scene{% endif %}:** {% if s.video.backend == "agentcut" %}write and validate `edit/index.html` as above, then run {% endif %}`{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills{% if s.video.backend == "blender" %} --stills {{ stills }}{% endif %}`
    and **look at every still** in `build/stills/`. Fix and repeat until each one clears `docs/QUALITY.md`. New
+{% if s.video.backend == "blender" %}
    scenes go in new modules (`pipeline/blender/worlds/<name>.py`, `effects/<name>.py`); never change a module
    another episode uses in a way that changes that episode.
+{% else %}
+   edits use local media and the headless renderer in `docs/AGENTCUT.md`.
+{% endif %}
+{% if s.video.backend == "agentcut" %}
+5. **Render:** `--steps render` captures the composition with HyperFrames and supplies the frames for ReelForge.
+6. **Check the text after rendering:** `{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview <seconds-within-duration>`.
+   Choose times within the episode's duration that show each story line and key moment.
+{% else %}
 5. **Check the text** without a full render: `{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview {{ preview }}`.
 6. **Render:** `--steps render` (20-40 min on a good GPU; run it in the background). It resumes and **skips frames
    that already exist**, so delete `build/frames` after changing the scene.{% if codex %} If your shell stops a long
    command, run it again: it carries on where it stopped.{% endif %}
+{% endif %}
 
 7. **Post-production:** `--steps post` (sound, video, cover, captions, then QA -> `build/qa/report.md`). It stops on
    any FAIL. A WARN in the sound checks is a reason to fix the mix, not to ship.
@@ -253,20 +291,25 @@ when {{ who }} asks for it, as in "Making a video".
 ## Commands (run from {% if extra %}the ReelForge folder{% else %}this folder{% endif %})
 
 ```
-{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills --stills 1,15,31
+{{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps build,stills{% if s.video.backend == "blender" %} --stills 1,15,31{% endif %}
+
 {{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps render
 {{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps post
 {{ py }} pipeline{{ sep }}make_episode.py {{ here_cmd }}episodes{{ sep }}<id> --steps ship
-{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview {{ preview }}
+{{ py }} pipeline{{ sep }}post{{ sep }}compose.py {{ here_cmd }}episodes{{ sep }}<id> --preview {% if s.video.backend == "agentcut" %}<seconds-within-duration>{% else %}{{ preview }}{% endif %}
+
 {{ py }} -m studio{{ pflag }} new-episode <slug>        a new episode folder from the template
+{{ py }} -m studio agentcut                  headless AgentCut instructions and commands
 {{ py }} -m studio publish-check {{ here_cmd }}episodes{{ sep }}<id>
 {{ py }} -m studio doctor                    checks Blender, ffmpeg, sounds, fonts, disk space
 ```
 
 ## Gotchas
 
+{% if s.video.backend == "blender" %}
 - Blender's `keyframe_insert()` ignores the default interpolation: call `rf.set_interpolation(...)`.
 - Delete `build/frames` after changing the world or effect, or the render keeps the old frames.
+{% endif %}
 - Run anything that reads downloaded files (e.g. `assets/sfx/`) with `python -I`. Every new sound needs a licence
   entry in `assets/sfx/manifest.json`; Mixkit and Kenney (CC0) are the approved free sources.
 - `{{ here }}episodes/` grows by about 0.6 GB per video until `ship` cleans the frames. Keep 10 GB free before a render.
