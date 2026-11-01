@@ -394,6 +394,23 @@ describe("the drawer", () => {
   })
 })
 
+describe("publish", () => {
+  test("YouTube's Copy caption sits under its button, above Copy YouTube hashtags", async () => {
+    const h = await window("publish", [200, 56], false, { unconnected: ["x"] })
+    const at = (label: string) => {
+      const i = rows(h).findIndex((r) => r.includes(label))
+      return [i, rows(h)[i]!.indexOf(label)]
+    }
+    const [buttonRow, buttonCol] = at("YouTube →")
+    const [captionRow, captionCol] = at("Copy caption")
+    const [tagsRow] = at("Copy YouTube hashtags")
+    expect(captionRow).toBe(buttonRow + 2)
+    expect(tagsRow).toBe(captionRow + 2)
+    expect(Math.abs(captionCol - buttonCol)).toBeLessThan(4) // both centred in the same column
+    expect(frame(h).split("Copy caption").length).toBe(2) // no second Copy caption by itself
+  })
+})
+
 describe("dialogs", () => {
   test("Remove asks what to do with the picked video; Cancel leaves it", async () => {
     const h = await window("publish", [200, 56])

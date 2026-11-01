@@ -80,8 +80,10 @@ CANT_DELETE = {
     "open": ("{name} is open in another ReelForge window. Close that window (or switch it to another profile), then "
              "try again.", "open in another ReelForge window"),
 }
-COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
-          "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
+# The copy buttons under each platform's button, top to bottom.
+COPIES = {"tiktok": [("copy-tiktok", "Copy TikTok text")],
+          "youtube": [("copy-youtube-caption", "Copy caption"), ("copy-youtube", "Copy YouTube hashtags")],
+          "instagram": [("copy-instagram", "Copy Instagram text")], "x": [("copy-caption", "Copy caption")]}
 NOTHING_CONNECTED = "Connect an account on the Accounts tab to see your stats here."
 # The help: (title, what it says), and for a tab its id as well: the window puts the tabs in the order you see them
 # along the top, each with the number that opens it, then Publish (the green button at the right) with its key.
@@ -334,7 +336,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             "anvil": anvil, "quadrants": quads, "help": HELP, "keys": KEYS, "version": KIT_VERSION,
             "max_tags": videos.MAX_TAGS, "first_tag": videos.FIRST_TAG, "default_tags": self.cfg.get("default_tags", ""),
             "caption_placeholder": "one short line that hooks the viewer", "tags_placeholder": tags,
-            "copies": {k: list(v) for k, v in COPIES.items()},
+            "copies": {k: [list(b) for b in v] for k, v in COPIES.items()},
             "badges_how": badges.HOW, "ranges": {k: v[0] for k, v in trends.RANGES.items()},
             "fit_steps": {k: [s.total_seconds() / 3600 for s in v] for k, v in trends.FIT_STEPS.items()},
             "videos_dir": str(config.videos_dir(self.cfg)),
@@ -1591,7 +1593,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         cap.append("  (one line: the X post, the YouTube title, and the start of TikTok / Instagram)", MUTED)
         preview = []
         rows = {"tiktok": item.text_for("tiktok"), "instagram": item.text_for("instagram"),
-                "youtube": f"{item.title}   description: {item.text_for('youtube')}", "x": item.text_for("x")}
+                "youtube": f"{item.youtube_title}   description: {item.text_for('youtube')}", "x": item.text_for("x")}
         for key, text in rows.items():
             if key in self.platforms:
                 p = self.platforms[key]
@@ -1652,7 +1654,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             return
         p = self.platforms[key]
         item = self.form_item(caption, tags)
-        text, what = {"youtube": (item.title, "caption (title)"), "x": (item.text_for("x"), "caption")}.get(
+        text, what = {"youtube": (item.youtube_title, "caption (title)"), "x": (item.text_for("x"), "caption")}.get(
             p.key, (item.text_for(p.key), "caption + hashtags"))
         if text:
             self.copy_text(text)
@@ -1709,6 +1711,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         text, what = {
             "copy-caption": (item.title, "Caption"),
             "copy-caption-alone": (item.title, "Caption"),
+            "copy-youtube-caption": (item.youtube_title, "YouTube caption"),
             "copy-tiktok": (item.text_for("tiktok"), "TikTok text"),
             "copy-instagram": (item.text_for("instagram"), "Instagram text"),
             "copy-youtube": (item.text_for("youtube"), "YouTube hashtags"),

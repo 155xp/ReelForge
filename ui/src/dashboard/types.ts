@@ -35,7 +35,7 @@ export interface Init {
   default_tags: string
   caption_placeholder: string
   tags_placeholder: string
-  copies: Record<string, [string, string]>
+  copies: Record<string, [string, string][]> // each platform's copy buttons (id, label), top to bottom
   badges_how: string
   ranges: Record<string, string>
   videos_dir: string

@@ -182,8 +182,9 @@ The green **Publish** button at the top right opens it, from any tab (so does **
 lists every finished video from the pipeline (`episodes/<id>/final/<id>.mp4` and `completed videos/`), plus any
 video you drop into `dashboard/videos/`. Picking one fills in the caption (the episode's `title`) and its hashtags.
 What each platform gets follows your channel's caption rules from first-time setup: the caption plus hashtags on TikTok
-(your first hashtag, usually #fyp, always leads) and Instagram, the caption as the YouTube title with the hashtags as
-its description, and the caption alone on X unless you allowed hashtags there.
+(your first hashtag, usually #fyp, always leads) and Instagram, the caption with #shorts after it as the YouTube title
+(**Copy caption** under YouTube's button) with the hashtags as its description, and the caption alone on X unless you
+allowed hashtags there.
 
 Each platform button copies that platform's text, shows the file in Explorer, Finder or your file manager (drag it
 into the upload page) and

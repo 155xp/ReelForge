@@ -54,6 +54,11 @@ class PublishItem:
         """The caption without hashtags: YouTube's title and the episode's name in ReelForge."""
         return self.text_for("x")[:100]
 
+    @property
+    def youtube_title(self) -> str:
+        """What YouTube's title box gets: the caption, then #shorts, in YouTube's 100 characters."""
+        return f"{self.title[:92].rstrip()} #shorts" if self.title else ""
+
 
 class Platform:
     key = ""

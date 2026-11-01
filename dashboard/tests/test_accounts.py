@@ -124,11 +124,15 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(self.panel(w, "x")["state"], "off")
         self.assertIsNone(self.panel(w, "x")["disconnect"])
         self.assertIn("Connect Instagram or X here", text(w.view("accounts")["hint"]))
-        # Without X's button, the caption has a copy button of its own.
+        # Without X's button, the caption has a copy button of its own: under YouTube's button, with #shorts after it
+        # (DJ, 2026-11-01), or by itself when YouTube isn't connected either.
+        self.assertEqual([b[1] for b in w.init["copies"]["youtube"]], ["Copy caption", "Copy YouTube hashtags"])
         copied = []
         with mock.patch.object(service_module.desktop, "copy", lambda t: copied.append(t) or True):
+            w.call("copy_field", "copy-youtube-caption", "What if your coffee doubled every 2 seconds?", "#fyp #whatif")
             w.call("copy_field", "copy-caption-alone", "What if your coffee doubled every 2 seconds?", "")
-        self.assertEqual(copied, ["What if your coffee doubled every 2 seconds?"])
+        self.assertEqual(copied, ["What if your coffee doubled every 2 seconds? #shorts",
+                                  "What if your coffee doubled every 2 seconds?"])
 
     def test_everything_shows_for_four_connected_platforms(self):
         """A ReelForge with all four connected: nothing is hidden and Accounts has no hint."""
