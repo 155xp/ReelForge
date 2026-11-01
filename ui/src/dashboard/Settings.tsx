@@ -1,6 +1,6 @@
 // The Settings tab: this channel's answers from first-time setup and the FAQ side by side (one under the other in a
 // narrow window), the order of the tabs along the top, what ReelForge set up on this computer (with the Background
-// refresh switch, and ReelForge's own folder with Move…) and Restart, your profiles (Delete beside each one this
+// refresh switch, and ReelForge's own folder with Open and Move…) and Restart, your profiles (Delete beside each one this
 // window can delete, Restore beside each one deleted), and the danger zone across the bottom: factory reset and
 // uninstall, each behind a dialog where you type the channel's name. None of them deletes anything: what they clear
 // goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work
@@ -25,6 +25,7 @@ export interface ComputerRow {
   value: string
   button: string
   switch?: boolean // a switch in place of the button: Background refresh, where this window can change it
+  move?: string // ReelForge's folder: Move… beside its Open button, when it isn't in a folder of its own and can go there
 }
 
 /** A question and its answer (a little Markdown). */
@@ -341,7 +342,7 @@ const SWITCH_WIDTH = 10 // "━━━▐█▌ Off", its widest
 /** What ReelForge set up on this computer, each with its button (all as wide as the widest, lined up on the right).
  * Background refresh (the hourly stats read) has a switch instead: it flips at once and says it's turning on or off
  * until the computer says how it went. The last row is ReelForge's own folder, green when it's in a folder of its own,
- * with Move… (its dialog: MoveFolder) when it isn't and can go there. Under them, Restart closes the window, and the
+ * with Open in Explorer (Finder), and Move… beside it (its dialog: MoveFolder) when it isn't and can go there. Under them, Restart closes the window, and the
  * launcher opens ReelForge again. */
 function Computer({ v }: { v: SettingsView }) {
   const s = useDash()
@@ -375,14 +376,15 @@ function Computer({ v }: { v: SettingsView }) {
       <box width={width} flexShrink={0} flexDirection="row" paddingLeft={Math.max(Math.floor((width - SWITCH_WIDTH) / 2), 0)}>
         <Switch id={`settings-${row.key}`} value={on} labels={["On", "Off"]} onChange={(want) => flip(row, want)} />
       </box>
+    ) : row.key === "folder" ? (
+      <box flexDirection="row" flexShrink={0} gap={1}>
+        {row.move ? (
+          <Button id="settings-move" label={row.move} flexShrink={0} onPress={() => void s.openDialog("move_folder", s.bridge.call("move_info"))} />
+        ) : null}
+        <Button id="settings-folder" label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("open_reelforge_folder")} />
+      </box>
     ) : row.button ? (
-      <Button
-        id={`settings-${row.key}`}
-        label={row.button}
-        minWidth={width}
-        flexShrink={0}
-        onPress={() => (row.key === "folder" ? void s.openDialog("move_folder", s.bridge.call("move_info")) : s.bridge.send("settings_toggle", row.key))}
-      />
+      <Button id={`settings-${row.key}`} label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("settings_toggle", row.key)} />
     ) : null
   return (
     <Panel title="ON THIS COMPUTER" flexShrink={0}>

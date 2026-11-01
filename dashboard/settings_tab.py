@@ -1,8 +1,8 @@
 """The Settings tab: this channel's answers from first-time setup (and Copy prompt for your AI, the prompt that starts
 your AI on the channel: studio/ai_prompt.py), an FAQ (dashboard/faq.py), the order of the tabs
 along the top (dashboard/tabs.py keeps it), what ReelForge set up on this computer (background refresh, which is the
-hourly stats read, with its switch; the reelforge command; the icon; ReelForge's own folder, with Move when it isn't
-in it: studio/move.py) and Restart, your profiles (deleting one and
+hourly stats read, with its switch; the reelforge command; the icon; ReelForge's own folder, with its Open button
+and Move when it isn't in it: studio/move.py) and Restart, your profiles (deleting one and
 restoring it: dashboard/service.py profiles_settings), and the danger zone: factory reset and uninstall
 (studio/reset.py does both, and neither deletes anything for good).
 
@@ -58,17 +58,21 @@ def _channel_rows(s: dict) -> list[list[str]]:
     ]
 
 
+OPEN_FOLDER = f"Open in {desktop.FILES}"   # the folder row's button: the folder itself in Explorer / Finder
+
+
 def _folder_row(demo: bool) -> dict:
-    """Where ReelForge is: in its own folder (green), or somewhere else, with Move... when it can go there
-    (studio/move.py). The demo's is made up."""
+    """Where ReelForge is: in its own folder (green), or somewhere else, with Move... beside its button when it can go
+    there (studio/move.py). Its button opens it in Explorer / Finder / the file manager. The demo's is made up."""
     from studio import move
     from studio import paths as P
 
     if demo:
-        return {"key": "folder", "label": "ReelForge's folder", "on": True, "button": "", "value": DEMO_FOLDER}
+        return {"key": "folder", "label": "ReelForge's folder", "on": True, "button": OPEN_FOLDER, "move": "",
+                "value": DEMO_FOLDER}
     home = move.at_home()
-    return {"key": "folder", "label": "ReelForge's folder", "on": home, "value": str(P.ROOT),
-            "button": "Move…" if not home and not move.problem() else ""}
+    return {"key": "folder", "label": "ReelForge's folder", "on": home, "value": str(P.ROOT), "button": OPEN_FOLDER,
+            "move": "Move…" if not home and not move.problem() else ""}
 
 
 class SettingsTab:
@@ -260,6 +264,20 @@ class SettingsTab:
                 return f"ReelForge's icon is in the {desktop.BIN}." if ok else f"Couldn't move {icon} to the {desktop.BIN}."
             return f"ReelForge's icon is at {shortcut.make()}."
         return f"Nothing called {key!r} to change."
+
+    @rpc
+    def open_reelforge_folder(self) -> None:
+        """The button beside ReelForge's folder: that folder in Explorer / Finder / the file manager."""
+        if self.demo:
+            self.notify(f"In your own ReelForge, this opens its folder in {desktop.FILES}.", title="Demo mode",
+                        timeout=6)
+            return
+        from studio import paths as P
+
+        try:
+            desktop.open_folder(P.ROOT)
+        except OSError as e:
+            self.notify(f"Couldn't open {P.ROOT}: {e}", title="ReelForge's folder", severity="warning", timeout=10)
 
     @rpc
     def restart(self) -> None:

@@ -57,20 +57,36 @@ class RowsTest(unittest.TestCase):
     def test_the_folder_is_green_in_its_own_folder_and_has_move_where_it_can_go_there(self):
         from studio import move
 
+        opens = f"Open in {desktop.FILES}"   # always there, wherever ReelForge is
         with mock.patch.object(move, "home", lambda: P.ROOT):
             row = self.rows("on")[-1]
-        self.assertEqual({k: row[k] for k in ("key", "on", "button", "value")},
-                         {"key": "folder", "on": True, "button": "", "value": str(P.ROOT)})
+        self.assertEqual({k: row[k] for k in ("key", "on", "button", "move", "value")},
+                         {"key": "folder", "on": True, "button": opens, "move": "", "value": str(P.ROOT)})
         with mock.patch.object(move, "home", lambda: Path(tempfile.gettempdir()) / "ReelForge"):
             with mock.patch.object(move, "problem", lambda *a, **k: ""):   # somewhere else, and it can go there
                 row = self.rows("on")[-1]
-            self.assertEqual((row["on"], row["button"], row["value"]), (False, "Move…", str(P.ROOT)))
+            self.assertEqual((row["on"], row["button"], row["move"], row["value"]), (False, opens, "Move…", str(P.ROOT)))
             with mock.patch.object(move, "problem", lambda *a, **k: "a test copy stays where it is"):
                 row = self.rows("on")[-1]
-            self.assertEqual((row["on"], row["button"], row["value"]), (False, "", str(P.ROOT)))
+            self.assertEqual((row["on"], row["button"], row["move"], row["value"]), (False, opens, "", str(P.ROOT)))
         demo = SettingsTab.computer_rows(SimpleNamespace(demo=True))[-1]
-        self.assertEqual((demo["key"], demo["on"], demo["button"]), ("folder", True, ""))
+        self.assertEqual((demo["key"], demo["on"], demo["button"], demo["move"]), ("folder", True, opens, ""))
         self.assertIn("you", demo["value"])   # made up, like the rest of the demo
+
+    def test_open_opens_reelforges_own_folder_and_the_demo_only_says_so(self):
+        notes = []
+        tab = SimpleNamespace(demo=False, notify=lambda msg, **k: notes.append(msg))
+        with mock.patch.object(desktop, "open_folder") as opened:
+            SettingsTab.open_reelforge_folder(tab)
+            opened.assert_called_once_with(P.ROOT)
+            self.assertEqual(notes, [])
+            with mock.patch.object(desktop, "open_folder", side_effect=OSError("no Explorer")):
+                SettingsTab.open_reelforge_folder(tab)
+            self.assertIn("no Explorer", notes[-1])
+            tab.demo = True
+            SettingsTab.open_reelforge_folder(tab)
+            opened.assert_called_once()   # the demo opens nothing
+            self.assertIn(desktop.FILES, notes[-1])
 
     def test_no_switch_where_this_window_cant_change_it(self):
         for state, said in (("other", "on, for another ReelForge folder"),

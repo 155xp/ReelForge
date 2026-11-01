@@ -2,7 +2,8 @@
 folder (REELFORGE_TEST_ROOT) with one channel set up, Night Physics, and a video, run inside the window's Python side
 before it starts (REELFORGE_BRIDGE_PRELOAD). Factory reset, uninstall and Move only get as far as asking for it (the
 request in that folder) and closing the window: nothing here runs the launcher that would do them. Its own folder, for
-Move, is "<that folder>-home/ReelForge". Nothing is connected, so nothing is read, and the update check stays
+Move, is "<that folder>-home/ReelForge", and Open in Explorer only writes the folder it was given to opened.txt
+there. Nothing is connected, so nothing is read, and the update check stays
 offline."""
 
 import io
@@ -11,7 +12,7 @@ import shutil
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from dashboard import config
+from dashboard import config, desktop
 from studio import generate, move, profiles, reset, update
 from studio import paths as P
 
@@ -24,6 +25,7 @@ config.APP_DIR = root / "dashboard"
 reset.ROOT, reset.PENDING, reset.BACKUPS = root, root / ".reelforge-pending.json", root / "backups"
 move.ROOT = root
 move.home = lambda: root.parent / f"{root.name}-home" / "ReelForge"
+desktop.open_folder = lambda path: (root / "opened.txt").write_text(str(path), encoding="utf-8")  # no Explorer window
 if not profiles.main().onboarded:
     with redirect_stdout(io.StringIO()):
         generate.write_all({"creator": "Sam", "assistant": "claude", "channel_name": "Night Physics", "about": "What-if videos with real science.",

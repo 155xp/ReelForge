@@ -177,6 +177,15 @@ def reveal(path: Path) -> None:
         threading.Thread(target=_linux_reveal, args=(path,), daemon=True).start()
 
 
+def open_folder(path: Path) -> None:
+    """Open the folder itself in Explorer / Finder / the file manager."""
+    path = Path(path).resolve()
+    if WINDOWS:
+        os.startfile(str(path))  # noqa: S606 (opens Explorer)
+    else:
+        subprocess.Popen(["open" if MAC else "xdg-open", str(path)])
+
+
 def _linux_reveal(path: Path) -> None:
     """Ask the file manager to show the file selected; one that can't gets its folder opened instead."""
     if shutil.which("dbus-send"):

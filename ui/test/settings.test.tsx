@@ -7,7 +7,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
@@ -19,6 +19,7 @@ import { toasts } from "../src/ui/Panels"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
 const BIN = process.platform === "win32" ? "Recycle Bin" : "Trash" // what dashboard/desktop.py calls it here
+const FILES = process.platform === "win32" ? "Explorer" : process.platform === "darwin" ? "Finder" : "the file manager" // and this
 setDefaultTimeout(30_000)
 let open: Headless | null = null
 
@@ -454,6 +455,16 @@ describe("the danger zone on a channel that's set up", () => {
     expect(asked()?.to).toMatch(/-home[\\/]ReelForge$/)
     expect(h.exits.map((e) => e.code)).toEqual([75]) // the launcher starts the move as it starts ReelForge again
     expect(existsSync(join(tmp, "my-studio", "answers.json"))).toBe(true) // nothing moved by the window itself
+  })
+
+  test(`Open in ${FILES} beside ReelForge's folder opens that folder`, async () => {
+    const h = await settings()
+    const opened = join(tmp, "opened.txt") // what the made-up open_folder was given (ui/test/settings_preload.py)
+    await clickText(h, `Open in ${FILES}`)
+    for (let i = 0; i < 25 && !existsSync(opened); i++) await h.settle(200)
+    expect(readFileSync(opened, "utf-8")).toBe(realpathSync.native(tmp))
+    expect(frame(h)).toContain("Move…") // still beside it, since this ReelForge isn't in a folder of its own
+    expect(h.exits).toEqual([])
   })
 })
 
