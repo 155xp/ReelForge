@@ -62,9 +62,10 @@ def _print_written(paths: list[Path]) -> None:
         print(f"  {P.rel(p)}")
 
 
-def next_steps(profile=None) -> str:
+def next_steps(profile=None, again: bool = False) -> str:
     """What to do once first-time setup has written a profile's files (the one this process works on, by default):
-    paste the prompt that starts your AI on the channel (studio/ai_prompt.py), then post the video."""
+    paste the prompt that starts your AI on the channel (studio/ai_prompt.py), then post the video. again: setup was
+    run again on a channel set up already, so the prompt is the update one (the AI reads its new notes)."""
     from . import ai_prompt
     from . import settings as S
     profile = profile or profiles.current()
@@ -72,6 +73,16 @@ def next_steps(profile=None) -> str:
     name = s["channel"]["name"]
     first = not ai_prompt.has_videos(profile)
     app = S.ai_names(s["ai"]["assistant"])
+    if again:
+        lines = ["", f"{name}'s answers are updated. Next:",
+                 f"  1. Paste this prompt into {app}, or any other AI that can work with files on this computer. It "
+                 "has the ReelForge folder's path in it:", ""]
+        lines += [f"     {line}" if line else "" for line in ai_prompt.update(name, profile).splitlines()]
+        lines.append("\n  2. It reads the updated notes and tells you what changed, then goes by your new answers from "
+                     "the next video on.")
+        lines.append("  Copy prompt for your AI, on ReelForge's Settings tab, gives you the prompt that asks for a "
+                     "video any time.")
+        return "\n".join(lines)
     lines = ["", "Your studio is ready. Next:" if profile.main else f"{name} is ready. Next:",
              f"  1. Paste this prompt into {app}, or any other AI that can work with files on this computer. It has the "
              "ReelForge folder's path in it, so there's nothing to drag in or open first:", ""]
@@ -113,6 +124,7 @@ def onboard(argv: list[str]) -> int:
     ap.add_argument("--new", action="store_true")
     args = ap.parse_args(argv)
     from . import generate, questions
+    from . import settings as S
 
     if args.questions:
         print(json.dumps(questions.describe(), indent=2, ensure_ascii=False))
@@ -130,6 +142,7 @@ def onboard(argv: list[str]) -> int:
             print(f"{src} isn't valid JSON: {e}")
             return 1
         target = None
+        again = not args.new and S.onboarded()  # run again: the update prompt
         if args.new:  # a new profile: its own folder in profiles/, named after the channel
             a, problems = questions.validate(answers)
             if problems:
@@ -150,7 +163,7 @@ def onboard(argv: list[str]) -> int:
             print(f"\nNew profile: {target.name} ({target.describe()}). Open it with: reelforge -p {target.slug}")
         if not args.regenerate:
             print("\n" + apply_background_stats())
-        print(next_steps(target))
+        print(next_steps(target, again))
         return 0
     if args.plain or not _interactive():
         if not sys.stdin.isatty():
@@ -164,11 +177,12 @@ def onboard(argv: list[str]) -> int:
             return 2
         from . import onboard_cli
         prior = json.loads(P.ANSWERS.read_text(encoding="utf-8")) if P.ANSWERS.exists() else None
+        again = S.onboarded()
         answers = onboard_cli.ask(prior)
         written = generate.write_all(answers)
         _print_written(written)
         print("\n" + apply_background_stats())
-        print(next_steps())
+        print(next_steps(again=again))
         return 0
     return first_run("onboard", new=args.new)
 

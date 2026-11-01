@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import traceback
 from pathlib import Path
 
@@ -85,14 +84,18 @@ class Setup(Service):
         self.embedded = False              # inside the ReelForge window, which it goes back to
         self.create_label = "Create my studio"
         self.prompt = ""                   # the last screen's prompt for your AI, which its Copy button copies
+        self.again = False                 # setup run again on a channel set up already: the update prompt
 
     def start(self, options: dict) -> dict:
-        """options: start ("tools", "onboard" or "done"), preview (tests: Create writes nothing), new (onboarding
-        makes a new profile), embedded (inside the ReelForge window: its last screen goes back there)."""
+        """options: start ("tools", "onboard" or "done"), preview (tests: Create writes nothing; again: as setup run
+        again on a channel), new (onboarding makes a new profile), embedded (inside the ReelForge window: its last
+        screen goes back there)."""
         self.preview = bool(options.get("preview"))
         self.new = bool(options.get("new"))
         self.embedded = bool(options.get("embedded"))
         start = options.get("start") or "tools"
+        # A preview (the pictures, the tests) is a new channel's unless it says it's setup run again.
+        self.again = bool(options.get("again")) if self.preview else not self.new and S.onboarded(self.profile.settings)
         return {
             "start": start, "kit": KIT_NAME, "test": P.test_copy(), "root": str(P.ROOT),
             "big": logo.cells(logo.big()), "anvil": logo.cells(logo.anvil()), "quadrants": logo.quadrants(),
@@ -438,15 +441,17 @@ class Setup(Service):
 
     @rpc
     def done_info(self) -> dict:
-        """The last screen: what was made, then what to do next: copy the prompt that starts your AI on the channel
-        (prompt, between steps and then, with its Copy button: copy_prompt), paste it into your AI, find the video on
-        Publish. The background stats follow as "system"."""
+        """The last screen: what to do next first: copy the prompt that starts your AI on the channel (prompt, between
+        steps and then; the screen's Copy button: copy_prompt), paste it into your AI, find the video on Publish. Run
+        again on a channel set up already, the prompt is the update one: the AI reads its new notes and says what
+        changed. Then what was made; the background stats follow as "system"."""
         self.loop.run_worker(self._apply_system, group="system", exclusive=True)
         here = self.target()
         s = S.load(here.settings)
         who = s["channel"]["creator"]
+        ready = "'s answers are updated." if self.again else " is ready to make videos."
         lines = [seg_line((f"You're all set{', ' + who if who else ''}!", "bold"),
-                          (f"  {s['channel']['name']} is ready to make videos.", ""))]
+                          (f"  {s['channel']['name']}{ready}", ""))]
         written = ""
         if self.written:
             written = ", ".join(sorted({_top(p, here) for p in self.written}))
@@ -454,7 +459,7 @@ class Setup(Service):
         # take it. Setup only asks a few questions: the AI's notes have it ask for the rest (the channel's brief).
         channel = s["channel"]["name"]
         first = not ai_prompt.has_videos(here)
-        self.prompt = ai_prompt.text(channel, here, first)
+        self.prompt = ai_prompt.update(channel, here) if self.again else ai_prompt.text(channel, here, first)
         path = ("your ReelForge folder's path" if here.main else
                 "the ReelForge folder's path (the same for every channel)")
         app = " or ".join({"claude": "Claude Code (the Code tab in the Claude desktop app, or claude in a terminal)",
@@ -462,13 +467,18 @@ class Setup(Service):
         video = f"{'your' if here.main else 'its'} {'first' if first else 'next'} video"
         steps = [seg_line(("  1. ", "bold"), (f"Copy this prompt for your AI. It has {path} in it, so there's nothing "
                                               "to drag in.", ""))]
-        then = [seg_line(("  2. ", "bold"), (f"Paste it into {app}, or any other AI that can work with files on this "
-                                             f"computer. It gets to know {'your channel' if here.main else channel}, "
-                                             f"then makes {video}.", "")),
-                seg_line(("  3. ", "bold"), ("When it's done, it's waiting in ReelForge → Publish, ready for you to "
-                                             "post.", "")),
-                seg_line(("     ", ""), ("Copy prompt for your AI, on ReelForge's Settings tab, copies it again any "
-                                         "time.", MUTED))]
+        paste = f"Paste it into {app}, or any other AI that can work with files on this computer. "
+        if self.again:
+            then = [seg_line(("  2. ", "bold"), (paste + "It reads the updated notes and tells you what changed, then "
+                                                 "goes by your new answers from the next video on.", ""))]
+        else:
+            then = [seg_line(("  2. ", "bold"), (paste + f"It gets to know {'your channel' if here.main else channel}, "
+                                                 f"then makes {video}.", "")),
+                    seg_line(("  3. ", "bold"), ("When it's done, it's waiting in ReelForge → Publish, ready for you "
+                                                 "to post.", ""))]
+        again = ("gives you the prompt that asks for a video any time." if self.again else
+                 "copies it again any time.")
+        then.append(seg_line(("     ", ""), (f"Copy prompt for your AI, on ReelForge's Settings tab, {again}", MUTED)))
         logins, missing = self.needs_login(), self.to_connect()
         login = []
         if logins:
@@ -521,17 +531,6 @@ class Setup(Service):
                 (f"  {tui.CROSS}", f"bold {BAD}")
             rows.append(seg_line(mark, (f"  {text}", "")))
         self.loop.call_soon(self.emit, "system", {"rows": rows})
-
-    @rpc
-    def show_folder(self) -> None:
-        folder = P.ROOT if self.target().main else self.target().folder
-        try:
-            if P.WINDOWS:
-                os.startfile(str(folder))  # noqa: S606 (opens Explorer)
-            else:
-                subprocess.Popen(["open" if P.MAC else "xdg-open", str(folder)])
-        except OSError:
-            self.notify(str(folder))
 
     @rpc
     def copy_prompt(self) -> None:

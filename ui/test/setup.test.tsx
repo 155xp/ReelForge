@@ -168,7 +168,7 @@ describe("the frame", () => {
       await h.settle(300)
     }],
     ["the questions", "onboard", ["Back", "Next"], "Welcome! Answer a few questions and your AI will know your channel inside out.", async () => {}],
-    ["the last screen", "done", ["Open ReelForge to log in", "Show this folder", "Close"], "You're all set! Night Physics is ready to make videos.", async () => {}],
+    ["the last screen", "done", ["Copy the prompt", "Open ReelForge to log in", "Close"], "You're all set! Night Physics is ready to make videos.", async () => {}],
   ]
   for (const [name, start, buttons, words, ready] of SCREENS)
     test(`${name}: whole at every size while it's resized, with its buttons and words in full`, async () => {
@@ -208,10 +208,11 @@ describe("ready", () => {
       expect(text).toContain(
         "I make videos for my channel, Night Physics, with ReelForge. My ReelForge folder is: C:\\Users\\you\\ReelForge " +
           "Work in that folder from now on. First read the notes it has for you, and follow them: CLAUDE.md if you're " +
-          "Claude, AGENTS.md if you're another AI. Then make my first video. Copy the prompt 2. Paste it into Claude Code",
+          "Claude, AGENTS.md if you're another AI. Then make my first video. 2. Paste it into Claude Code",
       )
       expect(text).not.toContain("drag a file")
       expect(text).not.toContain("here's my channel")
+      expect(text).not.toContain("Show this folder") // the prompt has the folder in it
       await clickText(h, "Copy the prompt", 2)
       for (let i = 0; i < 25 && !existsSync(copied); i++) await h.settle(200)
       expect(readFileSync(copied, "utf-8")).toBe(
@@ -228,8 +229,47 @@ describe("ready", () => {
     }
   })
 
+  test("in a 120x30 window the prompt starts on screen and Copy the prompt is in the button row", async () => {
+    const h = await screen("done", [120, 30])
+    const rows = frame(h).split("\n")
+    const prompt = rows.findIndex((r) => r.includes("I make videos for my channel"))
+    const buttons = rows.findIndex((r) => r.includes("Copy the prompt"))
+    expect(prompt).toBeGreaterThan(0)
+    expect(buttons).toBeGreaterThan(prompt) // the button row, under the prompt, not scrolled away
+    expect(rows[buttons]).toContain("Open ReelForge to log in")
+    expect(frame(h)).not.toContain("Show this folder")
+  })
+
+  test("setup run again on a channel: the update prompt, still with the folder in it", async () => {
+    const tmp = mkdtempSync(join(tmpdir(), "reelforge-copied-"))
+    const copied = join(tmp, "copied.txt")
+    try {
+      open = await headless("setup", { start: "done", preview: true, again: true }, 130, 50, { ...PRELOAD, REELFORGE_COPIED: copied })
+      const h = open
+      await h.settle(2000)
+      const text = frame(h).replace(/[█▀▄▌▐]/g, " ").replace(/\s+/g, " ")
+      expect(text).toContain("You're all set! Night Physics's answers are updated.")
+      expect(text).toContain(
+        "I make videos for my channel, Night Physics, with ReelForge, and I've just changed its answers in ReelForge's " +
+          "setup. My ReelForge folder is: C:\\Users\\you\\ReelForge",
+      )
+      expect(text).toContain("2. Paste it into Claude Code")
+      expect(text).toContain("It reads the updated notes and tells you what changed")
+      expect(text).not.toContain("Then make my first video")
+      await clickText(h, "Copy the prompt", 2)
+      for (let i = 0; i < 25 && !existsSync(copied); i++) await h.settle(200)
+      const got = readFileSync(copied, "utf-8")
+      expect(got).toContain("My ReelForge folder is:\nC:\\Users\\you\\ReelForge\n\nWork in that folder.")
+      expect(got).toContain("Then tell me in a few lines what changed, and use it from my next video on.\n-- copied --\n")
+    } finally {
+      await open?.close()
+      open = null
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
   test("Open ReelForge opens it on the Accounts tab when Instagram or X needs a log-in", async () => {
-    const h = await screen("done", [130, 32])
+    const h = await screen("done", [130, 50]) // tall enough for the background stats, under what's next
     expect(frame(h)).toContain("You're all set!")
     expect(frame(h)).toContain("Background stats: Your stats will update every 60 minutes")
     await clickText(h, "Open ReelForge to log in", 2)

@@ -369,17 +369,11 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
   )
 }
 
-/** The prompt for your AI as it will be pasted, and the button that copies it (it says so for a moment once it has).
- * It wraps at spaces only, so a file name like AGENTS.md stays whole. */
-function PromptBox({ bridge, text, check }: { bridge: Bridge; text: string; check: string }) {
+/** The prompt for your AI as it will be pasted (the screen's Copy the prompt button copies it). It wraps at spaces
+ * only, so a file name like AGENTS.md stays whole. */
+function PromptBox({ text }: { text: string }) {
   const theme = useTheme()
   const [width, measure] = useWidth()
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const t = setTimeout(() => setCopied(false), 3000)
-    return () => clearTimeout(t)
-  }, [copied])
   return (
     <box flexDirection="column" marginLeft={5} marginTop={1} marginBottom={1} flexShrink={0}>
       <box backgroundColor={theme.panel} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1} flexShrink={0} onSizeChange={measure}>
@@ -387,26 +381,22 @@ function PromptBox({ bridge, text, check }: { bridge: Bridge; text: string; chec
           {width ? wrap(text, Math.max(width - 4, 10)).join("\n") : text}
         </text>
       </box>
-      <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
-        <Button
-          id="copy"
-          label={copied ? `${check} Copied` : "Copy the prompt"}
-          variant="primary"
-          minWidth={20}
-          onPress={() => {
-            bridge.send("copy_prompt")
-            setCopied(true)
-          }}
-        />
-      </box>
     </box>
   )
 }
 
-/** Step 3: what was made, what runs in the background, and what to do next: copy the prompt for your AI (it has the
- * ReelForge folder's path in it, so nothing needs dragging in), paste it, and the video turns up on Publish. */
+/** Step 3: what to do next, first: copy the prompt for your AI (it has the ReelForge folder's path in it, so nothing
+ * needs dragging in; after setup is run again, it's the update prompt), paste it, and the video turns up on Publish.
+ * Then what was made and what runs in the background. Copy the prompt is in the button row, so it's on screen at any
+ * window size (it says so for a moment once it has copied). */
 function Done({ bridge, init, quit }: SetupProps) {
   const theme = useTheme()
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 3000)
+    return () => clearTimeout(t)
+  }, [copied])
   const [info, setInfo] = useState<{
     head: Segs[]
     written: string
@@ -433,21 +423,13 @@ function Done({ bridge, init, quit }: SetupProps) {
               {info.head.map((l, i) => (
                 <Wrapped key={i} segs={l} flexGrow={0} />
               ))}
-              {info.written ? (
-                <text fg={theme.muted} marginTop={1}>{`Written:  ${info.written}`}</text>
-              ) : null}
-              <box flexDirection="column" marginTop={1} flexShrink={0}>
-                {(system?.rows ?? [[["  Setting up your background stats…", theme.muted]]]).map((l, i) => (
-                  <Hanging key={i} segs={l} />
-                ))}
-              </box>
               <text attributes={TextAttributes.BOLD} marginTop={1}>
                 What's next
               </text>
               {info.steps.map((l, i) => (
                 <Hanging key={i} segs={l} />
               ))}
-              {info.prompt ? <PromptBox bridge={bridge} text={info.prompt} check={init.check} /> : null}
+              {info.prompt ? <PromptBox text={info.prompt} /> : null}
               {info.then.map((l, i) => (
                 <Hanging key={i} segs={l} />
               ))}
@@ -458,19 +440,36 @@ function Done({ bridge, init, quit }: SetupProps) {
                   </text>
                 </box>
               ) : null}
+              {info.written ? (
+                <text fg={theme.muted} marginTop={1}>{`Written:  ${info.written}`}</text>
+              ) : null}
+              <box flexDirection="column" marginTop={1} flexShrink={0}>
+                {(system?.rows ?? [[["  Setting up your background stats…", theme.muted]]]).map((l, i) => (
+                  <Hanging key={i} segs={l} />
+                ))}
+              </box>
             </box>
           ) : null}
         </Scroll>
         <box flexDirection="row" flexWrap="wrap" flexShrink={0} marginTop={1} marginBottom={1} columnGap={2}>
           <Button
-            id="open"
-            label={info?.open ?? "Open ReelForge"}
+            id="copy"
+            label={copied ? `${init.check} Copied` : "Copy the prompt"}
             variant="primary"
             minWidth={20}
-            autoFocus={Boolean(info)}
+            autoFocus={Boolean(info?.prompt)}
+            onPress={() => {
+              if (!info?.prompt) return
+              bridge.send("copy_prompt")
+              setCopied(true)
+            }}
+          />
+          <Button
+            id="open"
+            label={info?.open ?? "Open ReelForge"}
+            minWidth={20}
             onPress={() => quit(0, { open: "dashboard", tab: info?.tab ?? "overview", ...(info?.profile ? { profile: info.profile } : {}) })}
           />
-          <Button id="folder" label={init.new ? "Show its folder" : "Show this folder"} minWidth={20} onPress={() => bridge.send("show_folder")} />
           <Button id="close" label={info?.back || "Close"} minWidth={20} onPress={() => quit(0)} />
         </box>
       </box>

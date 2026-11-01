@@ -145,7 +145,8 @@ class Brief(unittest.TestCase):
         # the notes it points at ask for the brief before the first video.
         out = io.StringIO()
         svc = Setup(Loop(out=out))
-        svc.start({"start": "onboard"})
+        with mock.patch.object(S, "onboarded", return_value=False):  # first-time setup: nothing written yet
+            svc.start({"start": "onboard"})
         done = self.done(svc)
         self.assertEqual(done["prompt"], "I make videos for my channel, Night Physics, with ReelForge. My ReelForge "
                                          f"folder is:\n{self.root}\n\nWork in that folder from now on. First read the "
@@ -202,13 +203,48 @@ class Brief(unittest.TestCase):
         video.parent.mkdir(parents=True)
         video.write_bytes(b"a video")
         svc = Setup(Loop(out=io.StringIO()))
-        svc.start({"start": "done"})
+        with mock.patch.object(S, "onboarded", return_value=False):
+            svc.start({"start": "done"})
         done = self.done(svc)
         self.assertTrue(done["prompt"].endswith("Then make my next video."))
         self.assertIn("It gets to know your channel, then makes your next video.", self.lines(done["then"]))
         self.assertTrue(cli.next_steps().endswith("copies this prompt again any time."))
         self.assertIn("     Work in that folder from now on.", cli.next_steps())
         self.assertIn("Then make my next video.", cli.next_steps())
+
+    def test_setup_run_again_gives_the_update_prompt_with_the_folder_in_it(self):
+        # The channel was set up already (setUp wrote it), so its notes are new: the AI reads them again and says what
+        # changed, rather than starting on the channel as if it were new.
+        svc = Setup(Loop(out=io.StringIO()))
+        svc.start({"start": "onboard"})
+        done = self.done(svc)
+        self.assertEqual(done["prompt"], "I make videos for my channel, Night Physics, with ReelForge, and I've just "
+                                         "changed its answers in ReelForge's setup. My ReelForge folder is:\n"
+                                         f"{self.root}\n\nWork in that folder. The notes it has for you are updated, "
+                                         "so read them again now and follow them from now on, in place of what you "
+                                         "read before: CLAUDE.md if you're Claude, AGENTS.md if you're another AI. "
+                                         "Then tell me in a few lines what changed, and use it from my next video on.")
+        self.assertIn("Night Physics's answers are updated.", self.lines(done["head"]))
+        self.assertIn("1. Copy this prompt for your AI. It has your ReelForge folder's path in it",
+                      self.lines(done["steps"]))
+        then = self.lines(done["then"])
+        self.assertIn("It reads the updated notes and tells you what changed, then goes by your new answers from the "
+                      "next video on.", then)
+        self.assertNotIn("3. ", then)
+        with mock.patch("dashboard.desktop.copy", return_value=True) as copy:
+            svc.copy_prompt()
+        copy.assert_called_once_with(done["prompt"])
+        # a new channel is never a run again, though the one it's made from was set up
+        new = Setup(Loop(out=io.StringIO()))
+        new.start({"start": "onboard", "new": True, "embedded": True})
+        new.made = self.another()
+        self.assertTrue(self.done(new)["prompt"].endswith("Then make my first Cool Epic Facts video."))
+        # the terminal's next steps, after reelforge channel on a channel set up already
+        steps = cli.next_steps(again=True)
+        self.assertIn("Night Physics's answers are updated. Next:", steps)
+        self.assertIn(f"     I make videos for my channel, Night Physics, with ReelForge, and I've just changed its "
+                      f"answers in ReelForge's setup. My ReelForge folder is:\n     {self.root}\n", steps)
+        self.assertIn("2. It reads the updated notes and tells you what changed", steps)
 
     def test_the_terminal_says_the_same_after_first_time_setup(self):
         steps = cli.next_steps()
