@@ -1,7 +1,7 @@
 // The first-run screens, drawn without a terminal with their real Python side and a fresh computer's tools list
 // (scripts/shots_preload.py): ticking what to set up, the channel's questions and their Leave dialog, the frame at any
-// size, and the last screen's prompt for your AI with its Copy button, and its other buttons. (The Python side's
-// steps are tested in tests/test_setup_service.py.)
+// size, and the last screen's Copy prompt button (the prompt itself isn't shown), and its other buttons. (The Python
+// side's steps are tested in tests/test_setup_service.py.)
 
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
@@ -154,7 +154,8 @@ describe("the frame", () => {
   // Every first-run screen, resized while it's open the way a person drags a window: nothing pushes into the frame's
   // padding down each side, every button is there in full (they move onto another row when they don't fit side by side), and the first words aren't cut
   // off at the scrollbar. A button is "label|other label" when it can say either, and ends in "?" when it's only there
-  // on some computers (Check again, while the health check finds something to fix).
+  // on some computers (Check again, while the health check finds something to fix). "label^18" is a button inside the
+  // scroll area (Copy prompt, right under step 1): it's on screen from 18 rows up, and a shorter window scrolls to it.
   const SIZES = [[40, 16], [40, 36], [46, 14], [56, 20], [66, 18], [80, 24], [100, 30], [160, 46], [120, 40]] as const
   const waitFor = async (h: Headless, text: string) => {
     for (let i = 0; i < 50 && !find(h, text); i++) await h.settle(100)
@@ -168,7 +169,7 @@ describe("the frame", () => {
       await h.settle(300)
     }],
     ["the questions", "onboard", ["Back", "Next"], "Welcome! Answer a few questions and your AI will know your channel inside out.", async () => {}],
-    ["the last screen", "done", ["Copy the prompt", "Open ReelForge to log in", "Close"], "You're all set! Night Physics is ready to make videos.", async () => {}],
+    ["the last screen", "done", ["Copy prompt^18", "Open ReelForge to log in", "Close"], "You're all set! Night Physics is ready to make videos.", async () => {}],
   ]
   for (const [name, start, buttons, words, ready] of SCREENS)
     test(`${name}: whole at every size while it's resized, with its buttons and words in full`, async () => {
@@ -186,7 +187,11 @@ describe("the frame", () => {
         // from a column on (the words' own, past the list of steps), without the scrollbar's thumb, as one line of text
         const text = (from: number) =>
           rows.map((r) => r.slice(from).join("").replace(/[█▀▄]/g, " ")).join(" ").replace(/\s+/g, " ")
-        for (const b of wanted) if (!b.split("|").some((label) => text(0).includes(label))) wrong.push(`${at}: button "${b}"`)
+        for (const b of wanted) {
+          const [labels, minRows] = b.split("^")
+          if (minRows && hh < Number(minRows)) continue
+          if (!labels!.split("|").some((label) => text(0).includes(label))) wrong.push(`${at}: button "${labels}"`)
+        }
         if (!text(find(h, words.split(" ")[0]!)?.[0] ?? 0).includes(words)) wrong.push(`${at}: "${words}"`)
       }
       expect(wrong).toEqual([])
@@ -194,7 +199,7 @@ describe("the frame", () => {
 })
 
 describe("ready", () => {
-  test("the prompt for your AI is on the last screen, with the folder in it, and Copy copies it", async () => {
+  test("the last screen has a Copy prompt button, not the prompt itself, and it copies the prompt with the folder in it", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "reelforge-copied-"))
     const copied = join(tmp, "copied.txt")
     try {
@@ -204,23 +209,23 @@ describe("ready", () => {
       if (process.env.SHOW) console.log(frame(h))
       // the screen's words in order, without the mascot, the scrollbar and the buttons' ends, as one line
       const text = frame(h).replace(/[█▀▄▌▐]/g, " ").replace(/\s+/g, " ")
-      expect(text).toContain("1. Copy this prompt for your AI. It has your ReelForge folder's path in it, so there's nothing to drag in.")
       expect(text).toContain(
-        "I make videos for my channel, Night Physics, with ReelForge. My ReelForge folder is: C:\\Users\\you\\ReelForge " +
-          "Work in that folder from now on. First read the notes it has for you, and follow them: CLAUDE.md if you're " +
-          "Claude, AGENTS.md if you're another AI. Then make my first video. 2. Paste it into Claude Code",
+        "1. Copy the prompt for your AI with the button below. It has your ReelForge folder's path in it, so there's " +
+          "nothing to drag in. Copy prompt 2. Paste it into Claude Code",
       )
+      expect(text).not.toContain("I make videos for my channel") // the button copies it; the screen doesn't show it
       expect(text).not.toContain("drag a file")
       expect(text).not.toContain("here's my channel")
       expect(text).not.toContain("Show this folder") // the prompt has the folder in it
-      await clickText(h, "Copy the prompt", 2)
+      await clickText(h, "Copy prompt", 2)
       for (let i = 0; i < 25 && !existsSync(copied); i++) await h.settle(200)
       expect(readFileSync(copied, "utf-8")).toBe(
         "I make videos for my channel, Night Physics, with ReelForge. My ReelForge folder is:\nC:\\Users\\you\\ReelForge\n\n" +
           "Work in that folder from now on. First read the notes it has for you, and follow them: CLAUDE.md if you're " +
           "Claude, AGENTS.md if you're another AI. Then make my first video.\n-- copied --\n",
       )
-      expect(frame(h)).toContain("Copied")
+      await h.settle(100)
+      expect(frame(h).replace(/[▌▐]/g, " ").replace(/\s+/g, " ")).toContain("Copied Now paste it into your AI.")
       expect(h.exits).toEqual([]) // copying leaves the screen open
     } finally {
       await open?.close()
@@ -229,18 +234,20 @@ describe("ready", () => {
     }
   })
 
-  test("in a 120x30 window the prompt starts on screen and Copy the prompt is in the button row", async () => {
+  test("in a 120x30 window Copy prompt sits right under step 1, on screen, and has the keyboard", async () => {
     const h = await screen("done", [120, 30])
-    const rows = frame(h).split("\n")
-    const prompt = rows.findIndex((r) => r.includes("I make videos for my channel"))
-    const buttons = rows.findIndex((r) => r.includes("Copy the prompt"))
-    expect(prompt).toBeGreaterThan(0)
-    expect(buttons).toBeGreaterThan(prompt) // the button row, under the prompt, not scrolled away
-    expect(rows[buttons]).toContain("Open ReelForge to log in")
+    const rows = frame(h).split("\n").slice(0, 30)
+    const step = rows.findIndex((r) => r.includes("1. Copy the prompt for your AI"))
+    const copy = rows.findIndex((r) => r.includes("Copy prompt"))
+    expect(step).toBeGreaterThan(0)
+    expect(copy).toBeGreaterThan(step)
+    expect(copy - step).toBeLessThanOrEqual(4) // straight under step 1 (two rows at this width), not in the button row
+    expect(rows.findIndex((r) => r.includes("Open ReelForge to log in"))).toBeGreaterThan(copy)
+    expect(frame(h)).not.toContain("I make videos for my channel")
     expect(frame(h)).not.toContain("Show this folder")
   })
 
-  test("setup run again on a channel: the update prompt, still with the folder in it", async () => {
+  test("setup run again on a channel: Copy prompt copies the update prompt, still with the folder in it", async () => {
     const tmp = mkdtempSync(join(tmpdir(), "reelforge-copied-"))
     const copied = join(tmp, "copied.txt")
     try {
@@ -249,14 +256,11 @@ describe("ready", () => {
       await h.settle(2000)
       const text = frame(h).replace(/[█▀▄▌▐]/g, " ").replace(/\s+/g, " ")
       expect(text).toContain("You're all set! Night Physics's answers are updated.")
-      expect(text).toContain(
-        "I make videos for my channel, Night Physics, with ReelForge, and I've just changed its answers in ReelForge's " +
-          "setup. My ReelForge folder is: C:\\Users\\you\\ReelForge",
-      )
+      expect(text).not.toContain("I make videos for my channel")
       expect(text).toContain("2. Paste it into Claude Code")
       expect(text).toContain("It reads the updated notes and tells you what changed")
       expect(text).not.toContain("Then make my first video")
-      await clickText(h, "Copy the prompt", 2)
+      await clickText(h, "Copy prompt", 2)
       for (let i = 0; i < 25 && !existsSync(copied); i++) await h.settle(200)
       const got = readFileSync(copied, "utf-8")
       expect(got).toContain("My ReelForge folder is:\nC:\\Users\\you\\ReelForge\n\nWork in that folder.")

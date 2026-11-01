@@ -7,7 +7,6 @@ import { TextAttributes, type KeyEvent } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { useView, type Bridge } from "../bridge"
-import { wrap } from "../dashboard/Drawer"
 import { FocusContext, FocusManager, ThemeContext, useFocus, useTheme } from "../lib/focus"
 import { cellLen, type Segs } from "../lib/styled"
 import { SETUP } from "../theme"
@@ -15,7 +14,7 @@ import { Button } from "../ui/Button"
 import { ProgressBar } from "../ui/Graphics"
 import { Line } from "../ui/Line"
 import { Mascot } from "../ui/Mascot"
-import { Scroll, ToastStack, toasts, useTick, useWidth, Wrapped } from "../ui/Panels"
+import { Scroll, ToastStack, toasts, useTick, Wrapped } from "../ui/Panels"
 import { Frame, frameLayout } from "./Frame"
 import { Onboard } from "./Onboard"
 
@@ -369,26 +368,11 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
   )
 }
 
-/** The prompt for your AI as it will be pasted (the screen's Copy the prompt button copies it). It wraps at spaces
- * only, so a file name like AGENTS.md stays whole. */
-function PromptBox({ text }: { text: string }) {
-  const theme = useTheme()
-  const [width, measure] = useWidth()
-  return (
-    <box flexDirection="column" marginLeft={5} marginTop={1} marginBottom={1} flexShrink={0}>
-      <box backgroundColor={theme.panel} paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1} flexShrink={0} onSizeChange={measure}>
-        <text fg={theme.text} wrapMode={width ? "none" : "word"}>
-          {width ? wrap(text, Math.max(width - 4, 10)).join("\n") : text}
-        </text>
-      </box>
-    </box>
-  )
-}
-
 /** Step 3: what to do next, first: copy the prompt for your AI (it has the ReelForge folder's path in it, so nothing
  * needs dragging in; after setup is run again, it's the update prompt), paste it, and the video turns up on Publish.
- * Then what was made and what runs in the background. Copy the prompt is in the button row, so it's on screen at any
- * window size (it says so for a moment once it has copied). */
+ * Then what was made and what runs in the background. The prompt itself isn't shown: its Copy prompt button sits
+ * right under step 1, near the top, so it's on screen at any window size (it says so for a moment once it has
+ * copied). */
 function Done({ bridge, init, quit }: SetupProps) {
   const theme = useTheme()
   const [copied, setCopied] = useState(false)
@@ -429,7 +413,22 @@ function Done({ bridge, init, quit }: SetupProps) {
               {info.steps.map((l, i) => (
                 <Hanging key={i} segs={l} />
               ))}
-              {info.prompt ? <PromptBox text={info.prompt} /> : null}
+              {info.prompt ? (
+                <box flexDirection="row" flexWrap="wrap" marginLeft={5} marginTop={1} marginBottom={1} flexShrink={0} columnGap={2}>
+                  <Button
+                    id="copy"
+                    label={copied ? `${init.check} Copied` : "Copy prompt"}
+                    variant="primary"
+                    minWidth={24}
+                    autoFocus
+                    onPress={() => {
+                      bridge.send("copy_prompt")
+                      setCopied(true)
+                    }}
+                  />
+                  {copied ? <text fg={theme.muted}>Now paste it into your AI.</text> : null}
+                </box>
+              ) : null}
               {info.then.map((l, i) => (
                 <Hanging key={i} segs={l} />
               ))}
@@ -452,18 +451,6 @@ function Done({ bridge, init, quit }: SetupProps) {
           ) : null}
         </Scroll>
         <box flexDirection="row" flexWrap="wrap" flexShrink={0} marginTop={1} marginBottom={1} columnGap={2}>
-          <Button
-            id="copy"
-            label={copied ? `${init.check} Copied` : "Copy the prompt"}
-            variant="primary"
-            minWidth={20}
-            autoFocus={Boolean(info?.prompt)}
-            onPress={() => {
-              if (!info?.prompt) return
-              bridge.send("copy_prompt")
-              setCopied(true)
-            }}
-          />
           <Button
             id="open"
             label={info?.open ?? "Open ReelForge"}

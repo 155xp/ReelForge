@@ -152,8 +152,8 @@ class Brief(unittest.TestCase):
                                          f"folder is:\n{self.root}\n\nWork in that folder from now on. First read the "
                                          "notes it has for you, and follow them: CLAUDE.md if you're Claude, AGENTS.md "
                                          "if you're another AI. Then make my first video.")
-        self.assertEqual(self.lines(done["steps"]), "  1. Copy this prompt for your AI. It has your ReelForge folder's "
-                                                    "path in it, so there's nothing to drag in.")
+        self.assertEqual(self.lines(done["steps"]), "  1. Copy the prompt for your AI with the button below. It has "
+                                                    "your ReelForge folder's path in it, so there's nothing to drag in.")
         then = self.lines(done["then"])
         self.assertIn("  2. Paste it into Claude Code (the Code tab in the Claude desktop app, or claude in a "
                       "terminal), or any other AI that can work with files on this computer. It gets to know your "
@@ -225,7 +225,7 @@ class Brief(unittest.TestCase):
                                          "read before: CLAUDE.md if you're Claude, AGENTS.md if you're another AI. "
                                          "Then tell me in a few lines what changed, and use it from my next video on.")
         self.assertIn("Night Physics's answers are updated.", self.lines(done["head"]))
-        self.assertIn("1. Copy this prompt for your AI. It has your ReelForge folder's path in it",
+        self.assertIn("1. Copy the prompt for your AI with the button below. It has your ReelForge folder's path in it",
                       self.lines(done["steps"]))
         then = self.lines(done["then"])
         self.assertIn("It reads the updated notes and tells you what changed, then goes by your new answers from the "

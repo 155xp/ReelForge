@@ -441,8 +441,8 @@ class Setup(Service):
 
     @rpc
     def done_info(self) -> dict:
-        """The last screen: what to do next first: copy the prompt that starts your AI on the channel (prompt, between
-        steps and then; the screen's Copy button: copy_prompt), paste it into your AI, find the video on Publish. Run
+        """The last screen: what to do next first: copy the prompt that starts your AI on the channel (prompt: the
+        screen doesn't show it, its Copy prompt button between steps and then copies it with copy_prompt), paste it into your AI, find the video on Publish. Run
         again on a channel set up already, the prompt is the update one: the AI reads its new notes and says what
         changed. Then what was made; the background stats follow as "system"."""
         self.loop.run_worker(self._apply_system, group="system", exclusive=True)
@@ -465,8 +465,8 @@ class Setup(Service):
         app = " or ".join({"claude": "Claude Code (the Code tab in the Claude desktop app, or claude in a terminal)",
                            "codex": "Codex (run codex in a terminal)"}[ai] for ai in s["ai"]["assistant"])
         video = f"{'your' if here.main else 'its'} {'first' if first else 'next'} video"
-        steps = [seg_line(("  1. ", "bold"), (f"Copy this prompt for your AI. It has {path} in it, so there's nothing "
-                                              "to drag in.", ""))]
+        steps = [seg_line(("  1. ", "bold"), (f"Copy the prompt for your AI with the button below. It has {path} in "
+                                              "it, so there's nothing to drag in.", ""))]
         paste = f"Paste it into {app}, or any other AI that can work with files on this computer. "
         if self.again:
             then = [seg_line(("  2. ", "bold"), (paste + "It reads the updated notes and tells you what changed, then "
