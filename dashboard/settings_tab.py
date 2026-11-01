@@ -45,7 +45,7 @@ def _channel_rows(s: dict) -> list[list[str]]:
         if not c["hashtags_on_x"]:
             tags += ", none on X"
     per = f"{sched['per_day']} a day" if sched["per_day"] else f"{sched['per_week']} a week"
-    who = {"claude": "Claude", "codex": "Codex"}.get(s["ai"]["assistant"], s["ai"]["assistant"])
+    who = S.ai_names(s["ai"]["assistant"], " and ")
     return [
         ["Channel", s["channel"]["name"]],
         ["Format", f"{fmt}: {s['format']['series']}" if s["format"]["series"] != fmt else fmt],
@@ -89,7 +89,7 @@ class SettingsTab:
         name = p.name if p is not None and not self.demo else "Night Physics" if self.demo else "ReelForge"
         rows: list[list[str]] = []
         onboarded = self.demo or bool(p and p.onboarded)
-        assistant = ""  # not set up yet: the FAQ covers Claude Code and Codex
+        assistant: list[str] = []  # not set up yet: the FAQ covers Claude Code and Codex
         try:
             from studio import settings as S
 
@@ -104,7 +104,7 @@ class SettingsTab:
                 "computer": computer, "demo": self.demo, "bin": desktop.BIN, "several": several,
                 "profiles": self.profiles_settings()}
 
-    def _faq(self, assistant: str, name: str, several: bool) -> list[dict]:
+    def _faq(self, assistant: list[str], name: str, several: bool) -> list[dict]:
         """The FAQ's questions and answers, for this channel (dashboard/faq.py)."""
         from studio import paths as P
 

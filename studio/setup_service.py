@@ -457,8 +457,8 @@ class Setup(Service):
         self.prompt = ai_prompt.text(channel, here, first)
         path = ("your ReelForge folder's path" if here.main else
                 "the ReelForge folder's path (the same for every channel)")
-        app = ("Codex (run codex in a terminal)" if s["ai"]["assistant"] == "codex" else
-               "Claude Code (the Code tab in the Claude desktop app, or claude in a terminal)")
+        app = " or ".join({"claude": "Claude Code (the Code tab in the Claude desktop app, or claude in a terminal)",
+                           "codex": "Codex (run codex in a terminal)"}[ai] for ai in s["ai"]["assistant"])
         video = f"{'your' if here.main else 'its'} {'first' if first else 'next'} video"
         steps = [seg_line(("  1. ", "bold"), (f"Copy this prompt for your AI. It has {path} in it, so there's nothing "
                                               "to drag in.", ""))]

@@ -18,6 +18,7 @@ from unittest import mock
 from dashboard import config
 from studio import __main__ as cli
 from studio import generate, profiles, questions
+from studio import settings as S
 from studio import paths as P
 from studio.bridge import Loop
 from studio.setup_service import Setup
@@ -182,6 +183,19 @@ class Brief(unittest.TestCase):
         self.assertIn("  2. Paste it into Codex (run codex in a terminal), or any other AI that can work with files "
                       "on this computer. It gets to know Cool Epic Facts, then makes its first video.",
                       self.lines(done["then"]))
+
+    def test_a_channel_made_with_both_ais_names_both(self):
+        p = self.another(assistant=["claude", "codex"])
+        self.assertEqual(S.load(p.settings)["ai"], {"assistant": ["claude", "codex"]})
+        svc = Setup(Loop(out=io.StringIO()))
+        svc.start({"start": "onboard", "new": True, "embedded": True})
+        svc.made = p
+        self.assertIn("Paste it into Claude Code (the Code tab in the Claude desktop app, or claude in a terminal) or "
+                      "Codex (run codex in a terminal), or any other AI that can work with files on this computer.",
+                      self.lines(self.done(svc)["then"]))
+        self.assertIn("Paste this prompt into Claude Code or Codex, or any other AI", cli.next_steps(p))
+        # Claude's notes say what setup asked Claude Code for, as for Claude Code alone
+        self.assertIn("first-time" + chr(10) + "  setup asked Claude Code for high effort", self.notes(p.folder))
 
     def test_a_channel_with_videos_asks_for_its_next_one(self):
         video = self.root / "episodes" / "ep01_duck" / "final" / "ep01_duck.mp4"

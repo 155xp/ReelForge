@@ -29,10 +29,10 @@ def folder(path: Path, root: Path) -> str:
     return f"`{os.sep.join(rel.parts) or path.name}`"
 
 
-def model_answer(assistant: str) -> str:
-    """Which model your AI uses and how hard it thinks: up to your AI app, never ReelForge. assistant: claude, codex,
-    or "" while the channel isn't set up (then both)."""
-    claude, codex = assistant in ("claude", ""), assistant in ("codex", "")
+def model_answer(assistant: list[str]) -> str:
+    """Which model your AI uses and how hard it thinks: up to your AI app, never ReelForge. assistant: the AIs the
+    channel was set up with (claude, codex or both), or none while it isn't set up (then both)."""
+    claude, codex = not assistant or "claude" in assistant, not assistant or "codex" in assistant
     lead = "Your AI app decides that, not ReelForge."
     blocks = []
     if claude:
@@ -55,13 +55,13 @@ def model_answer(assistant: str) -> str:
     return "\n\n".join(blocks)
 
 
-def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channel: str, main: bool,
+def items(*, assistant: list[str], root: Path, episodes: Path, completed: Path, channel: str, main: bool,
           several: bool, refresh_minutes: float, demo: bool = False) -> list[dict]:
     """The questions and their answers ({"q": ..., "a": Markdown}), for the channel the window is on. assistant: the
-    AI it was set up with (claude or codex; "" while it isn't set up). root: the ReelForge folder. channel: its name;
+    AIs it was set up with (claude, codex or both; none while it isn't set up). root: the ReelForge folder. channel: its name;
     main: it's the first channel (the ReelForge folder's own); several: there are others. In the demo, nothing on
     this computer is named."""
-    claude, codex = assistant in ("claude", ""), assistant in ("codex", "")
+    claude, codex = not assistant or "claude" in assistant, not assistant or "codex" in assistant
     if demo:
         here = "`C:\\Users\\you\\ReelForge`" if desktop.WINDOWS else "`~/ReelForge`"
         episodes_at, completed_at, own = "`episodes`", "`completed videos`", here
@@ -76,8 +76,9 @@ def items(*, assistant: str, root: Path, episodes: Path, completed: Path, channe
     name = md(channel)
     # Your AI starts on a channel from the prompt that Copy prompt for your AI copies (studio/ai_prompt.py): it names
     # the ReelForge folder, so nothing is dragged in or opened first. A channel not set up yet has no prompt yet.
-    app = ("Codex (`codex` in a terminal)" if assistant == "codex" else
-           "Claude Code (the **Code** tab in the Claude desktop app, or `claude` in a terminal)")
+    app = ", ".join(label for label, on in (
+        ("Claude Code (the **Code** tab in the Claude desktop app, or `claude` in a terminal)", claude),
+        ("Codex (`codex` in a terminal)", codex)) if on)
     video = "your next video" if main else f"the next {name} video"
     start = (f"Press **Copy prompt for your AI** on this tab, under the channel's answers, and paste it into {app} or "
              "any other AI that can work with files on this computer. It names the ReelForge folder "

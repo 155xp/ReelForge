@@ -71,7 +71,7 @@ def next_steps(profile=None) -> str:
     s = S.load(profile.settings)
     name = s["channel"]["name"]
     first = not ai_prompt.has_videos(profile)
-    app = "Codex" if s["ai"]["assistant"] == "codex" else "Claude Code"
+    app = S.ai_names(s["ai"]["assistant"])
     lines = ["", "Your studio is ready. Next:" if profile.main else f"{name} is ready. Next:",
              f"  1. Paste this prompt into {app}, or any other AI that can work with files on this computer. It has the "
              "ReelForge folder's path in it, so there's nothing to drag in or open first:", ""]

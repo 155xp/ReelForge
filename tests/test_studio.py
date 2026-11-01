@@ -41,27 +41,32 @@ class Questions(unittest.TestCase):
         _, problems = questions.validate(answers(length="custom", length_custom="banana"))
         self.assertTrue(any(p.startswith("length_custom") for p in problems))
 
-    def test_your_ai_is_claude_code_or_codex_and_you_pick_it(self):
-        # neither is recommended or picked for you, and "Both" is gone: an older version's Both is Claude Code now
+    def test_your_ai_is_claude_code_codex_or_both_and_you_pick(self):
+        # tick one or both, with neither recommended or ticked for you; an older version's one word still reads
         q = questions.BY_KEY["assistant"]
-        self.assertEqual((q.options, q.default, q.required), ([("claude", "Claude Code"), ("codex", "Codex")], None,
-                                                              True))
+        self.assertEqual((q.kind, q.options, q.default, q.required),
+                         ("multi", [("claude", "Claude Code"), ("codex", "Codex")], None, True))
         item = next(i for i in questions.describe() if i["key"] == "assistant")
-        self.assertEqual((item["options"], item.get("default"), item["required"]),
-                         ({"claude": "Claude Code", "codex": "Codex"}, None, True))
-        _, problems = questions.validate({k: v for k, v in answers().items() if k != "assistant"})
-        self.assertEqual(problems, ["assistant: Which AI will make your videos? (required)"])
-        a, problems = questions.validate(answers(assistant="both"))
-        self.assertEqual((problems, a["assistant"]), ([], "claude"))
+        self.assertEqual((item["type"], item["options"], item.get("default"), item["required"]),
+                         ("multi", {"claude": "Claude Code", "codex": "Codex"}, None, True))
+        for none in ({k: v for k, v in answers().items() if k != "assistant"}, answers(assistant=[])):
+            _, problems = questions.validate(none)
+            self.assertEqual(problems, ["assistant: Which AI will make your videos? (required)"])
+        for given, ais in ((["codex", "claude"], ["codex", "claude"]), ("claude, codex", ["claude", "codex"]),
+                           ("both", ["claude", "codex"]), ("claude", ["claude"]), ("codex", ["codex"])):
+            a, problems = questions.validate(answers(assistant=given))
+            self.assertEqual((problems, a["assistant"]), ([], ais))
         with self.assertRaises(ValueError):
-            questions.coerce(q, "both")
+            questions.coerce(q, "gemini")
         tmp = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.addCleanup(tmp.cleanup)
         studio = Path(tmp.name) / "studio.toml"
-        studio.write_text('[ai]\nassistant = "both"\n', encoding="utf-8")
-        self.assertEqual(settings.load(studio)["ai"], {"assistant": "claude"})
-        studio.write_text('[ai]\nassistant = "codex"\n', encoding="utf-8")
-        self.assertEqual(settings.load(studio)["ai"], {"assistant": "codex"})
+        for toml, ais in (('"both"', ["claude", "codex"]), ('"codex"', ["codex"]), ('"claude"', ["claude"]),
+                          ('["codex", "claude"]', ["claude", "codex"]), ('["codex"]', ["codex"]), ('[]', ["claude"])):
+            studio.write_text(f'[ai]\nassistant = {toml}\n', encoding="utf-8")
+            self.assertEqual(settings.load(studio)["ai"], {"assistant": ais}, toml)
+        self.assertEqual([settings.ai_names(a) for a in (["claude"], ["codex"], ["codex", "claude"])],
+                         ["Claude Code", "Codex", "Claude Code or Codex"])
 
     def test_coerce(self):
         q = questions.BY_KEY
@@ -124,9 +129,9 @@ class Generate(unittest.TestCase):
                        hud=False)
         self.assertEqual(s["video"]["min_seconds"], 30.0)
         self.assertEqual(s["sound"]["target_lufs"], -15.0)
-        self.assertEqual(s["ai"], {"assistant": "codex"})
+        self.assertEqual(s["ai"], {"assistant": ["codex"]})
         a, _ = questions.validate(answers(quality="max"))  # an older version's answer: nothing reads it
-        self.assertEqual(generate.settings_from(a)["ai"], {"assistant": "claude"})
+        self.assertEqual(generate.settings_from(a)["ai"], {"assistant": ["claude"]})
 
 
 class JsonFormat(unittest.TestCase):

@@ -195,7 +195,7 @@ class Onboarding(Scratch):
         self.assertTrue(init["new"])
         start = svc.onboard_start()
         self.assertEqual((start["side"], start["create"]), ("Set up a new channel", "Create the profile"))
-        self.assertEqual((svc.answers["creator"], svc.answers["assistant"]), ("Sam", "codex"))  # about you: carried
+        self.assertEqual((svc.answers["creator"], svc.answers["assistant"]), ("Sam", ["codex"]))  # about you: carried
         self.assertNotIn("channel_name", svc.answers)                                         # the channel: not
         svc.onboard_step(1)
         bad = svc.onboard_next({"channel_name": "night physics", "about": "Facts."})
@@ -217,7 +217,7 @@ class Onboarding(Scratch):
 
     def test_first_time_setup_asks_claude_code_for_opus_at_high_effort_and_never_changes_it_after(self):
         self.onboard_main(ultracode=True, quality="max")  # an older channel's answers: neither is asked any more
-        self.assertEqual(S.load()["ai"], {"assistant": "claude"})
+        self.assertEqual(S.load()["ai"], {"assistant": ["claude"]})
         saved = json.loads((self.root / "my-studio" / "answers.json").read_text(encoding="utf-8"))
         self.assertFalse({"quality", "ultracode"} & set(saved))
         local = self.root / ".claude" / "settings.local.json"

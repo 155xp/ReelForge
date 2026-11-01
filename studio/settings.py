@@ -18,6 +18,8 @@ from . import paths
 PLATFORMS = ("tiktok", "youtube", "instagram", "x")
 PLATFORM_NAMES = {"tiktok": "TikTok", "youtube": "YouTube Shorts", "instagram": "Instagram Reels", "x": "X"}
 RECOMMENDED = ("tiktok", "youtube", "instagram")  # the three big short-video apps: onboarding ticks these to start
+AIS = ("claude", "codex")
+AI_NAMES = {"claude": "Claude Code", "codex": "Codex"}
 
 # Loudness choices offered by onboarding (integrated LUFS). Sound-effects-only videos with heavy booms feel much
 # louder than their LUFS number suggests: -15 LUFS ("normal" for music and speech) was reported as far too loud on
@@ -74,7 +76,7 @@ DEFAULTS: dict = {
         "background_stats": True,      # an hourly job reads your stats while ReelForge is closed
     },
     "schedule": {"per_day": 2, "per_week": 14, "post_times": "8-11 am and 5-8 pm", "timezone": ""},
-    "ai": {"assistant": "claude"},
+    "ai": {"assistant": ["claude"]},  # the AIs that make the videos: Claude Code, Codex or both
 }
 
 
@@ -99,9 +101,20 @@ def load(path: Path | None = None) -> dict:
     s["platforms"]["enabled"] = [p for p in s["platforms"]["enabled"] if p in PLATFORMS] or list(PLATFORMS)
     s["captions"]["max_hashtags"] = max(0, int(s["captions"]["max_hashtags"]))
     s["captions"]["tiktok_first_tag"] = str(s["captions"]["tiktok_first_tag"]).lstrip("#").strip()
-    if s["ai"]["assistant"] != "codex":  # "both", which versions before 2.1.1 offered, is Claude Code now
-        s["ai"]["assistant"] = "claude"
+    s["ai"]["assistant"] = assistants(s["ai"]["assistant"])
     return s
+
+
+def assistants(value) -> list[str]:
+    """The AIs that make a channel's videos, from studio.toml's [ai] assistant: a list of claude and codex, one or both,
+    in that order. Versions before 2.2.0 wrote one word, "claude", "codex" or "both"; anything else is Claude Code."""
+    words = [value] if isinstance(value, str) else list(value or [])
+    return [a for a in AIS if a in words or "both" in words] or ["claude"]
+
+
+def ai_names(ais, joiner: str = " or ") -> str:
+    """'Claude Code', 'Codex' or 'Claude Code or Codex' (joiner between the two)."""
+    return joiner.join(AI_NAMES[a] for a in assistants(ais))
 
 
 def onboarded(path: Path | None = None) -> bool:

@@ -21,7 +21,7 @@ their answers (their channel, format, platforms, style, caption rules and qualit
 2. **Their channel.** Either they run `channel.bat` / `./channel.sh` (a few questions in a full-screen box), or you
    interview them in the chat:
    - Get the questions: `.venv\Scripts\python -m studio channel --questions` (macOS/Linux: `.venv/bin/python`).
-     Each has a key and its options, and most have a default (which AI they use has none: ask).
+     Each has a key and its options, and most have a default (which AI they use, one or both, has none: ask).
    - Ask them a few at a time, offering the options as choices and the defaults as suggestions. Skip questions
      whose `only_if` doesn't apply. `background_stats` adds an hourly background job that reads their stats while
      ReelForge is closed: ask it plainly; their answer is the permission.

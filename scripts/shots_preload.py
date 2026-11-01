@@ -97,7 +97,7 @@ def _first_run() -> None:
     ]
     sample = copy.deepcopy(S.DEFAULTS)  # a new channel's last screen, with nothing turned on here
     sample["channel"]["name"] = "Night Physics"
-    sample["ai"].update(assistant="claude")
+    sample["ai"].update(assistant=["claude"])
     sample["platforms"]["handles"] = {p: "yourchannel" for p in S.PLATFORMS}
     S.load = lambda path=None: sample
     stats_schedule.enable = lambda minutes=60: (f"Your stats will update every {minutes} minutes while this computer "

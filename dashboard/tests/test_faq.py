@@ -17,7 +17,7 @@ ROOT = Path(tempfile.gettempdir()) / "ReelForge"
 
 
 def items(**over) -> list[dict]:
-    args = dict(assistant="claude", root=ROOT, episodes=ROOT / "episodes", completed=ROOT / "completed videos",
+    args = dict(assistant=["claude"], root=ROOT, episodes=ROOT / "episodes", completed=ROOT / "completed videos",
                 channel="Night Physics", main=True, several=False, refresh_minutes=30)
     return faq.items(**{**args, **over})
 
@@ -39,18 +39,27 @@ class FaqTest(unittest.TestCase):
         self.assertNotIn("Codex", a)
 
     def test_codex_gets_codexs_answers(self):
-        a = answer("Which model", assistant="codex")
+        a = answer("Which model", assistant=["codex"])
         self.assertTrue(a.startswith("Your AI app decides that, not ReelForge. ReelForge's `.codex/config.toml`"))
         self.assertNotIn("Claude", a)
-        made = answer("How do I make a video?", assistant="codex")
+        made = answer("How do I make a video?", assistant=["codex"])
         self.assertIn("paste it into Codex (`codex` in a terminal) or any other AI", made)
         self.assertNotIn("Claude desktop app", made)
-        self.assertIn("`AGENTS.md` for any other AI", answer("My AI doesn't know", assistant="codex"))
-        unset = answer("Which model", assistant="")  # a channel not set up yet: both
+        self.assertIn("`AGENTS.md` for any other AI", answer("My AI doesn't know", assistant=["codex"]))
+        unset = answer("Which model", assistant=[])  # a channel not set up yet: both
         self.assertIn("With Codex: ReelForge's `.codex/config.toml`", unset)
 
+    def test_both_ais_get_both_answers(self):
+        both = dict(assistant=["claude", "codex"])
+        a = answer("Which model", **both)
+        self.assertIn("**Opus at high effort**", a)
+        self.assertIn("With Codex: ReelForge's `.codex/config.toml`", a)
+        self.assertIn("paste it into Claude Code (the **Code** tab in the Claude desktop app, or `claude` in a "
+                      "terminal), Codex (`codex` in a terminal) or any other AI", answer("How do I make a video?", **both))
+        self.assertIn("your own Claude Code or Codex plan", " ".join(i["a"] for i in items(**both)))
+
     def test_no_answer_offers_a_setting_for_it(self):
-        for assistant in ("claude", "codex", ""):
+        for assistant in (["claude"], ["codex"], ["claude", "codex"], []):
             text = "\n".join(f"{i['q']}\n{i['a']}" for i in items(assistant=assistant))
             for gone in ("Advanced settings", "**Max**", "**High**", "**Fast**", "Max, High", "the standard",
                          "ultracode", "onboarding", "Settings tab (7) picks"):
@@ -89,7 +98,7 @@ class FaqTest(unittest.TestCase):
             self.assertNotIn("drag a file", a)
             self.assertNotIn("here's my channel", a)
         # a channel not set up yet has no prompt: setting it up comes first
-        self.assertTrue(answer("How do I make a video?", assistant="").startswith(
+        self.assertTrue(answer("How do I make a video?", assistant=[]).startswith(
             "Set this channel up first (**Set it up** on this tab)."))
 
     def test_another_channel_asks_for_its_own_next_video_and_brief(self):
