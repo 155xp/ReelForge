@@ -1,3 +1,12 @@
+## What's new in 2.2.0
+
+- **Which AI makes your videos is a tick list: Claude Code, Codex or both.** An earlier answer carries over (an old Both is both again).
+  - With both, setup's last screen and the Settings tab name both, and the FAQ answers for both.
+- **Copy the prompt is always on screen.** On setup's last screen it's the first button in the bottom row, even in a small window.
+  - Run setup again and the prompt tells your AI what changed in your answers, so it uses them from the next video.
+- **Open in Explorer** beside ReelForge's folder on the Settings tab (Finder on a Mac, the file manager on Linux).
+- **The Publish tab's YouTube Copy caption** sits under YouTube's button and copies the title with #shorts.
+
 ## What's new in 2.1.1
 
 - **Copy the prompt for your AI: nothing to drag in.** Setup's last screen shows it, with a **Copy the prompt** button.
