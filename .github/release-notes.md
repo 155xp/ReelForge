@@ -1,3 +1,8 @@
+## What's new in 2.2.1
+
+- **A big Copy prompt button on setup's last screen,** right under step 1, so it's the first thing you see.
+  - The prompt itself isn't shown any more. The button copies it, with your ReelForge folder's path in it.
+
 ## What's new in 2.2.0
 
 - **Which AI makes your videos is a tick list: Claude Code, Codex or both.** An earlier answer carries over (an old Both is both again).
