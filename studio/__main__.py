@@ -118,11 +118,13 @@ def _interactive() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
-def onboard(argv: list[str]) -> int:
+def onboard(argv: list[str], *, preserve_settings: bool = False) -> int:
     ap = argparse.ArgumentParser(prog="reelforge channel")
     ap.add_argument("--plain", action="store_true")
     ap.add_argument("--answers", type=Path)
     ap.add_argument("--regenerate", action="store_true")
+    ap.add_argument("--preserve-settings", action="store_true",
+                    help="refresh agent instructions without replacing saved settings or accounts")
     ap.add_argument("--questions", action="store_true")
     ap.add_argument("--new", action="store_true")
     args = ap.parse_args(argv)
@@ -133,7 +135,7 @@ def onboard(argv: list[str]) -> int:
         print(json.dumps(questions.describe(), indent=2, ensure_ascii=False))
         return 0
     if args.regenerate and not args.answers:
-        return regenerate()
+        return regenerate(preserve_settings=preserve_settings or args.preserve_settings)
     if args.answers or args.regenerate:
         src = args.answers or P.ANSWERS
         if not src.exists():
@@ -190,7 +192,7 @@ def onboard(argv: list[str]) -> int:
     return first_run("onboard", new=args.new)
 
 
-def regenerate() -> int:
+def regenerate(*, preserve_settings: bool = False) -> int:
     """Every profile's files again from its saved answers (after an update, so they get the new version's
     instructions): the first one last, so its notes list the others as they are now."""
     from . import generate
@@ -201,7 +203,8 @@ def regenerate() -> int:
             continue
         try:
             answers = json.loads(p.answers.read_text(encoding="utf-8-sig"))
-            written = generate.write_all(answers, p)
+            written = (generate.write_guides(p, saved_settings=True) if preserve_settings
+                       else generate.write_all(answers, p))
         except (ValueError, OSError) as e:
             print(f"{p.name}: {e}")
             continue
@@ -516,7 +519,11 @@ def main(argv: list[str] | None = None) -> int:
     if cmd in ("--demo", "refresh") or tab_for(cmd):
         return dashboard(argv)
     if cmd in ("channel", "onboard"):
-        return onboard(rest)
+        # Published updaters (including 2.2.1) call the legacy name with --regenerate
+        # after copying new files. They must not replay old answers over hand-edited
+        # settings/accounts. `channel --regenerate` still explicitly applies edited
+        # answers; future updaters also pass --preserve-settings for clarity.
+        return onboard(rest, preserve_settings=cmd == "onboard" and "--regenerate" in rest)
     if cmd == "profiles":
         return list_profiles(rest, chosen)
     if cmd == "setup":

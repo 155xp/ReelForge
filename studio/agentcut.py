@@ -5,15 +5,18 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from . import paths as P
 from . import settings, tools
 
 VERSION = "0.8.214"
+NODE_MINIMUM = (22, 12, 0)
 PACKAGE = P.ROOT / "extras" / "agentcut"
 EDIT_TOOLS = {"lint", "check", "validate", "info", "timeline", "snapshot", "inspect", "compositions", "docs", "history"}
 
@@ -25,15 +28,20 @@ def install_root() -> Path:
 def runtime() -> str:
     node = os.environ.get("REELFORGE_NODE") or shutil.which("node")
     if not node:
-        raise ValueError("AgentCut needs Node.js 22+ and npm: https://nodejs.org/en/download")
+        raise ValueError("AgentCut needs Node.js 22.12.0+ and npm: https://nodejs.org/en/download")
     result = subprocess.run([node, "--version"], capture_output=True, text=True, check=True, timeout=30)
-    if int(result.stdout.strip().lstrip("v").split(".")[0]) < 22:
-        raise ValueError("AgentCut needs Node.js 22 or newer; set REELFORGE_NODE to its executable")
+    match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", result.stdout.strip())
+    if not match or tuple(map(int, match.groups())) < NODE_MINIMUM:
+        raise ValueError("AgentCut needs stable Node.js 22.12.0 or newer; set REELFORGE_NODE to its executable")
     return node
 
 
 def executable() -> Path:
-    package = install_root() / "node_modules" / "hyperframes"
+    return _executable_at(install_root())
+
+
+def _executable_at(root: Path) -> Path:
+    package = root / "node_modules" / "hyperframes"
     script = package / "bin" / "hyperframes.mjs"
     if not script.is_file():
         raise ValueError("AgentCut is optional and is not installed. Run: reelforge agentcut install")
@@ -75,15 +83,34 @@ def install() -> dict:
     if not npm:
         raise ValueError("npm is required to install the optional editor")
     target = install_root()
-    target.mkdir(parents=True, exist_ok=True)
-    for name in ("package.json", "package-lock.json"):
-        shutil.copyfile(PACKAGE / name, target / name)
+    target.parent.mkdir(parents=True, exist_ok=True)
     env = environment()
     env["PATH"] = str(Path(node).resolve().parent) + os.pathsep + env.get("PATH", "")
-    # npm ci verifies every dependency against the committed lockfile's integrity hashes.
-    subprocess.run([npm, "ci", "--no-audit", "--no-fund"], cwd=target, env=env, check=True,
-                   stdin=subprocess.DEVNULL, stdout=sys.stderr)
-    invoke("browser", "ensure", capture=False)
+    # Never let npm ci delete a working installation. Prepare and check the entire
+    # candidate beside it; only replace it once the browser is ready, too.
+    work = Path(tempfile.mkdtemp(prefix=".agentcut-install-", dir=target.parent))
+    candidate, previous = work / "candidate", work / "previous"
+    candidate.mkdir()
+    try:
+        for name in ("package.json", "package-lock.json"):
+            shutil.copyfile(PACKAGE / name, candidate / name)
+        # npm ci checks dependency integrity and the engine floor is mandatory.
+        subprocess.run([npm, "ci", "--engine-strict", "--no-audit", "--no-fund"], cwd=candidate,
+                       env=env, check=True, stdin=subprocess.DEVNULL, stdout=sys.stderr)
+        subprocess.run([node, str(_executable_at(candidate)), "browser", "ensure"], env=env, check=True,
+                       stdin=subprocess.DEVNULL, stdout=sys.stderr)
+        try:
+            if target.exists():
+                target.rename(previous)
+            candidate.rename(target)
+        except BaseException:
+            if previous.exists() and not target.exists():
+                previous.rename(target)
+            raise
+    finally:
+        # If rollback itself fails, retain the recoverable old installation.
+        if not previous.exists() or target.exists():
+            shutil.rmtree(work, ignore_errors=True)
     return {"installed": True, "engine": "HyperFrames", "version": VERSION, "path": str(target)}
 
 
@@ -142,6 +169,8 @@ def validate_episode(ep: Path) -> dict:
         if abs(spec[name] * 30 - round(spec[name] * 30)) > 1e-6:
             raise ValueError(f"{name} must align to a frame at 30 fps")
     edit = prepare(ep)
+    from .agentcut_sources import validate_local_sources
+    validate_local_sources(edit)
     call("lint", edit)
     result = call("info", edit)
     if (result["width"], result["height"]) != (1080, 1920):

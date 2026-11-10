@@ -16,6 +16,8 @@ from loudness import master
 
 def make(ep):
     spec = json.loads((ep / "episode.json").read_text(encoding="utf-8"))
+    from agentcut import Edit
+    Edit(ep, spec).require_render()
     source = ep / "build" / "agentcut.mp4"
     if not source.is_file():
         raise ValueError("Render the AgentCut timeline before its audio")

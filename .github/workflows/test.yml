@@ -10,10 +10,24 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   headless-editing:
-    name: AgentCut headless editing and delivery
-    runs-on: ubuntu-latest
+    name: AgentCut acceptance on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: macos-latest
+            arch: arm64
+          - os: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,18 +35,35 @@ jobs:
           python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - name: Media tools and Python packages
+          node-version: "22.12.0"
+      - name: Verify the native runner architecture
+        run: |
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          python -c "import platform; print(platform.platform(), platform.machine())"
+          node --version
+      - name: Linux media tools
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -yq ffmpeg
-          python -m pip install --disable-pip-version-check -r requirements.txt
+          sudo apt-get install -yq ffmpeg fonts-dejavu-core
+      - name: Mac media tools
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Python packages
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
       - name: Install the optional pinned editor and headless Chrome
         run: python -m studio agentcut install
       - name: Render footage, master audio, run QA, and verify the manual Publish handoff
         env:
           REELFORGE_AGENTCUT_RENDER_TEST: "1"
         run: python -m unittest discover -s tests -p test_agentcut_render.py -v
+      - name: Native render evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentcut-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/agentcut-acceptance/
+          if-no-files-found: warn
 
   tests:
     name: Tests on ${{ matrix.os }}
@@ -159,11 +190,8 @@ jobs:
           test ! -e ~/Apps/ReelForge
           reelforge stats | grep -q "Background stats: on"
           reelforge stats off
-      # Blender renders with the graphics card (Metal on a Mac). GitHub's Intel Macs are virtual machines with no
-      # Metal, so there it can only build the scene; a real Intel Mac has a Metal card. Linux draws without a screen
-      # through Xvfb and Mesa, slowly.
+      # Exercise the existing Blender path without installing the optional AgentCut editor.
       - name: A test render (Blender builds the example scene and renders a frame)
-        continue-on-error: ${{ matrix.os == 'macos-15-intel' }}
         run: |
           cd ~/ReelForge
           if [ "$RUNNER_OS" = macOS ]; then system_profiler SPDisplaysDataType | sed -n '1,20p'; fi
@@ -175,6 +203,16 @@ jobs:
             find episodes/ci_render/build -maxdepth 1 -name '*.log' -exec tail -n 60 {} \;
             exit 1
           fi
+      - name: Upgrade the actual latest published Mac package with disposable user data
+        if: runner.os == 'macOS'
+        run: python scripts/test_published_upgrade.py --candidate-dir dist --prepared-tools ~/ReelForge
+      - name: Published Mac upgrade evidence
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-upgrade-${{ matrix.os }}
+          path: published-upgrade-result.json
+          if-no-files-found: warn
       - name: Update to a newer version
         run: |
           sed -i.bak 's/KIT_VERSION = "[^"]*"/KIT_VERSION = "9.9.9"/' studio/__init__.py
@@ -290,3 +328,20 @@ jobs:
           if ($task.Actions[0].Execute -ne "$to\.venv\Scripts\pythonw.exe" -or $task.Actions[0].Arguments -notlike "*$to\dashboard\refresh.pyw*") { throw "the hourly job didn't follow it: $($task.Actions[0].Execute) $($task.Actions[0].Arguments)" }
           & (Join-Path $to ".venv\Scripts\python.exe") (Join-Path $to "bin\reelforge.py") stats off
           & (Join-Path $to ".venv\Scripts\python.exe") (Join-Path $to "bin\reelforge.py") command off
+
+  required:
+    name: All required tests passed
+    if: always()
+    needs: [headless-editing, tests, install, install-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every suite, native acceptance test, and install/upgrade check
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json, os
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: job["result"] for name, job in results.items() if job["result"] != "success"}
+          assert not failed, f"Required checks did not pass: {failed}"
+          PY

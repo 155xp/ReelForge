@@ -49,7 +49,7 @@ When asked to "open AgentCut and make a video about ...", read `docs/AGENTCUT.md
 an HTML composition in `edit/index.html`, with local media in `edit/media/`. AgentCut uses
 [HyperFrames](https://github.com/heygen-com/hyperframes), pinned to 0.8.214. Read `docs/HEADLESS-EDITING.md` for the
 engine choice. Use the channel's brief, verified local media and recorded source credits. Run `agentcut schema`
-for the HTML contract and `agentcut tool docs` for authoring references. `agentcut install` requires Node.js 22+
+for the HTML contract and `agentcut tool docs` for authoring references. `agentcut install` requires Node.js 22.12.0+
 and npm, installs pinned dependencies in `tools/agentcut/` and prepares headless Chrome. Run `agentcut doctor`
 before rendering. Start with `python -m studio agentcut new <slug> --topic "the requested topic"`, author and validate the
 composition, then preview, render, run QA, review and ship through the same pipeline as Blender. Never skip QA or create

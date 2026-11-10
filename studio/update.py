@@ -362,7 +362,7 @@ def _after(root: Path, requirements_before: str, progress: Progress, log: Callab
     if (root / "my-studio" / "studio.toml").exists() or any((root / "profiles").glob("*/my-studio/studio.toml")):
         progress("Rewriting CLAUDE.md and AGENTS.md", 0, 0)
         env = {k: v for k, v in os.environ.items() if k != "REELFORGE_PROFILE"}  # every profile's, not just this one's
-        res = subprocess.run([py, "-m", "studio", "onboard", "--regenerate"], capture_output=True, text=True,
+        res = subprocess.run([py, "-m", "studio", "channel", "--regenerate", "--preserve-settings"], capture_output=True, text=True,
                              cwd=root, env={**env, "PYTHONUTF8": "1"})
         if res.returncode != 0:
             log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run: reelforge channel --regenerate")

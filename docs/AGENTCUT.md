@@ -25,9 +25,13 @@ python -m studio agentcut doctor
 python -m studio agentcut schema
 ```
 
-Installation requires **Node.js 22 or newer and npm**. It runs `npm ci` with
-ReelForge's bundled package manifest and lockfile in `tools/agentcut/`, keeping the
-engine and its exact dependencies separate from the ReelForge window. ffmpeg and
+Installation requires **stable Node.js 22.12.0 or newer and npm**, matching the
+locked Puppeteer dependencies. It runs `npm ci --engine-strict` with ReelForge's
+bundled manifest and lockfile in a temporary directory beside `tools/agentcut/`.
+Only after the dependencies and browser are ready does it replace the optional
+editor. Failed or cancelled installs leave the existing editor and app usable;
+run the same install command to retry. The engine and its exact dependencies stay
+separate from the ReelForge window. ffmpeg and
 ffprobe come from ReelForge's setup or `STUDIO_FFMPEG`. HyperFrames renders through
 headless Chrome. Installation runs `browser ensure`, which finds a compatible browser
 or downloads a managed Chrome Headless Shell into `~/.cache/hyperframes/chrome`.
@@ -120,7 +124,29 @@ composition ID; custom drawing can derive each frame from the `hf-seek` event's
 time. Follow the [animation reference](https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/runtimes.md).
 A wall-clock timer or unseeded randomness can produce a preview that differs from
 the rendered video. Keep required scripts, images, fonts and audio local so the
-composition does not depend on a CDN during capture.
+composition does not depend on a CDN during capture. AgentCut rejects remote URLs in media,
+stylesheets, scripts and fonts, paths that escape `edit/`, dynamic imports and
+network APIs such as `fetch`. Download dependencies into `edit/` first. Local
+JavaScript can animate the composition; loading dependencies at runtime is not
+supported. Render snapshots also apply a browser content security policy that
+blocks remote resources, including dynamically constructed URLs. Media must be
+self-contained video/audio or image files. Streaming playlists/manifests (HLS,
+DASH, ffconcat, SDP and similar), Lottie/JSON resources and other dependency-bearing
+media formats are unsupported: export them to a self-contained local file first.
+Resource URLs must name regular local files; save `data:`/`blob:` dependencies
+inside `edit/` instead.
+This restriction also applies to playlists disguised with a video extension,
+because FFmpeg can otherwise fetch dependencies outside the browser policy.
+
+Local files and symlinked files/directories inside `edit/` are resolved and hashed
+by content, including fonts, scripts and nested media. Broken links, directory
+cycles and special files are rejected. The top-level `.hyperframes/`, `renders/`
+and `node_modules/` directories are generated state, so compositions may not
+reference them. A render uses a resolved private snapshot and fails if its sources
+change during rendering. Its manifest binds the MP4 (including audio) and every
+expected frame filename and content hash. Replacing the MP4 or any retained
+frame requires rerendering. Old manifests without these hashes must be rerendered;
+completed videos and source footage are retained.
 
 Fill in `episode.json` too: title, timed story `lines`, CTA, cover and hashtags.
 ReelForge adds those overlays after the composition render. Leave room for them
@@ -155,7 +181,8 @@ media is silent; normal QA rejects unintended silence.
 
 Inspect every contact sheet, full-resolution frames at key beats, the cover,
 both loudness reports and factual sources. Fix failures, rerender and repeat.
-Write `build/qa/review.md` with what you checked and fixed, ending in `APPROVED`
+Write `build/qa/review.md` with what you checked and fixed, copy the exact
+`Review-SHA256: ...` line from the current QA report, and end in `APPROVED`
 only when the finished video clears the bar. Never fabricate approval or bypass
 QA. Then deliver:
 
@@ -167,3 +194,10 @@ Delivery keeps ReelForge's fresh-QA and review gates and the standard Publish
 layout: `final/<id>.mp4`, `final/cover.jpg`, `final/caption.txt` and platform
 captions. Log the result in the channel's production log. The person posts from
 ReelForge's Publish tab by hand; never upload or post through the editing engine.
+
+Approval is tied to the video bytes, cover, every caption, episode inputs, local
+edit dependencies and relevant channel settings. Editing a title, regenerating a
+cover, changing audio or replacing a file requires QA and a fresh review. Running
+QA alone cannot reuse an older approval. Existing completed videos are preserved;
+legacy reviews without a `Review-SHA256` line need one fresh review before another
+delivery. Approval authorizes this local handoff only, never automatic publishing.

@@ -124,7 +124,7 @@ The agent reads your channel brief, chooses media whose content and licence it h
 and previews and renders it. The finished edit goes through ReelForge's sound, captions, QA and review steps,
 then waits in **Publish** for you to post by hand.
 
-Run `python -m studio agentcut` for the commands, or use the `hyperframes` alias. Installation needs Node.js 22+
+Run `python -m studio agentcut` for the commands, or use the `hyperframes` alias. Installation needs Node.js 22.12.0+
 and npm, installs pinned packages in `tools/agentcut/` and prepares headless Chrome. ffmpeg comes from ReelForge's
 setup. Read [Make videos with AgentCut](docs/AGENTCUT.md) for setup and the HTML format, or
 [Choose a headless editor](docs/HEADLESS-EDITING.md) for the engine comparison. Choosing AgentCut during onboarding

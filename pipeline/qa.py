@@ -21,13 +21,13 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import config  # noqa: E402
+from studio import review  # noqa: E402
 
 SHEET_W, SHEET_H = 270, 480
 
 
 def video_fingerprint(path):
-    st = path.stat()
-    return f"{st.st_size}:{int(st.st_mtime)}"
+    return review.file_digest(path)
 
 
 def probe(path):
@@ -210,6 +210,7 @@ def check_episode(ep_dir):
     if not video.exists():
         R.add("video file", "FAIL", f"{video} missing")
         return spec, R, qa_dir, video
+    reviewed = review.snapshot(ep_dir, spec, config.SETTINGS)
     qa = spec.get("qa", {})
 
     # ---- file and streams
@@ -471,7 +472,13 @@ def check_episode(ep_dir):
     else:
         R.add("your own video, not a demo", "PASS", "not a demo")
 
+    # QA must describe the bytes it analysed, not files replaced while a long check was running.
+    unchanged = reviewed == review.snapshot(ep_dir)
+    R.add("review inputs unchanged during QA", "PASS" if unchanged else "FAIL",
+          "video, cover, captions and inputs are unchanged" if unchanged else "inputs changed; rerun QA")
+    digest = review.fingerprint(reviewed)
     result = {"episode": spec["id"], "pass": R.passed, "video": video.name, "fingerprint": video_fingerprint(video),
+              "review_snapshot": reviewed, "review_fingerprint": digest,
               "checks": R.checks, "sheets": sheets, "loudness_per_second_db": per_sec,
               "loudness_per_second_dba": a_db}
     (qa_dir / "qa.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
@@ -481,7 +488,10 @@ def check_episode(ep_dir):
     md += ["", "Loudness per second (dB): " + " ".join(f"{s}:{v}" for s, v in enumerate(per_sec)), "",
            "Loudness per second as heard (dB, A-weighted): " + " ".join(f"{s}:{v}" for s, v in enumerate(a_db)), "",
            "Contact sheets (every 2 s): " + ", ".join(sheets),
-           "", "**Still required:** look at every contact sheet and the story/facts before delivering."]
+           "", "**Still required:** review the video, cover, captions, every contact sheet and story/facts.",
+           "Write your own build/qa/review.md with your findings, the following exact receipt, and your verdict:",
+           "", f"Review-SHA256: {digest}", "",
+           "End with APPROVED only after review, or REJECTED: why. An edit requires fresh QA and review."]
     (qa_dir / "report.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     return spec, R, qa_dir, video
 

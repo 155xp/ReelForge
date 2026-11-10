@@ -15,6 +15,8 @@ afterEach(async () => {
 })
 
 const frame = (h: Headless) => h.t.captureCharFrame()
+// Windows' console uses √; macOS and Linux use ✓. Both mean selected.
+const selected = (label: string) => new RegExp(`[✓√]   ${label}`)
 
 test("your AI is a tick list: Claude Code, Codex or both, and none is a question still to answer", async () => {
   open = await headless("setup", { start: "onboard", preview: true }, 120, 40, PRELOAD)
@@ -22,18 +24,18 @@ test("your AI is a tick list: Claude Code, Codex or both, and none is a question
   await h.settle(2000)
   expect(frame(h)).toContain("Which AI will make your videos? *")
   expect(frame(h)).toContain("Pick one or both.")
-  expect(frame(h)).toContain("√   Claude Code") // the saved answer: Claude Code
+  expect(frame(h)).toMatch(selected("Claude Code")) // the saved answer: Claude Code
   expect(frame(h)).toContain("○   Codex")
   await clickText(h, "○   Codex", 2)
-  expect(frame(h)).toContain("√   Codex")
-  expect(frame(h)).toContain("√   Claude Code") // both ticked
+  expect(frame(h)).toMatch(selected("Codex"))
+  expect(frame(h)).toMatch(selected("Claude Code")) // both ticked
   await clickText(h, "  Next  ", 4)
   expect(frame(h)).toContain("2/8  Your channel")
   await clickText(h, "  Back  ", 4)
-  expect(frame(h)).toContain("√   Claude Code")
-  expect(frame(h)).toContain("√   Codex") // kept
-  await clickText(h, "√   Claude Code", 2)
-  await clickText(h, "√   Codex", 2)
+  expect(frame(h)).toMatch(selected("Claude Code"))
+  expect(frame(h)).toMatch(selected("Codex")) // kept
+  await clickText(h, frame(h).match(selected("Claude Code"))![0], 2)
+  await clickText(h, frame(h).match(selected("Codex"))![0], 2)
   await clickText(h, "  Next  ", 4)
   expect(frame(h)).toContain("1/8  You") // none ticked: it stays, asking for one
   expect(frame(h)).toContain("Please answer this one.")

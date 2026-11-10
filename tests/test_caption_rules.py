@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from pipeline import make_episode, qa
-from studio import generate, paths, profiles, publish_check, questions, settings
+from studio import generate, paths, profiles, publish_check, questions, review, settings
 from studio.__main__ import new_episode
 
 
@@ -47,11 +47,12 @@ class CaptionRules(unittest.TestCase):
         video.write_bytes(b"video already checked by QA")
         qa_dir = episode / "build" / "qa"
         qa_dir.mkdir(parents=True)
-        st = video.stat()
-        (qa_dir / "qa.json").write_text(json.dumps({"pass": True,
-                                                   "fingerprint": f"{st.st_size}:{int(st.st_mtime)}"}),
+        receipt = review.snapshot(episode, self.spec, self.settings)
+        digest = review.fingerprint(receipt)
+        (qa_dir / "qa.json").write_text(json.dumps({"pass": True, "review_snapshot": receipt,
+                                                   "review_fingerprint": digest}),
                                         encoding="utf-8")
-        (qa_dir / "review.md").write_text("APPROVED", encoding="utf-8")
+        (qa_dir / "review.md").write_text(f"Review-SHA256: {digest}\nAPPROVED", encoding="utf-8")
         with mock.patch.object(profiles, "of", return_value=profiles.Profile(self.root)), \
                 mock.patch.object(profiles, "use"), mock.patch.object(settings, "load", return_value=self.settings), \
                 mock.patch.object(publish_check, "_dashboard_listing", return_value=None):

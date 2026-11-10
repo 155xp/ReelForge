@@ -1,7 +1,7 @@
 """Turn onboarding answers into your studio: settings, channel bible, CLAUDE.md, AGENTS.md and the dashboard's config.
 
   python -m studio onboard --answers my-studio/answers.json     (what the AI-led interview runs)
-  python -m studio onboard --regenerate                         (rebuild everything from the saved answers)
+  python -m studio channel --regenerate                         (rebuild everything from the saved answers)
 
 Each profile (each channel, see studio/profiles.py) gets its own: the first profile's go where they always have, a
 new profile's into its folder in profiles/. The first profile's CLAUDE.md and AGENTS.md also list the other channels,
@@ -370,7 +370,7 @@ def write_all(answers: dict, profile=None) -> list[Path]:
     return written
 
 
-def write_guides(profile=None) -> list[Path]:
+def write_guides(profile=None, *, saved_settings: bool = False) -> list[Path]:
     """A profile's CLAUDE.md and AGENTS.md again from its saved answers, nothing else: the first profile's list the
     other channels, so they follow when a channel is added or removed. Nothing for a profile not set up yet."""
     w = _where(profile)
@@ -386,7 +386,15 @@ def write_guides(profile=None) -> list[Path]:
         path.write_text(text, encoding="utf-8", newline="\n")
         written.append(path)
 
-    _guides(a, settings_from(a), w, out)
+    s = S.load(w.settings) if saved_settings and w.settings.is_file() else settings_from(a)
+    if saved_settings:
+        # Settings are documented as editable. An update refreshes instructions
+        # from the effective settings without rewriting them from older answers.
+        from . import dashboard_config
+        handles = dashboard_config.handles(w.profile)
+        if handles is not None:
+            s["platforms"]["handles"] = handles
+    _guides(a, s, w, out)
     return written
 
 

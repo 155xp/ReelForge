@@ -16,6 +16,7 @@ from pathlib import Path
 from . import settings as S
 from . import paths as P
 from . import profiles
+from . import review as receipts
 from .paths import ROOT
 
 # The latest of these is the verdict. "NOT APPROVED" has to be tried before "APPROVED", and the words have to be
@@ -23,7 +24,7 @@ from .paths import ROOT
 _VERDICT = re.compile(r"\b(NOT\s+APPROVED|APPROVED|REJECTED)\b")
 
 
-def review_approved(review: Path) -> bool:
+def review_approved(review: Path, fingerprint: str | None = None) -> bool:
     """True if build/qa/review.md's latest verdict is APPROVED (a later REJECTED wins over an earlier APPROVED).
 
     Only the whole words count: DISAPPROVED is not an approval, and "NOT APPROVED" is a rejection."""
@@ -31,7 +32,8 @@ def review_approved(review: Path) -> bool:
         return False
     text = review.read_text(encoding="utf-8", errors="replace").upper()
     found = _VERDICT.findall(text)
-    return bool(found) and found[-1] == "APPROVED"
+    return bool(found) and found[-1] == "APPROVED" and \
+        (fingerprint is None or receipts.review_matches(review, fingerprint))
 
 
 def _dashboard_listing():
@@ -63,6 +65,8 @@ def check(ep_dir: Path) -> tuple[bool, str]:
     video = ep_dir / "final" / f"{spec['id']}.mp4"
     cap = ep_dir / "final" / "caption.txt"
     qa = ep_dir / "build" / "qa" / "qa.json"
+    s = S.load(here.settings)
+    reviewed_digest = None
 
     def item(good: bool, text: str):
         nonlocal ok
@@ -73,13 +77,18 @@ def check(ep_dir: Path) -> tuple[bool, str]:
     item(cap.exists(), "final/caption.txt (the Publish tab reads the hashtags from it)")
     if qa.exists() and video.exists():
         q = json.loads(qa.read_text(encoding="utf-8"))
-        st = video.stat()
-        fresh = q.get("fingerprint") == f"{st.st_size}:{int(st.st_mtime)}"
+        try:
+            fresh = receipts.qa_matches(q, receipts.snapshot(ep_dir, spec, s))
+        except (OSError, ValueError) as exc:
+            fresh = False
+            lines.append(f"  note  review inputs could not be verified: {exc}")
+        reviewed_digest = q.get("review_fingerprint") if fresh else None
         item(bool(q.get("pass")) and fresh, "QA passed on this exact file" if q.get("pass") and fresh
-             else "QA failed, or the video changed after QA (rerun --steps qa)")
+             else "QA failed, or the video, cover, captions or inputs changed after QA (rerun --steps qa)")
     else:
         item(False, "QA report (run --steps post)")
-    item(review_approved(ep_dir / "build" / "qa" / "review.md"), "your review (build/qa/review.md) says APPROVED")
+    item(bool(reviewed_digest) and review_approved(ep_dir / "build" / "qa" / "review.md", reviewed_digest),
+         "your review (build/qa/review.md) says APPROVED for these exact artifacts and inputs")
 
     title = " ".join(str(spec.get("title", "")).split())
     tags_line = ""
@@ -87,7 +96,6 @@ def check(ep_dir: Path) -> tuple[bool, str]:
         parts = [p.strip() for p in cap.read_text(encoding="utf-8").split("\n\n") if p.strip()]
         if len(parts) > 1 and all(w.startswith("#") for w in parts[-1].split()):
             tags_line = parts[-1]
-    s = S.load(here.settings)
     listing = _dashboard_listing()
     if listing and video.exists():
         find, meta, cfg = listing

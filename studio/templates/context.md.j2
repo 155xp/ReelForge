@@ -202,7 +202,7 @@ Selecting AgentCut during onboarding does not install it. See `docs/HEADLESS-EDI
 headless workflow. You are the agent that plans and edits the video through commands.
 
 1. Read the channel brief, this file and `docs/AGENTCUT.md`. Run `{{ py }} -m studio agentcut` for its command
-   instructions and `{{ py }} -m studio agentcut schema` for the HTML contract. `agentcut install` uses Node.js 22+
+   instructions and `{{ py }} -m studio agentcut schema` for the HTML contract. `agentcut install` uses Node.js 22.12.0+
    and npm to install the pinned dependencies in `tools/agentcut/` and prepare headless Chrome. Check
    `{{ py }} -m studio agentcut doctor` before rendering. `hyperframes` is an alias for `agentcut`.
 2. Start with `{{ py }} -m studio{{ pflag }} agentcut new <slug> --topic "the requested topic"`. Select local media
@@ -245,7 +245,8 @@ headless workflow. You are the agent that plans and edits the video through comm
    any FAIL. A WARN in the sound checks is a reason to fix the mix, not to ship.
 8. **Your review:** look at every `build/qa/sheet_*.jpg`, the cover, and full-resolution frames from the final mp4
    at every line and big moment; read both loudness lines in the report; re-check `facts.md`. Write
-   `build/qa/review.md` (picture, sound, facts) ending with `APPROVED` or `REJECTED: why`. If you're not sure it's
+   `build/qa/review.md` (picture, sound, cover, captions, facts), including the exact `Review-SHA256: ...` line
+   from the current QA report, and end with `APPROVED` or `REJECTED: why`. Changes require fresh QA and review. If you're not sure it's
    right, it isn't done.
 9. **Ship:** `--steps ship` copies the video to `{{ here }}completed videos/<id> - <title>/` (only if QA passed on this exact
    file and your review says APPROVED), deletes the render frames, and **checks that ReelForge's Publish tab lists it**

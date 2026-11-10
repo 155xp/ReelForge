@@ -54,7 +54,7 @@ From the kit folder:
 | `post` | `audio` + `video` + `cover` + `caption` + `qa` | `final/<id>.mp4`, `final/cover.jpg`, `final/caption*.txt`, `build/qa/` |
 | `qa` | `pipeline/qa.py` checks the **final mp4** (see below). Fails the run on any FAIL | `build/qa/report.md`, `qa.json`, `sheet_*.jpg` |
 | `ship` | `deliver` + `clean` + `check` | |
-| `deliver` | copies the video, cover and captions to `completed videos/<id> - <title>/`, **only if QA passed on this exact file and `build/qa/review.md` says APPROVED** | `completed videos/...` |
+| `deliver` | copies the video, cover and captions to `completed videos/<id> - <title>/`, **only if QA and `build/qa/review.md` cover these exact artifacts and inputs** | `completed videos/...` |
 | `clean` | deletes `build/frames`, `stills`, `preview` (about 0.6 GB a video) once delivered | |
 | `check` | confirms ReelForge's Publish tab lists the video with the right caption and hashtags, and prints each platform's post (same as `python -m studio publish-check episodes\<id>`) | |
 

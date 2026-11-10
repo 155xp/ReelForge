@@ -11,7 +11,8 @@ from studio import generate, paths as P, questions, settings
 
 class BackendChoice(unittest.TestCase):
     def answers(self, **over):
-        a, problems = questions.validate({"channel_name": "Test Channel", "about": "Science videos.", **over})
+        a, problems = questions.validate({"channel_name": "Test Channel", "about": "Science videos.",
+                                          "assistant": "codex", **over})
         self.assertEqual(problems, [])
         return a
 

@@ -114,6 +114,101 @@ class HeadlessCommands(Scratch):
                 invoke.assert_not_called()
 
 
+class RuntimeAndInstall(Scratch):
+    def test_runtime_checks_the_full_dependency_minimum(self):
+        with mock.patch.dict(os.environ, {"REELFORGE_NODE": "/Node with spaces/node"}):
+            for version in ("v20.19.0", "v22.0.0", "v22.11.99", "v22.12.0-rc.1", "invalid"):
+                with self.subTest(version=version), mock.patch.object(agentcut.subprocess, "run", return_value=
+                        subprocess.CompletedProcess([], 0, version + "\n", "")):
+                    with self.assertRaisesRegex(ValueError, "22.12.0"):
+                        agentcut.runtime()
+            for version in ("v22.12.0", "v22.13.1", "v24.0.0"):
+                with self.subTest(version=version), mock.patch.object(agentcut.subprocess, "run", return_value=
+                        subprocess.CompletedProcess([], 0, version + "\n", "")):
+                    self.assertEqual(agentcut.runtime(), "/Node with spaces/node")
+
+    def test_declared_node_minimum_matches_locked_puppeteer(self):
+        package = json.loads((KIT / "extras/agentcut/package.json").read_text())
+        lock = json.loads((KIT / "extras/agentcut/package-lock.json").read_text())
+        minimum = ">=" + ".".join(map(str, agentcut.NODE_MINIMUM))
+        self.assertEqual(package["engines"]["node"], minimum)
+        self.assertEqual(lock["packages"][""]["engines"]["node"], minimum)
+        for name in ("node_modules/puppeteer-core", "node_modules/@puppeteer/browsers"):
+            self.assertEqual(lock["packages"][name]["engines"]["node"], minimum)
+
+    def fake_install(self, fail=None):
+        """Simulate downloads, including a partial npm tree, without Node on PATH."""
+        def run(command, **kwargs):
+            if command[1] == "ci":
+                candidate = Path(kwargs["cwd"])
+                package = candidate / "node_modules" / "hyperframes"
+                (package / "bin").mkdir(parents=True)
+                (package / "package.json").write_text(json.dumps({"version": agentcut.VERSION}))
+                (package / "bin" / "hyperframes.mjs").write_text("// ready replacement")
+                self.assertIn("--engine-strict", command)
+                self.assertNotEqual(candidate, agentcut.install_root())
+                if fail == "npm":
+                    raise subprocess.CalledProcessError(1, command)
+            else:
+                self.assertEqual(command[-2:], ["browser", "ensure"])
+                self.assertTrue(Path(command[1]).is_file())
+                if fail == "browser":
+                    raise subprocess.CalledProcessError(1, command)
+                if fail == "cancel":
+                    raise KeyboardInterrupt()
+            return subprocess.CompletedProcess(command, 0)
+        return run
+
+    def installer_context(self, fail=None):
+        self.enterContext(mock.patch.object(agentcut, "runtime", return_value="/Node with spaces/node"))
+        self.enterContext(mock.patch.dict(os.environ, {"REELFORGE_NPM": "/Node with spaces/npm"}))
+        self.enterContext(mock.patch.object(agentcut, "environment", return_value={"PATH": "/usr/bin"}))
+        return mock.patch.object(agentcut.subprocess, "run", side_effect=self.fake_install(fail))
+
+    def test_failed_first_install_leaves_the_app_and_user_data_usable(self):
+        mine = self.root / "my-studio" / "studio.toml"
+        mine.parent.mkdir()
+        mine.write_text('[channel]\nname = "Existing channel"\n')
+        for stage in ("npm", "browser", "cancel"):
+            with self.subTest(stage=stage), self.installer_context(stage):
+                with self.assertRaises((subprocess.CalledProcessError, KeyboardInterrupt)):
+                    agentcut.install()
+            self.assertFalse(agentcut.install_root().exists())
+            self.assertEqual(settings.load(mine)["video"]["backend"], "blender")
+            self.assertEqual(mine.read_text(), '[channel]\nname = "Existing channel"\n')
+            self.assertEqual(list(P.TOOLS.glob(".agentcut-install-*")), [])
+            self.assertEqual(self.capture(["status"])[1]["installed"], False)
+
+    def test_failed_or_cancelled_reinstall_preserves_editor_and_can_retry(self):
+        script = self.installed_script()
+        original = script.read_bytes()
+        for stage in ("npm", "browser", "cancel"):
+            with self.subTest(stage=stage), self.installer_context(stage):
+                with self.assertRaises((subprocess.CalledProcessError, KeyboardInterrupt)):
+                    agentcut.install()
+            self.assertEqual(agentcut.executable().read_bytes(), original)
+            self.assertEqual(list(P.TOOLS.glob(".agentcut-install-*")), [])
+        with self.installer_context():
+            result = agentcut.install()
+        self.assertTrue(result["installed"])
+        self.assertEqual(agentcut.executable().read_text(), "// ready replacement")
+        self.assertEqual(list(P.TOOLS.glob(".agentcut-install-*")), [])
+
+    def test_interrupted_directory_swap_restores_previous_editor(self):
+        script = self.installed_script()
+        original = script.read_bytes()
+        rename = Path.rename
+        def interrupted(path, target):
+            if path.name == "candidate":
+                raise KeyboardInterrupt()
+            return rename(path, target)
+        with self.installer_context(), mock.patch.object(Path, "rename", interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                agentcut.install()
+        self.assertEqual(agentcut.executable().read_bytes(), original)
+        self.assertEqual(list(P.TOOLS.glob(".agentcut-install-*")), [])
+
+
 class EpisodeSelection(Scratch):
     def setUp(self):
         super().setUp()
@@ -161,6 +256,28 @@ class EpisodeSelection(Scratch):
         second = profiles.current().episodes / "ep02_cut"
         self.assertEqual(json.loads((second / "episode.json").read_text())["backend"], "agentcut")
 
+    def test_legacy_episode_keeps_blender_after_channel_selects_agentcut(self):
+        self.save_settings()
+        ep = self.root / "legacy episode"
+        ep.mkdir()
+        spec = {"id": "ep01_legacy", "title": "Existing video", "fps": 30,
+                "duration": 30, "render_until": 30}
+        (ep / "episode.json").write_text(json.dumps(spec))
+        config = SimpleNamespace(PIPELINE=KIT / "pipeline", BLENDER="/Blender with spaces/blender",
+                                 require_blender=mock.Mock(), require_ffmpeg=mock.Mock())
+        pipeline = pipeline_module("make_episode", config)
+        with mock.patch.dict(sys.modules, {"agentcut": None}), \
+                mock.patch.object(agentcut, "runtime", side_effect=AssertionError("optional runtime")), \
+                mock.patch.object(agentcut, "install", side_effect=AssertionError("optional install")), \
+                mock.patch.object(sys, "argv", ["make_episode", str(ep), "--steps", "build,stills,render"]), \
+                mock.patch.object(pipeline, "run") as run:
+            pipeline.main()
+        config.require_blender.assert_called_once_with()
+        self.assertEqual(run.call_count, 3)
+        self.assertTrue(all(call.args[0][0] == config.BLENDER for call in run.call_args_list))
+        self.assertEqual(json.loads((ep / "episode.json").read_text()), spec)
+        self.assertFalse(agentcut.install_root().exists())
+
 
 class EpisodeValidation(Scratch):
     def setUp(self):
@@ -173,7 +290,8 @@ class EpisodeValidation(Scratch):
         (self.ep / "episode.json").write_text(json.dumps(self.spec), encoding="utf-8")
         metadata = metadata or {"width": 1080, "height": 1920, "duration": 3}
         with mock.patch.object(agentcut, "prepare", return_value=self.ep / "edit"), \
-                mock.patch.object(agentcut, "call", side_effect=[{}, metadata]):
+                mock.patch.object(agentcut, "call", side_effect=[{}, metadata]), \
+                mock.patch("studio.agentcut_sources.validate_local_sources"):
             return agentcut.validate_episode(self.ep)
 
     def test_valid_metadata_returns_exact_frame_count(self):
@@ -216,11 +334,11 @@ class RenderFreshness(Scratch):
 
     def commit_render(self):
         self.edit.video.write_bytes(b"render fixture")
-        self.edit.manifest.write_text(json.dumps({"source": self.bridge.fingerprint(self.ep, self.spec)}))
         frames = self.ep / "build" / "frames"
         frames.mkdir(exist_ok=True)
         for index in range(1, 4):
             (frames / f"f_{index:04d}.jpg").write_bytes(b"frame fixture")
+        self.edit.write_manifest(self.bridge.fingerprint(self.ep, self.spec))
 
     def test_same_size_asset_change_invalidates_render_even_with_same_mtime(self):
         self.commit_render()
