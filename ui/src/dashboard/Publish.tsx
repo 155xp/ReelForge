@@ -101,11 +101,15 @@ function Form() {
   }
   const ps = connected?.platforms ?? init.platforms // only the connected platforms have buttons
   const copies = init.copies
-  // Each copy button sits under its platform's button, both as wide as the wider label.
+  // Each platform's copy buttons sit in a column under its button, all as wide as the widest label.
   const widths: Record<string, number> = Object.fromEntries(
-    ps.map((p) => [p.key, Math.max(`${p.name} →`.length, (copies[p.key]?.[1] ?? "").length) + 4]),
+    ps.map((p) => [p.key, Math.max(`${p.name} →`.length, ...(copies[p.key] ?? []).map(([, label]) => label.length)) + 4]),
   )
   const openAll = ps.length > 1 ? `Open all ${ps.length} →` : null
+  // the caption on its own, for when neither X (whose post it is) nor YouTube (its title) has a button
+  const captionAlone = ps.length > 0 && !ps.some((p) => p.key === "x" || p.key === "youtube")
+  // the tallest column of buttons, a row apart, and the scrollbar's row
+  const tallest = 1 + Math.max(captionAlone ? 1 : 0, ...ps.map((p) => copies[p.key]?.length ?? 0))
   return (
     <Panel flexGrow={1} paddingTop={0}>
       <Scroll flexGrow={1} scrollY>
@@ -140,55 +144,45 @@ function Form() {
         <box marginTop={2} marginBottom={1} flexShrink={0}>
           <Line segs={[["UPLOAD  ", "bold"], ["each button opens the upload page, copies that platform's text and shows the file", DASH.faint]]} />
         </box>
-        <Scroll scrollX scrollY={false} height={4} flexShrink={0}>
-          <box flexDirection="row" height={1} flexShrink={0}>
+        <Scroll scrollX scrollY={false} height={tallest * 2} flexShrink={0}>
+          <box flexDirection="row" flexShrink={0}>
             {openAll ? (
-              <Button
-                id="open-all"
-                label={openAll}
-                variant="primary"
-                marginRight={2}
-                onPress={() => s.bridge.send("open_all", s.caption, s.tags)}
-              />
+              <box flexDirection="column" marginRight={2} flexShrink={0}>
+                <Button id="open-all" label={openAll} variant="primary" onPress={() => s.bridge.send("open_all", s.caption, s.tags)} />
+              </box>
             ) : null}
             {ps.map((p) => (
-              <Button
-                key={p.key}
-                id={`open-${p.key}`}
-                label={`${p.name} ${posted?.done?.[p.key] ? "✓" : "→"}`}
-                width={widths[p.key]}
-                accent={p.color}
-                marginRight={1}
-                onPress={() => s.bridge.send("open_upload", p.key, s.caption, s.tags)}
-              />
-            ))}
-            <Button id="reveal" label="Show file" variant="ghost" marginLeft={1} onPress={() => s.bridge.send("reveal_file")} />
-          </box>
-          <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
-            {openAll ? <box width={openAll.length + 4} marginRight={2} flexShrink={0} /> : null}
-            {ps.map((p) =>
-              copies[p.key] ? (
+              <box key={p.key} flexDirection="column" gap={1} marginRight={1} flexShrink={0}>
                 <Button
-                  key={p.key}
-                  id={copies[p.key]![0]}
-                  label={copies[p.key]![1]}
+                  id={`open-${p.key}`}
+                  label={`${p.name} ${posted?.done?.[p.key] ? "✓" : "→"}`}
                   width={widths[p.key]}
-                  variant="ghost"
-                  marginRight={1}
-                  onPress={() => s.bridge.send("copy_field", copies[p.key]![0], s.caption, s.tags)}
+                  accent={p.color}
+                  onPress={() => s.bridge.send("open_upload", p.key, s.caption, s.tags)}
                 />
-              ) : null,
-            )}
-            {ps.length && !ps.some((p) => p.key === "x") ? (
-              // the caption on its own, for when X (whose post it is) isn't connected
-              <Button
-                id="copy-caption-alone"
-                label="Copy caption"
-                variant="ghost"
-                marginRight={1}
-                onPress={() => s.bridge.send("copy_field", "copy-caption-alone", s.caption, s.tags)}
-              />
-            ) : null}
+                {(copies[p.key] ?? []).map(([id, label]) => (
+                  <Button
+                    key={id}
+                    id={id}
+                    label={label}
+                    width={widths[p.key]}
+                    variant="ghost"
+                    onPress={() => s.bridge.send("copy_field", id, s.caption, s.tags)}
+                  />
+                ))}
+              </box>
+            ))}
+            <box flexDirection="column" gap={1} marginLeft={1} flexShrink={0}>
+              <Button id="reveal" label="Show file" variant="ghost" onPress={() => s.bridge.send("reveal_file")} />
+              {captionAlone ? (
+                <Button
+                  id="copy-caption-alone"
+                  label="Copy caption"
+                  variant="ghost"
+                  onPress={() => s.bridge.send("copy_field", "copy-caption-alone", s.caption, s.tags)}
+                />
+              ) : null}
+            </box>
           </box>
         </Scroll>
         <box marginTop={1} marginBottom={1} flexShrink={0}>

@@ -12,6 +12,8 @@ changes: it only swaps what ReelForge would find here for the same things on a f
   - A sign-up guide's button, Open profile and every other link open nothing: no browser ever opens from a picture
     or a test (a test that sets REELFORGE_OPENED to a file finds the pages listed there), and a second channel's
     private window is always Chrome's.
+  - Nor does a Copy button touch this computer's clipboard (a test that sets REELFORGE_COPIED to a file finds what
+    was copied there).
 """
 
 from __future__ import annotations
@@ -76,7 +78,7 @@ ACCOUNTS_ANSWERS = {"creator": "Sam", "channel_name": "Night Physics", "handle_t
 
 
 def _first_run() -> None:
-    from studio import command, setup_flow, setup_service, sounds, stats_schedule, tools
+    from studio import ai_prompt, command, setup_flow, setup_service, sounds, stats_schedule, tools
     from studio import paths as P
     from studio import settings as S
 
@@ -95,7 +97,7 @@ def _first_run() -> None:
     ]
     sample = copy.deepcopy(S.DEFAULTS)  # a new channel's last screen, with nothing turned on here
     sample["channel"]["name"] = "Night Physics"
-    sample["ai"].update(assistant="both")
+    sample["ai"].update(assistant=["claude"])
     sample["platforms"]["handles"] = {p: "yourchannel" for p in S.PLATFORMS}
     S.load = lambda path=None: sample
     stats_schedule.enable = lambda minutes=60: (f"Your stats will update every {minutes} minutes while this computer "
@@ -105,6 +107,7 @@ def _first_run() -> None:
     if os.environ.get("REELFORGE_SHOT") == "setup-accounts":
         answers = ACCOUNTS_ANSWERS
     setup_service.saved_answers = lambda profile=None: dict(answers)
+    ai_prompt.has_videos = lambda profile: False  # the Publish tab's demos aren't this new channel's: its first video
 
 
 def _list_modules() -> None:
@@ -135,6 +138,20 @@ def _no_browser() -> None:
     desktop.open_url = opened
 
 
+def _no_clipboard() -> None:
+    """Copy buttons copy nothing here: what they would copy goes in REELFORGE_COPIED's file, if it's set (one copy
+    after another, each followed by a line of its own saying so)."""
+    from dashboard import desktop
+
+    def copied(text: str) -> bool:
+        if os.environ.get("REELFORGE_COPIED"):
+            with open(os.environ["REELFORGE_COPIED"], "a", encoding="utf-8", newline="\n") as f:
+                f.write(text + "\n-- copied --\n")
+        return True
+
+    desktop.copy = copied
+
+
 def _night_off() -> None:
     """The Stats tab's picture: the demo's readings with a night the computer was off taken out, from 9 PM four days ago
     until 1 PM the next day, so its charts show what an estimate looks like."""
@@ -160,4 +177,5 @@ atexit.register(_list_modules)
 _dashboard()
 _first_run()
 _no_browser()
+_no_clipboard()
 _night_off()

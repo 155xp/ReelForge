@@ -12,7 +12,7 @@ import { OptionList } from "../ui/Lists"
 import { Modal, Scroll, Wrapped } from "../ui/Panels"
 import { useFocusManager } from "../lib/focus"
 import { DeleteProfile, ProfileMenu } from "./Profiles"
-import { DiscardProfile, FactoryReset, Uninstall } from "./Settings"
+import { DiscardProfile, FactoryReset, MoveFolder, Uninstall } from "./Settings"
 import { PUBLISH_KEY, useDash, type EpisodeData, type LogData, type SignupData } from "./state"
 
 export function Dialogs() {
@@ -30,6 +30,7 @@ export function Dialogs() {
   if (d.kind === "discard_profile") return <DiscardProfile data={d.data} close={close} />
   if (d.kind === "factory_reset") return <FactoryReset data={d.data} close={close} />
   if (d.kind === "uninstall") return <Uninstall data={d.data} close={close} />
+  if (d.kind === "move_folder") return <MoveFolder data={d.data} close={close} />
   return <EpisodePicker data={d.data} close={close} />
 }
 

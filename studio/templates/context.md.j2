@@ -78,7 +78,7 @@ file is for, ask.
 {% if claude %}
 - **Opus, always**, for every session and every subagent you start for this channel. If you are not on Opus, say so
   in one line and tell {{ who }} how to switch: `/model opus` (in the desktop app: the model picker under the prompt
-  box). How hard you think is up to {{ who }} and their AI app, not ReelForge{% if s.ai.assistant in ("claude", "both") %}: first-time
+  box). How hard you think is up to {{ who }} and their AI app, not ReelForge{% if "claude" in s.ai.assistant %}: first-time
   setup asked Claude Code for {{ effort }} effort in the ReelForge folder (`.claude/settings.local.json`), and `/effort`
   changes it{% else %}, and `/effort` changes it{% endif %}.
 {% else %}

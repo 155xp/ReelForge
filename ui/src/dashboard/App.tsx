@@ -31,7 +31,7 @@ import type { Init, NotesView, ProfileView, UpdateView } from "./types"
 import { Updates } from "./Updates"
 import { Videos } from "./Videos"
 
-export function DashboardApp({ bridge, init, quit, nav }: { bridge: Bridge; init: Init; quit: (code?: number) => void; nav?: Nav }) {
+export function DashboardApp({ bridge, init, quit, nav }: { bridge: Bridge; init: Init; quit: (code?: number, result?: object) => void; nav?: Nav }) {
   const state = useMemo(() => new DashState(bridge, init, quit, nav), [bridge, init, quit, nav])
   const focus = useMemo(() => new FocusManager(), [])
   useEffect(() => {
@@ -40,7 +40,7 @@ export function DashboardApp({ bridge, init, quit, nav }: { bridge: Bridge; init
       bridge.on("tab", (d) => state.set({ tab: d.tab })),
       bridge.on("pick", (d) => state.pick(d.id)),
       bridge.on("focus", (d) => setTimeout(() => focus.focus(d.id), 50)),
-      bridge.on("exit", (d) => quit(d.code ?? 0)),
+      bridge.on("exit", (d) => quit(d.code ?? 0, d.result ?? undefined)), // result: {restart: true} from Restart
       // A picked video's caption and hashtags, for the Publish form (whichever tab is open when it's picked).
       bridge.on("form", (d) => state.set({ caption: d.caption ?? "", tags: d.tags ?? "" })),
       // Another ReelForge window moved a tab (the Settings tab's Tab order): this one follows.

@@ -10,8 +10,8 @@
 
 The window opens on the profile (the channel) you had open last; reelforge -p NAME picks one (see studio/profiles.py).
 
-Exit codes: 0 fine, 2 a word it doesn't know, 3 the kit's Python packages are missing (run setup), 75 ReelForge
-updated itself and the launcher should start it again.
+Exit codes: 0 fine, 2 a word it doesn't know, 3 the kit's Python packages are missing (run setup), 75 the launcher
+should start ReelForge again (it updated itself, or Restart on the Settings tab was pressed).
 """
 
 from __future__ import annotations
@@ -66,9 +66,10 @@ def main(argv: list[str] | None = None) -> int:
     if sys.platform == "win32":
         threading.Thread(target=_terminal_profile, daemon=True).start()
     # No tab asked for: the Overview, or Accounts while nothing is connected (Dashboard.open).
-    code, _ = ui.run("dashboard", {"tab": tab_for(word), "drawer": word in DRAWER_WORDS, "demo": args.demo})
-    if code == 75 and not (config.APP_DIR.parent / ".reelforge-pending.json").exists():  # not a reset or uninstall
-        print("ReelForge updated itself; starting it again…")
+    code, asked = ui.run("dashboard", {"tab": tab_for(word), "drawer": word in DRAWER_WORDS, "demo": args.demo})
+    if code == 75 and not (config.APP_DIR.parent / ".reelforge-pending.json").exists():  # no reset, uninstall, move
+        restart = isinstance(asked, dict) and asked.get("restart")  # Restart on the Settings tab
+        print("Restarting ReelForge…" if restart else "ReelForge updated itself; starting it again…")
     return code
 
 

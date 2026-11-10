@@ -88,7 +88,7 @@ just leaves Publish out).
 | **Publish** | Finished videos, newest first, with the platforms each one is already on. Pick one, check the caption and hashtags (the preview shows exactly what each platform gets), then use the platform buttons. Under the list, the **best time to post** on each platform. |
 | **Stats** | Your **views**, **followers** and **likes** added up across your platforms, over time. **Add up** ticks the platforms the totals count (click one to leave it out, and again to count it); the range is 24H, 48H, 7D, 30D or ALL. Each chart is the total as a filled area from ReelForge's readings: a stretch the computer was off for is filled in with an estimate, the straight line between the readings either side, hatched ╱╱ and marked estimated when you point at it (a platform whose log-in ran out for a while is estimated the same way, and the total is hatched where that platform is most of it); an estimate is never a best day or hour. A platform whose reads stopped counts with its last reading (its row says when that was), and the totals start once every platform counted has its first reading. Point at a chart for the totals then and each platform's part; yellow ▼ marks show where videos went up. Beside each chart, every platform's number now, its gain over the range, its gains hour by hour (or day by day) and its share of the total. |
 | **Accounts** | Every platform: **Connect** one with your @handle (or **Sign up** for one you don't have yet: it opens the platform's own sign-up page, with the steps beside it, in a private window of your browser once you have more than one profile) and **Disconnect** one you've stopped using (its stats stay saved). For a connected one: where its stats come from, when they were last and will next be read, the last error if any, **Log in** (Instagram, X), **Open profile** and **Refresh now**. |
-| **Settings** | This channel's answers from first-time setup (**Change your answers**), an **FAQ** (click a question for its answer; the first says which model your AI uses and how hard it thinks, which your AI app decides, not ReelForge), the **Tab order** (above), what ReelForge set up on this computer (the hourly stats read, the `reelforge` command, the icon), each with its button, and your **Profiles**: **Delete…** beside each one this window can delete, **New profile**, and the deleted ones, each with **Restore** (see Profiles above). At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
+| **Settings** | This channel's answers from first-time setup (**Change your answers**), an **FAQ** (click a question for its answer; the first says which model your AI uses and how hard it thinks, which your AI app decides, not ReelForge), the **Tab order** (above), what ReelForge set up on this computer (**Background refresh**, the hourly stats read, with a switch to turn it on or off; the `reelforge` command and the icon, each with its button), **Restart** (ReelForge closes and opens again straight away), and your **Profiles**: **Delete…** beside each one this window can delete, **New profile**, and the deleted ones, each with **Restore** (see Profiles above). At the bottom, **Factory reset** (every channel's settings, logins and stats into a backup in `backups`, then first-time setup again; videos stay) and **Uninstall** (videos and channels kept in a folder beside ReelForge, the rest to the Recycle Bin or the Trash). Both ask for the channel's name; `reelforge reset` and `reelforge uninstall` do the same. |
 | **Updates** | Your version, what's new in the next one (or in yours, when it's the newest), and **Update and restart**. |
 
 **Score** is how a video compares with your typical video at the same age, across every platform: 1.0× is normal and
@@ -171,10 +171,10 @@ login ever stops working, **Type in stats** (on that platform's Accounts panel) 
 hand.
 
 Platforms report lifetime totals, so ReelForge saves a snapshot every time it reads them and builds the charts from
-those snapshots: they fill in the longer it runs. **Background stats** (`reelforge stats on`, or first-time setup's
-question) keep them filling in while ReelForge is closed: a small job wakes once an hour, reads your stats in a
-hidden browser for about a minute, and exits. `reelforge stats off` stops it. Each run adds a line to
-`dashboard/data/refresh.log`.
+those snapshots: they fill in the longer it runs. **Background stats** (the Settings tab's **Background refresh**
+switch, `reelforge stats on`, or first-time setup's question) keep them filling in while ReelForge is closed: a small
+job wakes once an hour, reads your stats in a hidden browser for about a minute, and exits. The switch, or
+`reelforge stats off`, stops it. Each run adds a line to `dashboard/data/refresh.log`.
 
 ## Publish
 
@@ -182,8 +182,9 @@ The green **Publish** button at the top right opens it, from any tab (so does **
 lists every finished video from the pipeline (`episodes/<id>/final/<id>.mp4` and `completed videos/`), plus any
 video you drop into `dashboard/videos/`. Picking one fills in the caption (the episode's `title`) and its hashtags.
 What each platform gets follows your channel's caption rules from first-time setup: the caption plus hashtags on TikTok
-(your first hashtag, usually #fyp, always leads) and Instagram, the caption as the YouTube title with the hashtags as
-its description, and the caption alone on X unless you allowed hashtags there.
+(your first hashtag, usually #fyp, always leads) and Instagram, the caption with #shorts after it as the YouTube title
+(**Copy caption** under YouTube's button) with the hashtags as its description, and the caption alone on X unless you
+allowed hashtags there.
 
 Each platform button copies that platform's text, shows the file in Explorer, Finder or your file manager (drag it
 into the upload page) and

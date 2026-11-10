@@ -1,13 +1,14 @@
 // The Settings tab: this channel's answers from first-time setup and the FAQ side by side (one under the other in a
-// narrow window), the order of the tabs along the top, what ReelForge set up on this computer, your profiles (Delete
-// beside each one this window can delete, Restore beside each one deleted), and the danger zone across the bottom:
-// factory reset and uninstall, each behind a dialog where you type the channel's name. None of them deletes anything:
-// what they clear goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and
-// does the work (with studio/reset.py, and dashboard/service.py and studio/profiles.py for the profiles);
+// narrow window), the order of the tabs along the top, what ReelForge set up on this computer (with the Background
+// refresh switch, and ReelForge's own folder with Open and Move…) and Restart, your profiles (Delete beside each one this
+// window can delete, Restore beside each one deleted), and the danger zone across the bottom: factory reset and
+// uninstall, each behind a dialog where you type the channel's name. None of them deletes anything: what they clear
+// goes to a backup or the Recycle Bin (Trash). dashboard/settings_tab.py sends the "settings" view and does the work
+// (with studio/reset.py and studio/move.py, and dashboard/service.py and studio/profiles.py for the profiles);
 // dashboard/faq.py writes the FAQ, and dashboard/tabs.py keeps the tab order.
 
 import { TextAttributes, type KeyEvent, type Renderable } from "@opentui/core"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { useView } from "../bridge"
 import { useFocus } from "../lib/focus"
 import { lines, type Segs } from "../lib/styled"
@@ -23,6 +24,8 @@ export interface ComputerRow {
   on: boolean
   value: string
   button: string
+  switch?: boolean // a switch in place of the button: Background refresh, where this window can change it
+  move?: string // ReelForge's folder: Move… beside its Open button, when it isn't in a folder of its own and can go there
 }
 
 /** A question and its answer (a little Markdown). */
@@ -75,6 +78,13 @@ export interface UninstallData {
   channels: string[]
 }
 
+/** The Move dialog (dashboard/settings_tab.py move_info): from where to where and what follows, or why it can't. */
+export interface MoveData {
+  note: Segs
+  to: string
+  problem: string // why it can't move ("" when it can)
+}
+
 const DANGER = DASH.bad
 
 /** What's typed matches the name to type: any case, spaces squeezed (studio/reset.py matches). */
@@ -121,8 +131,9 @@ export function Settings() {
   )
 }
 
-/** This channel's answers, and the button that asks first-time setup's questions again. grow: half the row (beside
- * the FAQ), else as tall as its rows (over it). */
+/** This channel's answers, the button that asks first-time setup's questions again, and (once it's set up) the one
+ * that copies the prompt that starts your AI on it. grow: half the row (beside the FAQ), else as tall as its rows
+ * (over it). */
 function Channel({ v, grow }: { v: SettingsView; grow: boolean }) {
   const s = useDash()
   const width = Math.max(...v.rows.map(([label]) => label.length), 8) + 3
@@ -144,8 +155,9 @@ function Channel({ v, grow }: { v: SettingsView; grow: boolean }) {
           This channel isn't set up yet: first-time setup asks a few questions about it and writes your AI's notes.
         </text>
       )}
-      <box flexDirection="row" height={1} marginTop={1} flexShrink={0}>
+      <box flexDirection="row" flexWrap="wrap" rowGap={1} marginTop={1} flexShrink={0}>
         <Button id="settings-change" label={v.onboarded ? "Change your answers" : "Set it up"} variant="primary" marginRight={1} onPress={change} />
+        {v.onboarded ? <Button id="settings-prompt" label="Copy prompt for your AI" marginRight={1} onPress={() => s.bridge.send("copy_ai_prompt")} /> : null}
       </box>
     </Panel>
   )
@@ -324,30 +336,75 @@ function TabOrder() {
   )
 }
 
-/** What ReelForge set up on this computer, each with its button (all as wide as the widest, lined up on the right). */
+const RESTART = "Restart"
+const SWITCH_WIDTH = 10 // "━━━▐█▌ Off", its widest
+
+/** What ReelForge set up on this computer, each with its button (all as wide as the widest, lined up on the right).
+ * Background refresh (the hourly stats read) has a switch instead: it flips at once and says it's turning on or off
+ * until the computer says how it went. The last row is ReelForge's own folder, green when it's in a folder of its own,
+ * with Open in Explorer (Finder), and Move… beside it (its dialog: MoveFolder) when it isn't and can go there. Under them, Restart closes the window, and the
+ * launcher opens ReelForge again. */
 function Computer({ v }: { v: SettingsView }) {
   const s = useDash()
-  const width = Math.max(0, ...(v.computer ?? []).map((row) => row.button.length)) + 4
+  const shown = useRef<ComputerRow[] | null>(null)
+  if (v.computer) shown.current = v.computer
+  const rows = shown.current // while they're looked up again (after a change), the rows as they were
+  const [flipped, setFlipped] = useState<Record<string, boolean>>({}) // switches just pressed, until the rows say
+  useEffect(() => {
+    if (v.computer) setFlipped({})
+  }, [v.computer])
+  const width = Math.max(RESTART.length, ...(rows ?? []).map((row) => row.button.length)) + 4
+  const item = (key: string, label: string, value: string, good: boolean, control: ReactNode) => (
+    <box key={key} flexDirection="row" height={3} flexShrink={0} alignItems="center" gap={1}>
+      <box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="center">
+        <text attributes={TextAttributes.BOLD} wrapMode="none">
+          {label}
+        </text>
+        <text fg={good ? DASH.good : DASH.muted} wrapMode="none">
+          {value}
+        </text>
+      </box>
+      {control}
+    </box>
+  )
+  const flip = (row: ComputerRow, on: boolean) => {
+    if (!v.demo) setFlipped((f) => ({ ...f, [row.key]: on })) // the demo changes nothing, so it stays as it is
+    s.bridge.send("settings_toggle", row.key, on)
+  }
+  const control = (row: ComputerRow, on: boolean) =>
+    row.switch ? (
+      <box width={width} flexShrink={0} flexDirection="row" paddingLeft={Math.max(Math.floor((width - SWITCH_WIDTH) / 2), 0)}>
+        <Switch id={`settings-${row.key}`} value={on} labels={["On", "Off"]} onChange={(want) => flip(row, want)} />
+      </box>
+    ) : row.key === "folder" ? (
+      <box flexDirection="row" flexShrink={0} gap={1}>
+        {row.move ? (
+          <Button id="settings-move" label={row.move} flexShrink={0} onPress={() => void s.openDialog("move_folder", s.bridge.call("move_info"))} />
+        ) : null}
+        <Button id="settings-folder" label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("open_reelforge_folder")} />
+      </box>
+    ) : row.button ? (
+      <Button id={`settings-${row.key}`} label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("settings_toggle", row.key)} />
+    ) : null
   return (
     <Panel title="ON THIS COMPUTER" flexShrink={0}>
-      {v.computer === null ? (
+      {rows === null ? (
         <text fg={DASH.muted} flexShrink={0}>
           Looking…
         </text>
       ) : (
-        v.computer.map((row) => (
-          <box key={row.key} flexDirection="row" height={3} flexShrink={0} alignItems="center" gap={1}>
-            <box flexDirection="column" flexGrow={1} flexShrink={1} justifyContent="center">
-              <text attributes={TextAttributes.BOLD} wrapMode="none">
-                {row.label}
-              </text>
-              <text fg={row.on ? DASH.good : DASH.muted} wrapMode="none">
-                {row.value}
-              </text>
-            </box>
-            {row.button ? <Button id={`settings-${row.key}`} label={row.button} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("settings_toggle", row.key)} /> : null}
-          </box>
-        ))
+        rows.map((row) => {
+          const on = flipped[row.key] ?? row.on
+          const value = row.key in flipped ? (on ? "turning it on…" : "turning it off…") : row.value
+          return item(row.key, row.label, value, on && !(row.key in flipped), control(row, on))
+        })
+      )}
+      {item(
+        "restart",
+        "Restart ReelForge",
+        "closes ReelForge and opens it again",
+        false,
+        <Button id="settings-restart" label={RESTART} minWidth={width} flexShrink={0} onPress={() => s.bridge.send("restart")} />,
       )}
     </Panel>
   )
@@ -519,6 +576,32 @@ export function FactoryReset({ data, close }: { data: ResetData; close: () => vo
       <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
         <Button id="reset-cancel" label="Cancel" onPress={close} />
         <Button id="reset-go" label="Reset ReelForge" variant="error" disabled={!ok} onPress={go} />
+      </box>
+    </Modal>
+  )
+}
+
+/** Moving ReelForge into a folder of its own: nothing to type, since nothing is lost (studio/move.py). */
+export function MoveFolder({ data, close }: { data: MoveData; close: () => void }) {
+  const s = useDash()
+  const go = () => {
+    if (data.problem) return
+    close()
+    void s.bridge.call<boolean>("move_folder", data.to)
+  }
+  return (
+    <Modal name="move-folder" title="MOVE REELFORGE" width={90}>
+      {lines(data.note).map((l, i) => (
+        <Wrapped key={i} segs={l.length ? l : [[" ", ""]]} flexGrow={0} />
+      ))}
+      {data.problem ? (
+        <text marginTop={1} fg={DASH.warn} wrapMode="word" flexShrink={0}>
+          {data.problem}
+        </text>
+      ) : null}
+      <box flexDirection="row" justifyContent="flex-end" height={1} marginTop={2} flexShrink={0} gap={1}>
+        <Button id="move-cancel" label={data.problem ? "Close" : "Cancel"} onPress={close} />
+        {data.problem ? null : <Button id="move-go" label="Move ReelForge" variant="primary" onPress={go} />}
       </box>
     </Modal>
   )

@@ -50,6 +50,7 @@ export type Dialog =
   | { kind: "discard_profile"; data: import("./Settings").DeletedProfile & { bin: string } }
   | { kind: "factory_reset"; data: import("./Settings").ResetData }
   | { kind: "uninstall"; data: import("./Settings").UninstallData }
+  | { kind: "move_folder"; data: import("./Settings").MoveData }
 
 /** Moving between profiles (one for each channel), which the window does round this one (ui/src/root.tsx): show
  * another profile (its own Python side starts, on this tab), or onboarding in the window, for a new profile or for
@@ -182,7 +183,7 @@ export class DashState {
   }
 
   async openDialog(
-    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "delete_profile" | "factory_reset" | "uninstall",
+    kind: "log" | "remove" | "episode" | "signup" | "disconnect" | "profiles" | "delete_profile" | "factory_reset" | "uninstall" | "move_folder",
     call: Promise<any>,
   ) {
     const data = await call

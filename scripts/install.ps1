@@ -56,6 +56,21 @@
         Say "To update it, open ReelForge and go to Updates (type reelforge updates). To put another copy somewhere else:"
         Say '  $env:REELFORGE_DIR = "D:\ReelForge"   then paste the install command again'
         return
+    } elseif (-not $env:REELFORGE_DIR) {
+        # A ReelForge kept somewhere else has its bin folder on your PATH (its reelforge command). That one moves into
+        # its own folder from its Settings tab, rather than a second copy being made here.
+        foreach ($entry in ([Environment]::GetEnvironmentVariable("Path", "User") -split ";")) {
+            $bin = [Environment]::ExpandEnvironmentVariables($entry.Trim().Trim('"')).TrimEnd("\")
+            if (-not $bin -or (Split-Path -Leaf $bin) -ne "bin") { continue }
+            $there = Split-Path -Parent $bin
+            if ((Test-Path -LiteralPath (Join-Path $there "studio\__init__.py")) -and -not (Test-Path -LiteralPath (Join-Path $there "TEST-COPY.txt"))) {
+                Say "ReelForge is already on this computer, in $there, so nothing was changed." "Yellow"
+                Say "To put it in its own folder ($dir), open ReelForge and click Move next to ReelForge's folder on its"
+                Say "Settings tab (if there's no Move yet, update it on its Updates tab first). To install a second copy anyway:"
+                Say '  $env:REELFORGE_DIR = "D:\ReelForge"   then paste the install command again'
+                return
+            }
+        }
     }
 
     $parent = Split-Path -Parent $dir

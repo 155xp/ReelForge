@@ -231,6 +231,13 @@ about it. The hourly stats job reads every profile, and `reelforge -p "Channel n
 today's videos" makes every channel's, except one you set to post **Only when I ask** (a channel you're only trying
 out, say).
 
+`reelforge profiles --json` prints one JSON object with `current` (the selected profile's key) and a `profiles` array.
+Each profile has `key`, `name`, `folder` (an absolute path), `main`, `onboarded` (true once its first-time setup is
+done), and `platforms` (enabled platform keys from its studio settings, or the defaults before first-time setup).
+Selection follows `reelforge profiles`: `-p NAME` or `REELFORGE_PROFILE`, then the last-opened profile, then the
+first. It changes no files or profile selection and includes no login data. `--json` cannot be combined with `new`,
+`delete`, or `restore`.
+
 Done with a channel you added? **Delete** beside it in the menu (or the Delete key, or **Delete…** under **Profiles**
 on the Settings tab) asks you to type its name, then takes it out of ReelForge. Nothing is deleted for good: its whole
 folder, with its accounts, logins, stats, settings and videos, moves into `backups` in the ReelForge folder, and
@@ -243,13 +250,16 @@ folder itself.
 ### Settings
 
 This channel's answers from first-time setup (**Change your answers** asks the questions again), an FAQ beside them
-(click a question and its answer opens under it), and what ReelForge set up on your computer: the hourly stats read,
-the `reelforge` command and the icon, each with a button to turn it on or off. Under them, **Profiles** lists your
-channels, with **Delete…** beside each one you can delete and **New profile**, then the ones you've deleted, each with
-**Restore** and **Move to the Recycle Bin** (to free its space for good). Across the bottom, the danger zone: **Factory reset** puts every channel's settings, logins and stats in a backup and starts first-time
-setup again, and **Uninstall** removes ReelForge. Both ask you to type your channel's name first, and neither deletes
-anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac). Neither stops half-way either:
-if something can't be moved (another ReelForge window has it open, say), nothing changes.
+(click a question and its answer opens under it), and what ReelForge set up on your computer: **Background refresh**,
+the hourly stats read that keeps your stats updating while ReelForge is closed, with a switch to turn it on or off,
+then the `reelforge` command and the icon, each with a button. **Restart** under them closes ReelForge and opens it
+again straight away. Then **Profiles** lists your channels, with **Delete…** beside each one you can delete and
+**New profile**, then the ones you've deleted, each with **Restore** and **Move to the Recycle Bin** (to free its space
+for good). Across the bottom, the danger zone: **Factory reset** puts every channel's settings, logins and stats in a
+backup and starts first-time setup again, and **Uninstall** removes ReelForge. Both ask you to type your channel's
+name first, and neither deletes anything: what they clear goes to a backup or the Recycle Bin (the Trash on a Mac).
+Neither stops half-way either: if something can't be moved (another ReelForge window has it open, say), nothing
+changes.
 
 **Tab order**, under the FAQ, puts the tabs along the top in the order you like: drag a tab where you want it, or
 click one and move it with **← Move left** and **Move right →** (or Shift and the arrow keys). The number keys follow
@@ -257,7 +267,7 @@ the new order, and so does `reelforge 1` to `reelforge 7`. It's kept for every c
 them back as they started, with Settings and Updates at the far right. Publish isn't one of them: it keeps its own
 green button at the top right.
 
-![The Settings tab: the channel's answers, the FAQ with its first answer open, the tab order, what ReelForge set up on this computer, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
+![The Settings tab: the channel's answers, the FAQ with its first answer open, the tab order, what ReelForge set up on this computer with the Background refresh switch and Restart, the profiles with one deleted, and the danger zone](docs/screenshots/app-settings.png)
 
 ## Updates
 
@@ -339,7 +349,8 @@ folder in `episodes`, and a copy of each finished one goes to `completed videos`
 <br>
 
 Yes, if you said yes during first-time setup. Once an hour, while your computer is on, a small background job reads your
-stats for about a minute, then stops. Turn it off or back on with `reelforge stats off` or `reelforge stats on`.
+stats for about a minute, then stops. Turn it off or back on with the **Background refresh** switch on the Settings
+tab, or with `reelforge stats off` and `reelforge stats on`.
 
 </details>
 
@@ -456,8 +467,9 @@ command, the hourly stats job or ReelForge's icon, which stay with your real Ree
 
 <br>
 
-Run `reelforge doctor`. It checks everything ReelForge needs and says how to fix anything that fails. `reelforge
-setup` repairs the setup.
+Try **Restart** on the Settings tab first: ReelForge closes and opens again. If that doesn't fix it, run
+`reelforge doctor`. It checks everything ReelForge needs and says how to fix anything that fails. `reelforge setup`
+repairs the setup.
 
 </details>
 
@@ -492,7 +504,10 @@ or point `STUDIO_BLENDER` at it.
   `reelforge profiles restore` brings it back.
 - `reelforge -p "Channel name"` opens ReelForge on one channel (it works with any command).
 - `reelforge setup` sets up or repairs the tools.
-- `reelforge doctor` checks everything.
+- `reelforge doctor` checks everything. `--render-test` also builds an example scene and renders one frame.
+  `reelforge doctor --json` writes one JSON document to stdout with `version`, `root`, `failed`, and `checks`
+  (`status`, `what`, and `detail` for each check). Status values are `ok`, `warn`, and `FAIL`.
+  With `--render-test --json`, progress goes to stderr. Both formats exit with code 1 if any check fails, or 0 otherwise.
 - `reelforge stats on` and `reelforge stats off` turn the hourly stats on and off.
 - `reelforge reset` starts over (a factory reset), and `reelforge uninstall` removes ReelForge.
 - `reelforge help` lists the rest.

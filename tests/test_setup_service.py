@@ -97,7 +97,28 @@ class OnboardTest(unittest.TestCase):
         first = self.svc.onboard_step(0)
         self.assertEqual(first["title"], f"1/{len(self.start['steps'])}  You")
         self.assertEqual(list(self.fields(first)), ["creator", "assistant"])
-        self.assertEqual(self.fields(first)["assistant"]["value"], "claude")  # the default, picked
+
+    def test_you_pick_your_ai_yourself(self):
+        # Claude Code, Codex or both, ticked like the platforms, with neither recommended or ticked for you
+        ai = self.fields(self.svc.onboard_step(0))["assistant"]
+        self.assertEqual((ai["kind"], ai["options"]), ("multi", [["claude", "Claude Code"], ["codex", "Codex"]]))
+        self.assertEqual((ai["value"], ai["required"]), (None, True))
+        for none in ({"creator": "Sam"}, {"creator": "Sam", "assistant": []}):
+            res = self.svc.onboard_next(none)
+            self.assertEqual((res["ok"], res["errors"], res["first"]),
+                             (False, {"assistant": "Please answer this one."}, "assistant"))
+        self.assertTrue(self.svc.onboard_next({"creator": "Sam", "assistant": ["codex"]})["ok"])
+        self.assertEqual(self.svc.answers["assistant"], ["codex"])
+        self.svc.onboard_step(0)
+        self.assertTrue(self.svc.onboard_next({"creator": "Sam", "assistant": ["codex", "claude"]})["ok"])
+        self.assertEqual(self.svc.answers["assistant"], ["codex", "claude"])
+
+    def test_an_older_answer_ticks_the_same_ais(self):
+        # one word before 2.2.0: that AI ticked, and Both (until 2.1.1) both of them
+        for old, ticked in (("claude", ["claude"]), ("codex", ["codex"]), ("both", ["claude", "codex"])):
+            with mock.patch("studio.setup_service.saved_answers", lambda: {"creator": "Sam", "assistant": old}):
+                self.svc.onboard_start()
+            self.assertEqual(self.fields(self.svc.onboard_step(0))["assistant"]["value"], ticked)
 
     def test_a_required_answer_holds_the_step(self):
         self.svc.onboard_step(1)

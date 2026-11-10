@@ -4,8 +4,9 @@
 //   bun src/main.tsx setup '{"start": "tools"}'                        the first-run screens
 //
 // It starts the Python side (studio/bridge.py) for everything it shows, and exits with the window's exit code (75:
-// ReelForge updated itself, so the launcher starts it again). What the last first-run screen asks for (open ReelForge
-// on a tab) is written to REELFORGE_RESULT for the launcher.
+// ReelForge updated itself, or Restart on the Settings tab was pressed, so the launcher starts it again). What the last
+// first-run screen asks for (open ReelForge on a tab), or Restart ({"restart": true}), is written to REELFORGE_RESULT
+// for the launcher.
 //
 // The window shows one profile (one for each channel, studio/profiles.py) at a time. Switching starts a new Python
 // side on the profile picked (REELFORGE_PROFILE) and lets the old one go: a stats read it has under way finishes by
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
       process.stdout.write("Finishing the stats read that was running (it closes its browser first)…\n")
       await done
     } else await Promise.race([done, Bun.sleep(3000)])
-    process.exit(code) // 75: updated (the launcher says so, and starts ReelForge again)
+    process.exit(code) // 75: updated or Restart (the launcher says which, and starts ReelForge again)
   }
 
   let first: View

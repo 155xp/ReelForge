@@ -177,9 +177,11 @@ class PlatformQuestions(unittest.TestCase):
         for p in settings.PLATFORMS:
             q = questions.BY_KEY[f"handle_{p}"]
             self.assertEqual((q.step, q.kind), ("accounts", "handle"))
-        a, problems = questions.validate({"channel_name": "C", "about": "A", "handle_tiktok": "tiktok.com/@me"})
+        a, problems = questions.validate({"channel_name": "C", "about": "A", "assistant": "codex",
+                                             "handle_tiktok": "tiktok.com/@me"})
         self.assertEqual((problems, a["handle_tiktok"]), ([], "@me"))
-        _, problems = questions.validate({"channel_name": "C", "about": "A", "handle_tiktok": "me and you"})
+        _, problems = questions.validate({"channel_name": "C", "about": "A", "assistant": "codex",
+                                             "handle_tiktok": "me and you"})
         self.assertTrue(any(p.startswith("handle_tiktok") for p in problems))
 
     def test_the_ai_interview_gets_the_sign_up_pages(self):
@@ -226,7 +228,8 @@ class SetAccount(Scratch):
         self.assertFalse(P.ANSWERS.exists())
 
     def test_after_onboarding_everything_follows(self):
-        generate.write_all({"channel_name": "Night Physics", "about": "What-ifs.", "platforms": ["tiktok", "youtube"],
+        generate.write_all({"channel_name": "Night Physics", "about": "What-ifs.", "assistant": "claude",
+                            "platforms": ["tiktok", "youtube"],
                             "handle_tiktok": "@np"})
         generate.set_account("x", "@np_x")      # connect one onboarding left out
         generate.set_account("tiktok", "")      # and disconnect one
@@ -242,7 +245,8 @@ class SetAccount(Scratch):
         self.assertEqual(self.handles()["x"], "@np_x")
 
     def test_a_handle_typed_into_the_dashboard_settings_counts(self):
-        generate.write_all({"channel_name": "Night Physics", "about": "What-ifs.", "platforms": ["tiktok"],
+        generate.write_all({"channel_name": "Night Physics", "about": "What-ifs.", "assistant": "claude",
+                            "platforms": ["tiktok"],
                             "handle_tiktok": "@np"})
         text = self.config.read_text(encoding="utf-8").replace('[instagram]\nhandle = ""', '[instagram]\nhandle = "@ig"')
         self.config.write_text(text, encoding="utf-8")

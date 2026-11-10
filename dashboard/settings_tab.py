@@ -1,7 +1,10 @@
-"""The Settings tab: this channel's answers from first-time setup, an FAQ (dashboard/faq.py), the order of the tabs
-along the top (dashboard/tabs.py keeps it), what ReelForge set up on this computer (the hourly stats read, the
-reelforge command, the icon), your profiles (deleting one and restoring it: dashboard/service.py profiles_settings),
-and the danger zone: factory reset and uninstall (studio/reset.py does both, and neither deletes anything for good).
+"""The Settings tab: this channel's answers from first-time setup (and Copy prompt for your AI, the prompt that starts
+your AI on the channel: studio/ai_prompt.py), an FAQ (dashboard/faq.py), the order of the tabs
+along the top (dashboard/tabs.py keeps it), what ReelForge set up on this computer (background refresh, which is the
+hourly stats read, with its switch; the reelforge command; the icon; ReelForge's own folder, with its Open button
+and Move when it isn't in it: studio/move.py) and Restart, your profiles (deleting one and
+restoring it: dashboard/service.py profiles_settings), and the danger zone: factory reset and uninstall
+(studio/reset.py does both, and neither deletes anything for good).
 
 A mixin of the window's service (dashboard/service.py): the tab calls these, and "settings" is the view it draws. The
 tab order is the window's own (it's in what the window starts with, and in an "order" event when another window moves
@@ -10,12 +13,17 @@ a tab): the Settings tab moves the tabs there, and set_tab_order keeps the new o
 
 from __future__ import annotations
 
+import sys
+
 from studio.bridge import rpc
 
-from . import config, desktop, faq, tabs
+from . import config, desktop, faq, tabs, videos
 from .view import MUTED, Text
 
-RESTART = 75  # the launcher starts ReelForge again, and does the reset or the uninstall first (studio/reset.py)
+RESTART = 75  # the launcher starts ReelForge again, doing a reset, an uninstall or a move first if one was asked
+              # for (studio/reset.py, studio/move.py)
+DEMO_FOLDER = (r"C:\Users\you\ReelForge" if sys.platform == "win32" else "/Users/you/ReelForge"
+               if sys.platform == "darwin" else "/home/you/ReelForge")   # where the demo says ReelForge is
 
 
 def _channel_rows(s: dict) -> list[list[str]]:
@@ -29,11 +37,15 @@ def _channel_rows(s: dict) -> list[list[str]]:
         fmt = s["format"]["template"]
     v, c, sched = s["video"], s["captions"], s["schedule"]
     loud = S.LOUDNESS.get(s["sound"]["loudness"], ("", ""))[1].split(",")[0] or f"{s['sound']['target_lufs']} LUFS"
-    tags = f"up to {c['max_hashtags']} hashtags" + (f", #{c['tiktok_first_tag']} first" if c["tiktok_first_tag"] else "")
-    if not c["hashtags_on_x"]:
-        tags += ", none on X"
+    tags = "no hashtags"
+    if c["max_hashtags"]:
+        tags = f"up to {c['max_hashtags']} hashtags"
+        if c["tiktok_first_tag"]:
+            tags += f", #{c['tiktok_first_tag']} first"
+        if not c["hashtags_on_x"]:
+            tags += ", none on X"
     per = f"{sched['per_day']} a day" if sched["per_day"] else f"{sched['per_week']} a week"
-    who = {"claude": "Claude", "codex": "Codex", "both": "Claude and Codex"}.get(s["ai"]["assistant"], s["ai"]["assistant"])
+    who = S.ai_names(s["ai"]["assistant"], " and ")
     return [
         ["Channel", s["channel"]["name"]],
         ["Format", f"{fmt}: {s['format']['series']}" if s["format"]["series"] != fmt else fmt],
@@ -44,6 +56,23 @@ def _channel_rows(s: dict) -> list[list[str]]:
         ["Platforms", ", ".join(S.PLATFORM_NAMES.get(p, p) for p in s["platforms"]["enabled"])],
         ["Your AI", who],
     ]
+
+
+OPEN_FOLDER = f"Open in {desktop.FILES}"   # the folder row's button: the folder itself in Explorer / Finder
+
+
+def _folder_row(demo: bool) -> dict:
+    """Where ReelForge is: in its own folder (green), or somewhere else, with Move... beside its button when it can go
+    there (studio/move.py). Its button opens it in Explorer / Finder / the file manager. The demo's is made up."""
+    from studio import move
+    from studio import paths as P
+
+    if demo:
+        return {"key": "folder", "label": "ReelForge's folder", "on": True, "button": OPEN_FOLDER, "move": "",
+                "value": DEMO_FOLDER}
+    home = move.at_home()
+    return {"key": "folder", "label": "ReelForge's folder", "on": home, "value": str(P.ROOT), "button": OPEN_FOLDER,
+            "move": "Move…" if not home and not move.problem() else ""}
 
 
 class SettingsTab:
@@ -64,7 +93,7 @@ class SettingsTab:
         name = p.name if p is not None and not self.demo else "Night Physics" if self.demo else "ReelForge"
         rows: list[list[str]] = []
         onboarded = self.demo or bool(p and p.onboarded)
-        assistant = ""  # not set up yet: the FAQ covers Claude Code and Codex
+        assistant: list[str] = []  # not set up yet: the FAQ covers Claude Code and Codex
         try:
             from studio import settings as S
 
@@ -79,7 +108,7 @@ class SettingsTab:
                 "computer": computer, "demo": self.demo, "bin": desktop.BIN, "several": several,
                 "profiles": self.profiles_settings()}
 
-    def _faq(self, assistant: str, name: str, several: bool) -> list[dict]:
+    def _faq(self, assistant: list[str], name: str, several: bool) -> list[dict]:
         """The FAQ's questions and answers, for this channel (dashboard/faq.py)."""
         from studio import paths as P
 
@@ -95,6 +124,22 @@ class SettingsTab:
         from studio import profiles
 
         return profiles.several()
+
+    @rpc
+    def copy_ai_prompt(self) -> None:
+        """Copy prompt for your AI, under this channel's answers: the prompt that starts your AI on this channel
+        (studio/ai_prompt.py), the one first-time setup's last screen copies, asking for its next video (its first
+        while the Publish tab has none)."""
+        if self.demo:
+            self.notify("In your own ReelForge, this copies the prompt that starts your AI on your channel.",
+                        title="Demo mode", timeout=6)
+            return
+        from studio import ai_prompt
+        from studio import settings as S
+
+        self.copy_text(ai_prompt.text(S.load()["channel"]["name"], self.profile, first=not videos.find(self.cfg)))
+        self.notify("Paste it into Claude Code, Codex or any AI that can work with files on this computer.",
+                    title="Prompt copied", timeout=8)
 
     # ---------------------------------------------------------------- the tab order
 
@@ -131,16 +176,18 @@ class SettingsTab:
             self.emit("order", {"order": list(kept)})
 
     def computer_rows(self) -> list[dict]:
-        """What ReelForge set up on this computer, each with the button that changes it."""
+        """What ReelForge set up on this computer, each with the button that changes it. Background refresh (the
+        hourly stats read) has a switch instead, where this window can turn it on and off."""
         from studio import paths as P
 
         if self.demo:   # made up, like the rest of the demo: everything on
-            return [{"key": "stats", "label": "Hourly stats read", "on": True, "button": "Turn off",
+            return [{"key": "stats", "label": "Background refresh", "on": True, "switch": True, "button": "",
                      "value": "on: your stats update every hour, even with ReelForge closed"},
                     {"key": "command", "label": "The reelforge command", "on": True, "button": "Turn off",
                      "value": "on: type reelforge in any terminal"},
                     {"key": "icon", "label": "ReelForge's icon", "on": True, "button": f"Move to the {desktop.BIN}",
-                     "value": "there: open ReelForge without typing a command"}]
+                     "value": "there: open ReelForge without typing a command"},
+                    _folder_row(True)]
         left = "left alone in a test copy" if P.test_copy() else "left alone (STUDIO_DRY_SYSTEM)" if P.dry_system() else ""
         out = []
         try:
@@ -149,11 +196,13 @@ class SettingsTab:
             state = "off" if left else stats_schedule.status()
         except Exception:
             state = "unsupported"
-        out.append({"key": "stats", "label": "Hourly stats read", "on": state == "on",
+        out.append({"key": "stats", "label": "Background refresh", "on": state == "on",
+                    "switch": not left and state in ("on", "off"),
                     "value": left or {"on": "on: your stats update every hour, even with ReelForge closed",
-                                      "off": "off", "other": "on, for another ReelForge folder",
+                                      "off": "off: your stats update only while ReelForge is open",
+                                      "other": "on, for another ReelForge folder",
                                       "unsupported": "not available on this computer"}.get(state, state),
-                    "button": "" if left or state in ("other", "unsupported") else "Turn off" if state == "on" else "Turn on"})
+                    "button": ""})
         try:
             from studio import command
 
@@ -173,30 +222,35 @@ class SettingsTab:
         out.append({"key": "icon", "label": name, "on": made,
                     "value": left or (f"there: {what}" if made else "not made"),
                     "button": "" if left else f"Move to the {desktop.BIN}" if made else "Make it"})
+        out.append(_folder_row(False))
         return out
 
     @rpc
-    def settings_toggle(self, key: str) -> None:
-        """A button on the On this computer panel: turn that thing on or off."""
+    def settings_toggle(self, key: str, on: bool | None = None) -> None:
+        """A button or the switch on the On this computer panel: turn that thing on or off (on: which, from the
+        switch; None: whichever it isn't). One change at a time, in the order they were asked for."""
         if self.demo:
             self.notify("Demo mode: nothing is changed.", timeout=4)
             return
 
         def work() -> None:
-            try:
-                msg = self._toggle(key)
-            except Exception as e:
-                msg = f"Couldn't change it: {e}"
+            with self.toggling:
+                try:
+                    msg = self._toggle(key, on)
+                except Exception as e:
+                    msg = f"Couldn't change it: {e}"
             self.loop.call_soon(lambda: (self.notify(msg, timeout=8), self.update_settings()))
 
         self.loop.run_worker(work, group="settings-toggle")
 
     @staticmethod
-    def _toggle(key: str) -> str:
-        if key == "stats":
+    def _toggle(key: str, on: bool | None = None) -> str:
+        if key == "stats":  # background refresh
             from studio import stats_schedule
 
-            return stats_schedule.disable() if stats_schedule.status() == "on" else stats_schedule.enable()
+            if on is None:
+                on = stats_schedule.status() != "on"
+            return stats_schedule.enable() if on else stats_schedule.disable()
         if key == "command":
             from studio import command
 
@@ -210,6 +264,27 @@ class SettingsTab:
                 return f"ReelForge's icon is in the {desktop.BIN}." if ok else f"Couldn't move {icon} to the {desktop.BIN}."
             return f"ReelForge's icon is at {shortcut.make()}."
         return f"Nothing called {key!r} to change."
+
+    @rpc
+    def open_reelforge_folder(self) -> None:
+        """The button beside ReelForge's folder: that folder in Explorer / Finder / the file manager."""
+        if self.demo:
+            self.notify(f"In your own ReelForge, this opens its folder in {desktop.FILES}.", title="Demo mode",
+                        timeout=6)
+            return
+        from studio import paths as P
+
+        try:
+            desktop.open_folder(P.ROOT)
+        except OSError as e:
+            self.notify(f"Couldn't open {P.ROOT}: {e}", title="ReelForge's folder", severity="warning", timeout=10)
+
+    @rpc
+    def restart(self) -> None:
+        """Restart, at the bottom of the On this computer panel: the window closes, and the launcher opens ReelForge
+        again straight away (on the profile it was on, as after an update). A stats read under way finishes first."""
+        self.notify("Restarting ReelForge…", timeout=5)
+        self.loop.set_timer(0.5, lambda: self.exit(RESTART, {"restart": True}))
 
     # ---------------------------------------------------------------- the danger zone
 
@@ -283,5 +358,57 @@ class SettingsTab:
             return False
         reset.request("uninstall", keep)
         self.notify("Uninstalling… ReelForge closes now.", title="Uninstall", timeout=5)
+        self.loop.set_timer(0.8, lambda: self.exit(RESTART))
+        return True
+
+    # ---------------------------------------------------------------- moving ReelForge into its own folder
+
+    @rpc
+    def move_info(self) -> dict | None:
+        """The Move dialog (studio/move.py): from where to where, what goes along and follows, the Publish tab's
+        folders that stay, and why it can't move, if it can't ("problem")."""
+        if self.demo:
+            self.notify("Demo mode: nothing is moved.", timeout=4)
+            return None
+        from studio import move
+
+        p = move.plan()
+        problem = move.problem(p.target) or ("Another ReelForge window is open: close it first."
+                                             if move.others_open(self.window_lock.path if self.window_lock else None)
+                                             else "")
+        note = Text()
+        note.append("Moves ReelForge into a folder of its own", "bold")
+        note.append(", the one the install line puts it in:\n", MUTED)
+        note.append("  from  ", MUTED)
+        note.append(f"{p.source}\n", "bold")
+        note.append("  to    ", MUTED)
+        note.append(f"{p.target}\n", "bold")
+        note.append("\nEverything in it goes along in one step, on the same drive (nothing is copied): your channels, "
+                    "stats, log-ins, settings and videos, Blender and the rest.", MUTED)
+        follows = move.follows(p.system)
+        if follows:
+            them = move._and(follows)
+            note.append(f" {them[0].upper()}{them[1:]} follow it.", MUTED)
+        if p.outside:
+            note.append("\n\nThe Publish tab's folders outside ReelForge stay where they are:", MUTED)
+            for f in p.outside:
+                note.append(f"\n  {f}", MUTED)
+        note.append("\n\nReelForge closes, the folder moves" + (" (a small window does it, and waits while anything "
+                    "still has a file in it open)" if desktop.WINDOWS else "") + ", and ReelForge opens again from its "
+                    "new folder. If you open it in Claude Code or Codex, open the new folder from now on.", MUTED)
+        return {"note": note.json(), "to": str(p.target), "problem": problem}
+
+    @rpc
+    def move_folder(self, to: str) -> bool:
+        """Move ReelForge (asked for in the Move dialog): ReelForge quits, and the launcher starts the move as it
+        starts again."""
+        from pathlib import Path
+
+        from studio import move
+
+        if self.demo or move.problem(Path(to)):
+            return False
+        move.request(Path(to))
+        self.notify("Moving ReelForge… it opens again from its new folder.", title="Move", timeout=5)
         self.loop.set_timer(0.8, lambda: self.exit(RESTART))
         return True

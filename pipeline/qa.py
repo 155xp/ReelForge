@@ -173,6 +173,32 @@ class Report:
         return all(c["status"] != "FAIL" for c in self.checks)
 
 
+def check_captions(spec, final, R):
+    """Check the generated posts against the channel's caption rules."""
+    cap = {p: (final / f"caption_{p}.txt") for p in config.PLATFORMS}
+    cap_problems = [f"caption_{p}.txt missing" for p, f in cap.items() if not f.exists()]
+    if not (final / "caption.txt").exists():
+        cap_problems.append("caption.txt (read by the Publish tab) missing")
+    n_max, first = config.MAX_HASHTAGS, config.TIKTOK_FIRST_TAG
+    if not cap_problems:
+        if n_max > 0 and "tiktok" in cap and first:
+            tags = [w for w in cap["tiktok"].read_text(encoding="utf-8").split() if w.startswith("#")]
+            if not tags or tags[0].lower() != "#" + first.lower():
+                cap_problems.append(f"TikTok's first hashtag isn't #{first}")
+        for p, f in cap.items():
+            k = f.read_text(encoding="utf-8").count("#")
+            if k > n_max:
+                cap_problems.append(f"{p} has {k} hashtags (max {n_max})")
+        if "x" in cap and not config.HASHTAGS_ON_X and "#" in cap["x"].read_text(encoding="utf-8"):
+            cap_problems.append("X post contains a hashtag")
+        if "youtube" in cap and \
+                cap["youtube"].read_text(encoding="utf-8").splitlines()[0].strip() != " ".join(spec["title"].split()):
+            cap_problems.append("YouTube title isn't the episode title")
+    rules = [f"max {n_max}"] + ([f"#{first} first on TikTok"] if n_max > 0 and first and "tiktok" in cap else []) + \
+        (["none on X"] if "x" in cap and not config.HASHTAGS_ON_X else [])
+    R.add("caption rules", "FAIL" if cap_problems else "PASS", "; ".join(cap_problems) or ", ".join(rules))
+
+
 def check_episode(ep_dir):
     spec = json.loads((ep_dir / "episode.json").read_text(encoding="utf-8"))
     fps, dur = spec["fps"], spec["duration"]
@@ -428,28 +454,7 @@ def check_episode(ep_dir):
     R.add("HUD covers the timeline", "WARN" if gaps else "PASS", ", ".join(gaps) or "no gaps")
     if spec.get("hud"):
         check_hud_contrast(spec, video, R)
-    cap = {p: (final / f"caption_{p}.txt") for p in config.PLATFORMS}
-    cap_problems = [f"caption_{p}.txt missing" for p, f in cap.items() if not f.exists()]
-    if not (final / "caption.txt").exists():
-        cap_problems.append("caption.txt (read by the Publish tab) missing")
-    n_max, first = config.MAX_HASHTAGS, config.TIKTOK_FIRST_TAG
-    if not cap_problems:
-        if "tiktok" in cap and first:
-            tags = [w for w in cap["tiktok"].read_text(encoding="utf-8").split() if w.startswith("#")]
-            if not tags or tags[0].lower() != "#" + first.lower():
-                cap_problems.append(f"TikTok's first hashtag isn't #{first}")
-        for p, f in cap.items():
-            k = f.read_text(encoding="utf-8").count("#")
-            if k > n_max:
-                cap_problems.append(f"{p} has {k} hashtags (max {n_max})")
-        if "x" in cap and not config.HASHTAGS_ON_X and "#" in cap["x"].read_text(encoding="utf-8"):
-            cap_problems.append("X post contains a hashtag")
-        if "youtube" in cap and \
-                cap["youtube"].read_text(encoding="utf-8").splitlines()[0].strip() != " ".join(spec["title"].split()):
-            cap_problems.append("YouTube title isn't the episode title")
-    rules = [f"max {n_max}"] + ([f"#{first} first on TikTok"] if first and "tiktok" in cap else []) + \
-        (["none on X"] if "x" in cap and not config.HASHTAGS_ON_X else [])
-    R.add("caption rules", "FAIL" if cap_problems else "PASS", "; ".join(cap_problems) or ", ".join(rules))
+    check_captions(spec, final, R)
 
     # ---- not one of ReelForge's demos: everyone has those, so a demo (or a copy with its hook) would be a repost
     demo_titles = set()

@@ -33,6 +33,19 @@ main() {
     echo "  curl -fsSL $release/install.sh | REELFORGE_DIR=~/ReelForge2 bash"
     return 0
   fi
+  # A ReelForge kept somewhere else has its reelforge command linked in ~/.local/bin. That one moves into its own
+  # folder from its Settings tab, rather than a second copy being made here.
+  if [ -z "${REELFORGE_DIR:-}" ] && [ -L "$HOME/.local/bin/reelforge" ]; then
+    local there
+    there="$(dirname "$(dirname "$(readlink "$HOME/.local/bin/reelforge")")")"
+    if [ -f "$there/studio/__init__.py" ] && [ ! -f "$there/TEST-COPY.txt" ]; then
+      echo "ReelForge is already on this computer, in $there, so nothing was changed."
+      echo "To put it in its own folder ($dir), open ReelForge and click Move next to ReelForge's folder on its"
+      echo "Settings tab (if there's no Move yet, update it on its Updates tab first). To install a second copy anyway:"
+      echo "  curl -fsSL $release/install.sh | REELFORGE_DIR=~/ReelForge2 bash"
+      return 0
+    fi
+  fi
   local unpacker=tar
   [ "$kind" = Linux ] || unpacker=unzip
   if ! command -v "$unpacker" >/dev/null 2>&1; then

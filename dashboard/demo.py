@@ -58,8 +58,14 @@ START_FOLLOWERS = {"tiktok": 300, "youtube": 120, "instagram": 200, "x": 80}
 # per-view rates). A refresh reads every post further along the same curve, so the charts carry on smoothly.
 _SEEDED: dict[tuple[str, str], tuple[str, datetime, list[float], dict]] = {}
 _START: dict[str, float] = {}  # followers before the first post
-SAMPLE_UPDATE = ("1.1.0", "## What's new\n\n- Sample release notes: this is demo mode, so nothing is downloaded.\n"
-                          "- A real update downloads the new version and restarts ReelForge in one click.")
+try:  # the ReelForge folder's version, so the made-up update is always the next one up (2.0.0 -> 2.1.0)
+    from studio import KIT_VERSION
+except Exception:  # run on its own, outside a ReelForge folder
+    KIT_VERSION = "1.0.0"
+_MAJOR, _MINOR = (int(x) for x in (KIT_VERSION.split(".") + ["0"])[:2])
+SAMPLE_UPDATE = (f"{_MAJOR}.{_MINOR + 1}.0",
+                 "## What's new\n\n- Sample release notes: this is demo mode, so nothing is downloaded.\n"
+                 "- A real update downloads the new version and restarts ReelForge in one click.")
 # The same, as the README's pictures show it (REELFORGE_SCREENSHOTS=1): notes like a real release's.
 SCREENSHOT_NOTES = ("## What's new\n\n- A sharper logo in Windows Terminal.\n"
                     "- Charts that read right at every window size: narrow ones combine hours.\n"

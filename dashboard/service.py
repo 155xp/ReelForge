@@ -80,8 +80,10 @@ CANT_DELETE = {
     "open": ("{name} is open in another ReelForge window. Close that window (or switch it to another profile), then "
              "try again.", "open in another ReelForge window"),
 }
-COPIES = {"tiktok": ("copy-tiktok", "Copy TikTok text"), "youtube": ("copy-youtube", "Copy YouTube hashtags"),
-          "instagram": ("copy-instagram", "Copy Instagram text"), "x": ("copy-caption", "Copy caption")}
+# The copy buttons under each platform's button, top to bottom.
+COPIES = {"tiktok": [("copy-tiktok", "Copy TikTok text")],
+          "youtube": [("copy-youtube-caption", "Copy caption"), ("copy-youtube", "Copy YouTube hashtags")],
+          "instagram": [("copy-instagram", "Copy Instagram text")], "x": [("copy-caption", "Copy caption")]}
 NOTHING_CONNECTED = "Connect an account on the Accounts tab to see your stats here."
 # The help: (title, what it says), and for a tab its id as well: the window puts the tabs in the order you see them
 # along the top, each with the number that opens it, then Publish (the green button at the right) with its key.
@@ -116,10 +118,13 @@ HELP = [
                  "Type in stats lets you enter the numbers by hand for one ReelForge can't read yet.", "accounts"),
     ("Updates", "Your version, what's new in the next one, and Update and restart: one click downloads it, puts it in "
                 "place (your channel, videos and stats stay as they are) and opens ReelForge again.", "updates"),
-    ("Settings", "This channel's answers from first-time setup (Change your answers asks the questions again), an FAQ "
+    ("Settings", "This channel's answers from first-time setup (Change your answers asks the questions again, and Copy "
+                 "prompt for your AI copies the prompt that starts your AI on the channel: paste it into Claude Code, "
+                 "Codex or any AI that can work with files on this computer), an FAQ "
                  "(click a question for its answer), the order of the tabs along the top (drag a tab, or click one "
                  "and move it with the arrows; 1-7 follow it, in every profile), what ReelForge set up on this "
-                 "computer (the hourly stats read, the reelforge command and the icon) and your profiles: Delete "
+                 "computer (Background refresh, the hourly stats read, with its switch; the reelforge command and the "
+                 "icon), Restart (ReelForge closes and opens again) and your profiles: Delete "
                  "beside one, and Restore beside one you deleted. At the bottom, Factory reset "
                  "puts every channel's settings, log-ins and stats in a backup and starts first-time setup again "
                  "(your videos stay), and Uninstall removes ReelForge, keeping your videos in a folder beside it. "
@@ -271,6 +276,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.elsewhere_unread = 0  # unread notifications in the other profiles (the dot on the profile button)
         self.window_lock = None  # held while this window shows its profile (see hold_profile)
         self.deleted_sizes: dict[str, str] = {}  # each deleted profile's backup: how big it is (measure_deleted)
+        self.toggling = threading.Lock()  # the Settings tab's On this computer panel changes one thing at a time
 
     # --- starting ---------------------------------------------------------------------------
 
@@ -330,7 +336,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             "anvil": anvil, "quadrants": quads, "help": HELP, "keys": KEYS, "version": KIT_VERSION,
             "max_tags": videos.MAX_TAGS, "first_tag": videos.FIRST_TAG, "default_tags": self.cfg.get("default_tags", ""),
             "caption_placeholder": "one short line that hooks the viewer", "tags_placeholder": tags,
-            "copies": {k: list(v) for k, v in COPIES.items()},
+            "copies": {k: [list(b) for b in v] for k, v in COPIES.items()},
             "badges_how": badges.HOW, "ranges": {k: v[0] for k, v in trends.RANGES.items()},
             "fit_steps": {k: [s.total_seconds() / 3600 for s in v] for k, v in trends.FIT_STEPS.items()},
             "videos_dir": str(config.videos_dir(self.cfg)),
@@ -612,6 +618,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         self.update_notes()
         if self.tab == "settings":
             self.update_settings()
+        self.say_moved()
         self.start_updates()
         self.run_refresh(manual=False)
         self.loop.run_worker(self.compact_db, group="maintenance")
@@ -1451,9 +1458,9 @@ class Dashboard(StatsTab, SettingsTab, Service):
             self._safe(lambda: notify.check_videos(self.cfg), 0)
             self.show_new_notes()
         hidden = db.get_meta("hidden_videos", [])
-        hidden_names = {Path(h).name.lower() for h in hidden}
+        hidden_names = {db.video_file(h).name.lower() for h in hidden}
         every = videos.find(self.cfg)
-        files = [f for f in every if f.name.lower() not in hidden_names]
+        files = [f for f in every if db.video_file(f.name).name.lower() not in hidden_names]
         posted = self.posted_platforms()
         items = []
         for f in files:
@@ -1461,7 +1468,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
                 st = f.stat()
             except OSError:
                 continue  # moved or deleted since the folder was listed
-            on = posted.get(f.name.lower(), set())
+            on = posted.get(db.video_file(f.name).name.lower(), set())
             label = Text("✓ " if on else "  ", GOOD)
             label.append(f.name)
             source = "pipeline" if videos.from_pipeline(f) else _short(f.parent.name, 22)
@@ -1498,7 +1505,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         out: dict[str, set[str]] = {}
         for e in self.episodes:
             if e["video"]:
-                out.setdefault(Path(e["video"]).name.lower(), set()).update(by_episode.get(e["id"], set()))
+                out.setdefault(db.video_file(e["video"]).name.lower(), set()).update(by_episode.get(e["id"], set()))
         return out
 
     @rpc
@@ -1579,14 +1586,14 @@ class Dashboard(StatsTab, SettingsTab, Service):
         label = Text("Hashtags  ")
         label.append(f"{n}/{videos.MAX_TAGS}", BAD if n > videos.MAX_TAGS else MUTED)
         hint = f"  (only the first {videos.MAX_TAGS} are used)" if n > videos.MAX_TAGS else \
-            (f"  (TikTok always gets #{videos.FIRST_TAG} first)" if videos.FIRST_TAG else "")
+            (f"  (TikTok always gets #{videos.FIRST_TAG} first)" if videos.MAX_TAGS > 0 and videos.FIRST_TAG else "")
         label.append(hint, MUTED)
         cap = Text("Caption  ")
         cap.append(f"{caption_len}/100", BAD if caption_len > 100 else MUTED)
         cap.append("  (one line: the X post, the YouTube title, and the start of TikTok / Instagram)", MUTED)
         preview = []
         rows = {"tiktok": item.text_for("tiktok"), "instagram": item.text_for("instagram"),
-                "youtube": f"{item.title}   description: {item.text_for('youtube')}", "x": item.text_for("x")}
+                "youtube": f"{item.youtube_title}   description: {item.text_for('youtube')}", "x": item.text_for("x")}
         for key, text in rows.items():
             if key in self.platforms:
                 p = self.platforms[key]
@@ -1647,7 +1654,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
             return
         p = self.platforms[key]
         item = self.form_item(caption, tags)
-        text, what = {"youtube": (item.title, "caption (title)"), "x": (item.text_for("x"), "caption")}.get(
+        text, what = {"youtube": (item.youtube_title, "caption (title)"), "x": (item.text_for("x"), "caption")}.get(
             p.key, (item.text_for(p.key), "caption + hashtags"))
         if text:
             self.copy_text(text)
@@ -1704,6 +1711,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
         text, what = {
             "copy-caption": (item.title, "Caption"),
             "copy-caption-alone": (item.title, "Caption"),
+            "copy-youtube-caption": (item.youtube_title, "YouTube caption"),
             "copy-tiktok": (item.text_for("tiktok"), "TikTok text"),
             "copy-instagram": (item.text_for("instagram"), "Instagram text"),
             "copy-youtube": (item.text_for("youtube"), "YouTube hashtags"),
@@ -1721,7 +1729,7 @@ class Dashboard(StatsTab, SettingsTab, Service):
 
     def update_uploads(self) -> None:
         """Upload pages you opened, and whether the post has turned up since."""
-        episodes = {Path(e["video"]).name.lower(): e["id"] for e in self.episodes if e["video"]}
+        episodes = {db.video_file(e["video"]).name.lower(): e["id"] for e in self.episodes if e["video"]}
         found = {}
         for q in self.posts:
             if q["episode_id"]:
@@ -2238,7 +2246,8 @@ class Dashboard(StatsTab, SettingsTab, Service):
         if path is None:
             self.notify(f"{name} isn't in your video folders any more.", severity="warning")
             return
-        if path.name.lower() in {Path(h).name.lower() for h in db.get_meta("hidden_videos", [])}:
+        if db.video_file(path.name).name.lower() in {db.video_file(h).name.lower()
+                                                    for h in db.get_meta("hidden_videos", [])}:
             self.notify(f"{path.name} is hidden. Show hidden (top of the list) brings it back.", severity="warning")
             return
         self.pick(path)
@@ -2275,6 +2284,24 @@ class Dashboard(StatsTab, SettingsTab, Service):
     def update_video_badges(self, post: dict | None) -> None:
         found = badges.video_badges(post, self.posts, self.first_day, self.platforms) if post else []
         self.emit("video_badges", {"line": parts([(badges.badge_text(b), i) for i, b in enumerate(found)])})
+
+    def say_moved(self) -> None:
+        """After a move into ReelForge's own folder (studio/move.py), once: where it is now."""
+        if self.demo or kit_update is None:
+            return
+        try:
+            from studio import move
+        except ImportError:
+            return
+        done = move.take_marker()
+        if not done:
+            return
+        self.notify(f"ReelForge is in {done.get('to')} now. If you open it in Claude Code or Codex, open this folder "
+                    "from now on." + (" Some things couldn't follow it: run setup there." if done.get("problems")
+                                      else ""), title="Moved", timeout=20)
+        self._safe(lambda: notify.add("move", "ReelForge moved into its own folder",
+                                      f"From {done.get('from')} to {done.get('to')}.", key=f"moved:{done.get('ts')}",
+                                      tab="settings", read=True), False)
 
     # --- updates ------------------------------------------------------------------------------
 

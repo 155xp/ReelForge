@@ -1,9 +1,10 @@
 // ReelForge's first run, under the logo, in the window's own calm colours: the tools it needs (one list, one yes),
-// the downloads with their progress, a health check, the channel's questions, then what to do next, with the mascot
-// beside each screen when the window has room for him. The Python side is studio/setup_service.py.
+// the downloads with their progress, a health check, the channel's questions, then what to do next (the prompt for
+// your AI, with a button that copies it), with the mascot beside each screen when the window has room for him. The
+// Python side is studio/setup_service.py.
 
 import { TextAttributes, type KeyEvent } from "@opentui/core"
-import { useKeyboard, useTerminalDimensions } from "@opentui/react"
+import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import { useView, type Bridge } from "../bridge"
 import { FocusContext, FocusManager, ThemeContext, useFocus, useTheme } from "../lib/focus"
@@ -54,7 +55,10 @@ export function SetupApp(props: SetupProps) {
     props.init.start === "onboard" ? "onboard" : props.init.start === "done" ? "done" : "tools",
   )
   const [chosen, setChosen] = useState<string[]>([])
+  const renderer = useRenderer()
   useEffect(() => props.bridge.on("toast", (t) => toasts.add(t)), [props.bridge])
+  // The Copy button's fallback when the system clipboard can't be reached: the terminal's own (OSC 52).
+  useEffect(() => props.bridge.on("clipboard", (d) => void renderer.copyToClipboardOSC52(d.text)), [props.bridge, renderer])
   const go = (next: Screen) => {
     focus.blur()
     setScreen(next)
@@ -364,13 +368,25 @@ function Work({ bridge, init, keys, onNext, onAgain }: SetupProps & { keys: stri
   )
 }
 
-/** Step 3: what was made, what runs in the background, and what to do next. */
+/** Step 3: what to do next, first: copy the prompt for your AI (it has the ReelForge folder's path in it, so nothing
+ * needs dragging in; after setup is run again, it's the update prompt), paste it, and the video turns up on Publish.
+ * Then what was made and what runs in the background. The prompt itself isn't shown: its Copy prompt button sits
+ * right under step 1, near the top, so it's on screen at any window size (it says so for a moment once it has
+ * copied). */
 function Done({ bridge, init, quit }: SetupProps) {
   const theme = useTheme()
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 3000)
+    return () => clearTimeout(t)
+  }, [copied])
   const [info, setInfo] = useState<{
     head: Segs[]
     written: string
     steps: Segs[]
+    prompt: string
+    then: Segs[]
     login: string
     open: string
     tab: string
@@ -391,18 +407,29 @@ function Done({ bridge, init, quit }: SetupProps) {
               {info.head.map((l, i) => (
                 <Wrapped key={i} segs={l} flexGrow={0} />
               ))}
-              {info.written ? (
-                <text fg={theme.muted} marginTop={1}>{`Written:  ${info.written}`}</text>
-              ) : null}
-              <box flexDirection="column" marginTop={1} flexShrink={0}>
-                {(system?.rows ?? [[["  Setting up your background stats…", theme.muted]]]).map((l, i) => (
-                  <Hanging key={i} segs={l} />
-                ))}
-              </box>
               <text attributes={TextAttributes.BOLD} marginTop={1}>
                 What's next
               </text>
               {info.steps.map((l, i) => (
+                <Hanging key={i} segs={l} />
+              ))}
+              {info.prompt ? (
+                <box flexDirection="row" flexWrap="wrap" marginLeft={5} marginTop={1} marginBottom={1} flexShrink={0} columnGap={2}>
+                  <Button
+                    id="copy"
+                    label={copied ? `${init.check} Copied` : "Copy prompt"}
+                    variant="primary"
+                    minWidth={24}
+                    autoFocus
+                    onPress={() => {
+                      bridge.send("copy_prompt")
+                      setCopied(true)
+                    }}
+                  />
+                  {copied ? <text fg={theme.muted}>Now paste it into your AI.</text> : null}
+                </box>
+              ) : null}
+              {info.then.map((l, i) => (
                 <Hanging key={i} segs={l} />
               ))}
               {info.login ? (
@@ -412,6 +439,14 @@ function Done({ bridge, init, quit }: SetupProps) {
                   </text>
                 </box>
               ) : null}
+              {info.written ? (
+                <text fg={theme.muted} marginTop={1}>{`Written:  ${info.written}`}</text>
+              ) : null}
+              <box flexDirection="column" marginTop={1} flexShrink={0}>
+                {(system?.rows ?? [[["  Setting up your background stats…", theme.muted]]]).map((l, i) => (
+                  <Hanging key={i} segs={l} />
+                ))}
+              </box>
             </box>
           ) : null}
         </Scroll>
@@ -419,12 +454,9 @@ function Done({ bridge, init, quit }: SetupProps) {
           <Button
             id="open"
             label={info?.open ?? "Open ReelForge"}
-            variant="primary"
             minWidth={20}
-            autoFocus={Boolean(info)}
             onPress={() => quit(0, { open: "dashboard", tab: info?.tab ?? "overview", ...(info?.profile ? { profile: info.profile } : {}) })}
           />
-          <Button id="folder" label={init.new ? "Show its folder" : "Show this folder"} minWidth={20} onPress={() => bridge.send("show_folder")} />
           <Button id="close" label={info?.back || "Close"} minWidth={20} onPress={() => quit(0)} />
         </box>
       </box>

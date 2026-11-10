@@ -1,20 +1,34 @@
-## What's new in 1.0.9
+## What's new in 2.2.1
 
-- **Publish is a green button at the top right.** It's no longer a tab: click it from any tab, or press **u**.
-  - It turns solid green while you're on Publish, and `reelforge publish` still opens it.
-  - The other seven tabs keep your order: **1**-**7** and `reelforge 1` to `reelforge 7` open them.
-- **When your stats were last read is under ↻ Refresh** at the top, in amber while they're being read.
-  - The bar along the bottom no longer lists your platforms: it names one only when its last refresh failed.
-  - Click it for the Accounts tab, which says why.
-- **Gaps in the charts are filled in.** The hours your computer was off are estimated and drawn hatched.
-  - That's on the Overview, the Stats tab and the Accounts tab's charts. Pointing at one says it's estimated.
-  - An estimate is never your best day, hour or bar, and badges still count only what was read.
-- **A views chart on the Stats tab** above followers and likes: your views added up across your platforms, with its own breakdown.
+- **A big Copy prompt button on setup's last screen,** right under step 1, so it's the first thing you see.
+  - The prompt itself isn't shown any more. The button copies it, with your ReelForge folder's path in it.
 
-## What's new in 1.0.8
+## What's new in 2.2.0
 
-- **Your stats come first** in the tabs' default order, and **Reset to default** on the Settings tab puts them back in it.
-- **The badges' pop-up shows whole.** Pointing at the badges on the Overview or Videos tab no longer leaves a stray box under them.
+- **Which AI makes your videos is a tick list: Claude Code, Codex or both.** An earlier answer carries over (an old Both is both again).
+  - With both, setup's last screen and the Settings tab name both, and the FAQ answers for both.
+- **Copy the prompt is always on screen.** On setup's last screen it's the first button in the bottom row, even in a small window.
+  - Run setup again and the prompt tells your AI what changed in your answers, so it uses them from the next video.
+- **Open in Explorer** beside ReelForge's folder on the Settings tab (Finder on a Mac, the file manager on Linux).
+- **The Publish tab's YouTube Copy caption** sits under YouTube's button and copies the title with #shorts.
+
+## What's new in 2.1.1
+
+- **Copy the prompt for your AI: nothing to drag in.** Setup's last screen shows it, with a **Copy the prompt** button.
+  - It has your ReelForge folder's path in it. Paste it into Claude Code, Codex or any AI that works with your files.
+  - Your AI gets to know your channel, then makes your first video.
+  - **Copy prompt for your AI** on the Settings tab copies it again any time.
+- **Claude Code or Codex: you pick which AI makes your videos.** Setup recommends neither, and Both is gone.
+  - An earlier Both answer now counts as Claude Code. **Change your answers** on the Settings tab switches it.
+
+## What's new in 2.1.0
+
+- **ReelForge can move into a folder of its own.** The Settings tab says where it is, under On this computer.
+  - Kept somewhere else, like the Desktop? **Move…** puts it where the install line does: your user folder's ReelForge.
+  - Everything in it goes along in one step. The reelforge command, the icon and Background refresh follow it.
+  - In a terminal it's `reelforge move`, or `reelforge move FOLDER` for another folder on the same drive.
+- **The install line finds a ReelForge you already have** somewhere else, and points you to Move, not a second copy.
+- **Uninstall puts Windows Terminal's ReelForge profile in the Recycle Bin** too, as it says it does.
 
 Already have ReelForge? Open the **Updates** tab and click **Update and restart**.
 
@@ -40,9 +54,10 @@ Mac works too, more slowly), and about 15 GB of free disk space.
 
 ## Then
 
-1. Open the ReelForge folder in Claude Code (the Claude desktop app's **Code** tab, then **Open folder…**), or run
-   `codex` in it.
-2. Say **"make my first video"**.
+1. Setup's last screen has the prompt for your AI: click **Copy the prompt** and paste it into Claude Code (the Claude
+   desktop app's **Code** tab), Codex or any AI that can work with files on your computer. It has the ReelForge
+   folder's path in it, so there's nothing to drag in or open first.
+2. Your AI gets to know your channel, then makes your first video.
 3. Type `reelforge publish` in a terminal (or open ReelForge's icon and click the green **Publish** button) to post it.
 
 Already have ReelForge? Its **Updates** tab (`reelforge updates`) installs this version in one click.

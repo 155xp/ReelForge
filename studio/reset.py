@@ -49,7 +49,7 @@ from . import KIT_NAME, profiles
 from . import paths as P
 
 ROOT = P.ROOT
-PENDING = ROOT / ".reelforge-pending.json"   # {"do": "reset"} or {"do": "uninstall", "keep": true}
+PENDING = ROOT / ".reelforge-pending.json"   # {"do": "reset"}, {"do": "uninstall", "keep": true} or {"do": "move"}
 FRESH = 120                                  # seconds a reset or uninstall the window asked for stays to be done
 BACKUPS = ROOT / "backups"
 KEEP_NAME = f"{KIT_NAME} videos and channels"
@@ -492,11 +492,7 @@ def _windows_extras(say) -> list[str]:
     from . import terminal_profile
 
     frag = terminal_profile.folder()
-    try:
-        names_us = frag.is_dir() and str(ROOT) in (frag / f"{KIT_NAME}.json").read_text(encoding="utf-8")
-    except OSError:
-        names_us = False
-    if names_us:
+    if terminal_profile.ours():
         if _recycle_small(frag):
             say(f"  Windows Terminal's ReelForge profile is in the {BIN}.")
         else:
@@ -661,13 +657,13 @@ def pending() -> dict | None:
         data = json.loads(PENDING.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    return data if isinstance(data, dict) and data.get("do") in ("reset", "uninstall") else None
+    return data if isinstance(data, dict) and data.get("do") in ("reset", "uninstall", "move") else None
 
 
 def take_pending() -> dict | None:
-    """The reset or uninstall the window just asked for, taken (its file goes, so it's done once). One asked for more
-    than FRESH seconds ago is dropped with a note: nothing started ReelForge again straight after the window closed,
-    and it mustn't happen by surprise later."""
+    """The reset, uninstall or move the window just asked for, taken (its file goes, so it's done once). One asked for
+    more than FRESH seconds ago is dropped with a note: nothing started ReelForge again straight after the window
+    closed, and it mustn't happen by surprise later."""
     job = pending()
     try:
         age = time.time() - PENDING.stat().st_mtime
@@ -679,7 +675,7 @@ def take_pending() -> dict | None:
     if job is None:
         return None
     if not -FRESH <= age <= FRESH:
-        what = "factory reset" if job["do"] == "reset" else "uninstall"
+        what = {"reset": "factory reset", "uninstall": "uninstall", "move": "move"}[job["do"]]
         try:
             when = f" at {datetime.fromisoformat(job['asked']):%H:%M on %d %B}"
         except (KeyError, TypeError, ValueError):
@@ -722,12 +718,16 @@ def _open_again() -> list[str] | int:
 
 
 def finish_pending() -> list[str] | int | None:
-    """What the launcher does first: a factory reset or an uninstall the window just asked for. None: there wasn't
-    one. A list: open ReelForge with these arguments (none after a reset: first-time setup; the Settings tab when
-    nothing could be changed). Otherwise the exit code to stop with."""
+    """What the launcher does first: a factory reset, an uninstall or a move (studio/move.py) the window just asked
+    for. None: there wasn't one. A list: open ReelForge with these arguments (none after a reset: first-time setup;
+    the Settings tab when nothing could be changed). Otherwise the exit code to stop with."""
     job = take_pending()
     if job is None:
         return None
+    if job["do"] == "move":
+        from . import move
+
+        return move.from_window(job)
     if job["do"] == "reset":
         print(f"Factory reset: putting {KIT_NAME} back to brand-new. Moving into a backup:")
         done = factory_reset()

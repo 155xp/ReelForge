@@ -5,7 +5,8 @@
            and can sit in the Dock; it opens ReelForge in Terminal
   Linux    ReelForge in your app menu (~/.local/share/applications/reelforge.desktop), in a terminal window
 
-Each points at this folder, so after moving the folder run setup again to point it at the new place.
+Each points at this folder. Moving the folder with reelforge move (or Move on the Settings tab: studio/move.py) points
+it at the new place; after moving the folder by hand, run setup again to do the same.
 """
 
 from __future__ import annotations

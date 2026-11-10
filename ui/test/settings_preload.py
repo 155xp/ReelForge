@@ -1,8 +1,10 @@
 """For the Settings tab's danger zone tests (ui/test/settings.test.tsx): a ReelForge folder of their own in a scratch
 folder (REELFORGE_TEST_ROOT) with one channel set up, Night Physics, and a video, run inside the window's Python side
-before it starts (REELFORGE_BRIDGE_PRELOAD). Factory reset and uninstall only get as far as asking for it (the request
-in that folder) and closing the window: nothing here runs the launcher that would do them. Nothing is connected, so
-nothing is read, and the update check stays offline."""
+before it starts (REELFORGE_BRIDGE_PRELOAD). Factory reset, uninstall and Move only get as far as asking for it (the
+request in that folder) and closing the window: nothing here runs the launcher that would do them. Its own folder, for
+Move, is "<that folder>-home/ReelForge", and Open in Explorer only writes the folder it was given to opened.txt
+there. Nothing is connected, so nothing is read, and the update check stays
+offline."""
 
 import io
 import os
@@ -10,8 +12,8 @@ import shutil
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from dashboard import config
-from studio import generate, profiles, reset, update
+from dashboard import config, desktop
+from studio import generate, move, profiles, reset, update
 from studio import paths as P
 
 root = Path(os.environ["REELFORGE_TEST_ROOT"]).resolve()
@@ -21,9 +23,12 @@ P.ROOT, P.DASHBOARD = root, root / "dashboard"
 profiles.ROOT, profiles.FOLDER = root, root / "profiles"
 config.APP_DIR = root / "dashboard"
 reset.ROOT, reset.PENDING, reset.BACKUPS = root, root / ".reelforge-pending.json", root / "backups"
+move.ROOT = root
+move.home = lambda: root.parent / f"{root.name}-home" / "ReelForge"
+desktop.open_folder = lambda path: (root / "opened.txt").write_text(str(path), encoding="utf-8")  # no Explorer window
 if not profiles.main().onboarded:
     with redirect_stdout(io.StringIO()):
-        generate.write_all({"creator": "Sam", "channel_name": "Night Physics", "about": "What-if videos with real science.",
+        generate.write_all({"creator": "Sam", "assistant": "claude", "channel_name": "Night Physics", "about": "What-if videos with real science.",
                             "platforms": ["tiktok", "youtube"]})
 video = root / "episodes" / "ep01_duck" / "final" / "ep01_duck.mp4"
 video.parent.mkdir(parents=True, exist_ok=True)

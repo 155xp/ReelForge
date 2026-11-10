@@ -17,7 +17,7 @@ ROOT = Path(tempfile.gettempdir()) / "ReelForge"
 
 
 def items(**over) -> list[dict]:
-    args = dict(assistant="claude", root=ROOT, episodes=ROOT / "episodes", completed=ROOT / "completed videos",
+    args = dict(assistant=["claude"], root=ROOT, episodes=ROOT / "episodes", completed=ROOT / "completed videos",
                 channel="Night Physics", main=True, several=False, refresh_minutes=30)
     return faq.items(**{**args, **over})
 
@@ -39,19 +39,27 @@ class FaqTest(unittest.TestCase):
         self.assertNotIn("Codex", a)
 
     def test_codex_gets_codexs_answers(self):
-        a = answer("Which model", assistant="codex")
+        a = answer("Which model", assistant=["codex"])
         self.assertTrue(a.startswith("Your AI app decides that, not ReelForge. ReelForge's `.codex/config.toml`"))
         self.assertNotIn("Claude", a)
-        made = answer("How do I make a video?", assistant="codex")
-        self.assertIn("Run `codex` in a terminal in", made)
+        made = answer("How do I make a video?", assistant=["codex"])
+        self.assertIn("paste it into Codex (`codex` in a terminal) or any other AI", made)
         self.assertNotIn("Claude desktop app", made)
-        self.assertIn("`AGENTS.md`", answer("My AI doesn't know", assistant="codex"))
-        both = answer("Which model", assistant="both")
-        self.assertIn("With Codex: ReelForge's `.codex/config.toml`", both)
-        self.assertIn("`CLAUDE.md` (or `AGENTS.md` for Codex)", answer("My AI doesn't know", assistant="both"))
+        self.assertIn("`AGENTS.md` for any other AI", answer("My AI doesn't know", assistant=["codex"]))
+        unset = answer("Which model", assistant=[])  # a channel not set up yet: both
+        self.assertIn("With Codex: ReelForge's `.codex/config.toml`", unset)
+
+    def test_both_ais_get_both_answers(self):
+        both = dict(assistant=["claude", "codex"])
+        a = answer("Which model", **both)
+        self.assertIn("**Opus at high effort**", a)
+        self.assertIn("With Codex: ReelForge's `.codex/config.toml`", a)
+        self.assertIn("paste it into Claude Code (the **Code** tab in the Claude desktop app, or `claude` in a "
+                      "terminal), Codex (`codex` in a terminal) or any other AI", answer("How do I make a video?", **both))
+        self.assertIn("your own Claude Code or Codex plan", " ".join(i["a"] for i in items(**both)))
 
     def test_no_answer_offers_a_setting_for_it(self):
-        for assistant in ("claude", "codex", "both", ""):
+        for assistant in (["claude"], ["codex"], ["claude", "codex"], []):
             text = "\n".join(f"{i['q']}\n{i['a']}" for i in items(assistant=assistant))
             for gone in ("Advanced settings", "**Max**", "**High**", "**Fast**", "Max, High", "the standard",
                          "ultracode", "onboarding", "Settings tab (7) picks"):
@@ -71,21 +79,45 @@ class FaqTest(unittest.TestCase):
         self.assertIn("in `episodes`", a)
         self.assertIn("goes to `completed videos`", a)
         elsewhere = ROOT.parent / "my videos" / "episodes"
-        self.assertIn(f"in `{elsewhere}`", answer("Where are my videos?", episodes=elsewhere))
-        self.assertIn(f"pick `{ROOT}`", answer("How do I make a video?"))
+        self.assertIn(f"It names the ReelForge folder (`{ROOT}`)", answer("How do I make a video?"))
+        self.assertIn(f"where the ReelForge folder is (`{ROOT}`)", answer("My AI doesn't know"))
 
-    def test_another_channel_asks_for_its_own_first_video_and_brief(self):
+    def test_your_ai_starts_from_the_prompt_this_tab_copies_with_nothing_to_drag_in(self):
+        made = answer("How do I make a video?")
+        self.assertTrue(made.startswith("Press **Copy prompt for your AI** on this tab, under the channel's answers, "
+                                        "and paste it into Claude Code (the **Code** tab in the Claude desktop app, "
+                                        "or `claude` in a terminal) or any other AI that can work with files on this "
+                                        "computer."))
+        self.assertIn("so there's nothing to drag in or open first, and asks your AI for your next video", made)
+        self.assertIn("**make today's videos** makes the next ones. Each finished video waits on **Publish**.", made)
+        unknown = answer("My AI doesn't know")
+        self.assertTrue(unknown.startswith("Start it with the prompt from **Copy prompt for your AI** on this tab"))
+        self.assertIn("(`CLAUDE.md` for Claude, `AGENTS.md` for any other AI)", unknown)
+        self.assertIn("describe your channel in the chat, or give it the path of a file about it", unknown)
+        for a in (made, unknown):
+            self.assertNotIn("drag a file", a)
+            self.assertNotIn("here's my channel", a)
+        # a channel not set up yet has no prompt: setting it up comes first
+        self.assertTrue(answer("How do I make a video?", assistant=[]).startswith(
+            "Set this channel up first (**Set it up** on this tab)."))
+
+    def test_another_channel_asks_for_its_own_next_video_and_brief(self):
         name = "Cool *Epic* Facts"
         made = answer("How do I make a video?", channel=name, main=False, several=True)
-        self.assertIn(r"**make my first Cool \*Epic\* Facts video**", made)
+        self.assertIn(r"asks your AI for the next Cool \*Epic\* Facts video (the first one, on a new channel)", made)
         self.assertIn("for every channel that posts regularly", made)
-        self.assertIn(r"**here's Cool \*Epic\* Facts**", answer("My AI doesn't know", channel=name, main=False))
-        self.assertIn("**make my first video**", answer("How do I make a video?"))
+        self.assertIn(r"describe Cool \*Epic\* Facts in the chat", answer("My AI doesn't know", channel=name,
+                                                                          main=False))
 
     def test_how_often_an_open_reelforge_reads_the_stats(self):
         self.assertIn("every 30 minutes", answer("Do my stats update"))
         self.assertIn("every 5 minutes", answer("Do my stats update", refresh_minutes=5))
         self.assertNotIn("every 0 minutes", answer("Do my stats update", refresh_minutes=0))
+
+    def test_the_answers_name_this_tabs_background_refresh_switch_and_restart(self):
+        self.assertTrue(answer("Do my stats update").startswith("Yes, while **Background refresh** on this tab is on"))
+        self.assertTrue(answer("Something isn't working.").startswith("Try **Restart** on this tab first"))
+        self.assertIn("`reelforge doctor`", answer("Something isn't working."))
 
     def test_the_demo_names_nothing_on_this_computer(self):
         text = "\n".join(i["a"] for i in items(demo=True))

@@ -188,6 +188,8 @@ def gap_minutes(p: Platform, cfg: dict, manual: bool, fresh: bool = False) -> fl
     days old (10 minutes when you press r).
     """
     gap = 2 if manual else cfg.get("refresh_minutes", 30)
+    if not gap:
+        return 0
     if p.uses_browser:  # each read opens a browser for a few seconds, so go easy
         gap = max(gap or 0, 10 if manual else (30 if fresh else 60))
     return gap or 0
@@ -199,12 +201,12 @@ def _last(p: Platform, last_ts: str | None) -> str | None:
 
 def due(p: Platform, cfg: dict, last_ts: str | None, manual: bool, fresh: bool = False) -> bool:
     """Whether a platform should refresh now."""
-    last_ts = _last(p, last_ts)
-    if not last_ts:
-        return True
     gap = gap_minutes(p, cfg, manual, fresh)
     if not gap:
         return manual
+    last_ts = _last(p, last_ts)
+    if not last_ts:
+        return True
     age_minutes = (analytics.now() - db.parse(last_ts)).total_seconds() / 60
     return age_minutes >= gap * 0.9
 

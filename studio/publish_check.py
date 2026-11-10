@@ -103,7 +103,7 @@ def check(ep_dir: Path) -> tuple[bool, str]:
         item(True, "the Publish tab will list it (episodes/<id>/final/<id>.mp4)")
         lines.append("  note  the dashboard isn't set up yet, so this used the same rules directly")
     tags = S.tag_list(tags_line or spec.get("hashtags", []))
-    if not tags:
+    if not tags and s["captions"]["max_hashtags"] > 0:
         item(False, "hashtags (episode.json 'hashtags')")
     posts = S.post_texts(title, tags, s)
     lines.append("")

@@ -9,6 +9,7 @@
   reelforge refresh            read every profile's stats once and exit
 
   reelforge profiles           your profiles: one for each channel, with its own accounts, stats and settings
+  reelforge profiles --json    the same list as JSON, with the selected profile's key (read-only)
   reelforge profiles new       add one (the same interview as your first channel's)
   reelforge profiles delete NAME [--yes]
                                take one you added out of ReelForge: its folder moves whole into backups/
@@ -24,7 +25,7 @@
       --answers FILE.json      write everything from saved answers, no questions
       --regenerate             rebuild everything from my-studio/answers.json (e.g. after an update), every profile's
       --new                    for a new profile (with --answers too, for an AI running the interview in chat)
-  reelforge doctor [--render-test]    check everything the pipeline needs
+  reelforge doctor [--render-test] [--json]    check everything the pipeline needs
   reelforge stats [on|off]     the hourly job that reads your stats while ReelForge is closed
   reelforge command [on|off]   the reelforge command itself (on your PATH)
   reelforge sounds             download the Mixkit sound effects
@@ -39,6 +40,10 @@
   reelforge uninstall [--yes] [--remove-videos]
                                remove ReelForge from this computer: the folder goes to the Recycle Bin (Trash), and
                                your videos and channels are kept in a folder beside it unless you say otherwise
+  reelforge move [FOLDER] [--yes]
+                               move ReelForge into a folder of its own (C:\\Users\\<you>\\ReelForge on Windows,
+                               ~/ReelForge on a Mac or Linux), or into FOLDER on the same drive: everything in it goes
+                               along, and the reelforge command, the icon and the hourly stats read follow it
 """
 
 from __future__ import annotations
@@ -60,30 +65,37 @@ def _print_written(paths: list[Path]) -> None:
         print(f"  {P.rel(p)}")
 
 
-def next_steps(profile=None) -> str:
-    """What to do once onboarding has written a profile's files (the one this process works on, by default)."""
+def next_steps(profile=None, again: bool = False) -> str:
+    """What to do once first-time setup has written a profile's files (the one this process works on, by default):
+    paste the prompt that starts your AI on the channel (studio/ai_prompt.py), then post the video. again: setup was
+    run again on a channel set up already, so the prompt is the update one (the AI reads its new notes)."""
+    from . import ai_prompt
     from . import settings as S
     profile = profile or profiles.current()
     s = S.load(profile.settings)
-    who = s["ai"]["assistant"]
-    lines = ["", "Your studio is ready. Next:" if profile.main else f"{s['channel']['name']} is ready. Next:"]
-    if who in ("claude", "both"):
-        lines.append("  1. Open this folder in Claude Code: in the Claude desktop app, open Code and choose this "
-                     "folder (or run `claude` in a terminal here). It reads CLAUDE.md by itself." if profile.main else
-                     "  1. Open the ReelForge folder in Claude Code, as for every channel: its CLAUDE.md lists this "
-                     "one, and this channel's own notes are in its folder.")
-    if who in ("codex", "both"):
-        lines.append(("  1. " if who == "codex" else "     ") + "Codex: run `codex` in a terminal in "
-                     f"{'this' if profile.main else 'the ReelForge'} folder. It reads AGENTS.md by itself.")
-    video = "my first video" if profile.main else f"my first {s['channel']['name']} video"
-    say, kept = ("here's my channel", "your channel's brief") if profile.main else \
-        (f"here's {s['channel']['name']}", f"the brief for {s['channel']['name']}")
-    lines.append(f'  2. Say "{say}" and drag a file about it into the chat, or paste a description (your notes, a '
-                 f"doc, examples you like). It keeps it as {kept} and plans every video from it.")
-    lines.append(f'  3. Say: "make {video}"')
+    name = s["channel"]["name"]
+    first = not ai_prompt.has_videos(profile)
+    app = S.ai_names(s["ai"]["assistant"])
+    if again:
+        lines = ["", f"{name}'s answers are updated. Next:",
+                 f"  1. Paste this prompt into {app}, or any other AI that can work with files on this computer. It "
+                 "has the ReelForge folder's path in it:", ""]
+        lines += [f"     {line}" if line else "" for line in ai_prompt.update(name, profile).splitlines()]
+        lines.append("\n  2. It reads the updated notes and tells you what changed, then goes by your new answers from "
+                     "the next video on.")
+        lines.append("  Copy prompt for your AI, on ReelForge's Settings tab, gives you the prompt that asks for a "
+                     "video any time.")
+        return "\n".join(lines)
+    lines = ["", "Your studio is ready. Next:" if profile.main else f"{name} is ready. Next:",
+             f"  1. Paste this prompt into {app}, or any other AI that can work with files on this computer. It has the "
+             "ReelForge folder's path in it, so there's nothing to drag in or open first:", ""]
+    lines += [f"     {line}" if line else "" for line in ai_prompt.text(name, profile, first).splitlines()]
+    video = f"{'your' if profile.main else 'its'} {'first' if first else 'next'} video"
+    lines.append(f"\n  2. It gets to know {'your channel' if profile.main else name}, then makes {video}.")
     icon = ("double-click ReelForge.bat" if P.WINDOWS else "open ReelForge from Applications" if P.MAC else
             "open ReelForge from your app menu")
-    lines.append(f"  4. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish to post it.")
+    lines.append(f"  3. When it's done, open ReelForge (type reelforge, or {icon}) and go to Publish to post it.")
+    lines.append("  Copy prompt for your AI, on ReelForge's Settings tab, copies this prompt again any time.")
     return "\n".join(lines)
 
 
@@ -115,6 +127,7 @@ def onboard(argv: list[str]) -> int:
     ap.add_argument("--new", action="store_true")
     args = ap.parse_args(argv)
     from . import generate, questions
+    from . import settings as S
 
     if args.questions:
         print(json.dumps(questions.describe(), indent=2, ensure_ascii=False))
@@ -132,6 +145,7 @@ def onboard(argv: list[str]) -> int:
             print(f"{src} isn't valid JSON: {e}")
             return 1
         target = None
+        again = not args.new and S.onboarded()  # run again: the update prompt
         if args.new:  # a new profile: its own folder in profiles/, named after the channel
             a, problems = questions.validate(answers)
             if problems:
@@ -152,7 +166,7 @@ def onboard(argv: list[str]) -> int:
             print(f"\nNew profile: {target.name} ({target.describe()}). Open it with: reelforge -p {target.slug}")
         if not args.regenerate:
             print("\n" + apply_background_stats())
-        print(next_steps(target))
+        print(next_steps(target, again))
         return 0
     if args.plain or not _interactive():
         if not sys.stdin.isatty():
@@ -166,11 +180,12 @@ def onboard(argv: list[str]) -> int:
             return 2
         from . import onboard_cli
         prior = json.loads(P.ANSWERS.read_text(encoding="utf-8")) if P.ANSWERS.exists() else None
+        again = S.onboarded()
         answers = onboard_cli.ask(prior)
         written = generate.write_all(answers)
         _print_written(written)
         print("\n" + apply_background_stats())
-        print(next_steps())
+        print(next_steps(again=again))
         return 0
     return first_run("onboard", new=args.new)
 
@@ -215,19 +230,32 @@ def first_run(start: str, new: bool = False) -> int:
     return code
 
 
-def list_profiles(argv: list[str]) -> int:
-    """reelforge profiles [new | delete NAME | restore [NAME]]: every profile, the interview that adds one, or taking
-    one out of ReelForge and bringing it back."""
+def list_profiles(argv: list[str], chosen: profiles.Profile | None = None) -> int:
+    """reelforge profiles [--json | new | delete NAME | restore [NAME]]: every profile, the interview that adds one,
+    or taking one out of ReelForge and bringing it back."""
+    usage = "usage: reelforge profiles [--json | new | delete NAME | restore [NAME]]"
+    if "--json" in argv and argv != ["--json"]:
+        print(f"{usage}\n--json only works with the profile listing, without a subcommand.", file=sys.stderr)
+        return 2
     if argv and argv[0] in ("new", "add"):
         return first_run("onboard", new=True) if _interactive() else onboard(["--new", *argv[1:]])
     if argv and argv[0] in ("delete", "remove"):
         return delete_profile(argv[1:])
     if argv and argv[0] == "restore":
         return restore_profile(argv[1:])
-    if argv:
-        print("usage: reelforge profiles [new | delete NAME | restore [NAME]]")
+    if argv and argv != ["--json"]:
+        print(usage)
         return 2
-    here = profiles.current() if profiles.get(os.environ.get(profiles.ENV)) else profiles.last()
+    here = chosen or (profiles.current() if profiles.get(os.environ.get(profiles.ENV)) else profiles.last())
+    if argv == ["--json"]:
+        from . import settings as S
+
+        print(json.dumps({"current": here.key, "profiles": [
+            {"key": p.key, "name": p.name, "folder": str(p.folder), "main": p.main,
+             "onboarded": p.onboarded, "platforms": S.load(p.settings)["platforms"]["enabled"]}
+            for p in profiles.every()
+        ]}))  # ASCII (\u escapes), so it prints under any Windows code page, not only in UTF-8 mode
+        return 0
     print("Your profiles (one for each channel):")
     for i, p in enumerate(profiles.every(), 1):
         mark = "*" if p == here else " "
@@ -388,7 +416,7 @@ def new_episode(argv: list[str]) -> int:
         cta.setdefault("sub", "")
         spec["cta"] = cta
     tags = S.tag_list(s["captions"]["default_tags"])[: s["captions"]["max_hashtags"]]
-    if tags:
+    if tags or s["captions"]["max_hashtags"] == 0:
         spec["hashtags"] = tags
     dest = P.EPISODES / ep_id
     dest.mkdir()
@@ -455,21 +483,28 @@ def main(argv: list[str] | None = None) -> int:
     except (AttributeError, ValueError):
         pass
     argv = list(sys.argv[1:] if argv is None else argv)
-    P.keep_runnable()
-    from . import reset
-    done = reset.finish_pending()   # a factory reset or an uninstall the window just asked for (it quit for this)
-    if isinstance(done, list):
-        return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
-    if done is not None:
-        return done
     argv, word = take_profile(argv)
+    # JSON listings leave launchers, pending actions and the process's profile selection untouched.
+    profiles_json = argv[:1] == ["profiles"] and "--json" in argv[1:]
+    if not profiles_json:
+        P.keep_runnable()
+        from . import move, reset
+        if argv[:1] != ["move"]:
+            move.finish_leftover()      # a move whose last step never ran finishes here, at the new place
+        done = reset.finish_pending()   # a factory reset, uninstall or move the window just asked for (it quit for it)
+        if isinstance(done, list):
+            return open_app(done)       # first-time setup after a reset; the Settings tab again if nothing changed
+        if done is not None:
+            return done
+    chosen = None
     if word is not None:
         chosen = profiles.find(word)
         if chosen is None:
             names = ", ".join(f"{i}. {p.name}" for i, p in enumerate(profiles.every(), 1))
             print(f"There's no profile called {word!r}. Your profiles: {names}")
             return 2
-        profiles.use(chosen)
+        if not profiles_json:
+            profiles.use(chosen)
     if argv and argv[0] in ("-h", "--help", "help"):
         print(__doc__)
         return 0
@@ -483,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd in ("channel", "onboard"):
         return onboard(rest)
     if cmd == "profiles":
-        return list_profiles(rest)
+        return list_profiles(rest, chosen)
     if cmd == "setup":
         yes = "--yes" in rest or "-y" in rest
         if not yes and _interactive():
@@ -492,7 +527,7 @@ def main(argv: list[str] | None = None) -> int:
         return setup_flow.run(yes=yes, onboard="--no-onboard" not in rest)
     if cmd == "doctor":
         from . import doctor
-        return doctor.run(render_test="--render-test" in rest)
+        return doctor.run(render_test="--render-test" in rest, json_output="--json" in rest)
     if cmd == "stats":
         from . import stats_schedule
         return stats_schedule.main(rest)
@@ -511,6 +546,9 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "uninstall":
         from . import reset
         return reset.uninstall_main(rest)
+    if cmd == "move":
+        from . import move
+        return move.main(rest)
     if cmd == "new-episode":
         return new_episode(rest)
     if cmd in ("agentcut", "hyperframes"):

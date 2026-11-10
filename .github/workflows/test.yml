@@ -140,6 +140,25 @@ jobs:
           bin/reelforge stats off
           bin/reelforge stats > "$RUNNER_TEMP/stats.txt"
           grep -q "Background stats: off" "$RUNNER_TEMP/stats.txt"
+      - name: Moving the folder, then back into its own folder (the command, the icon and the hourly job follow it)
+        run: |
+          cd ~
+          export PATH="$HOME/.local/bin:$PATH"
+          ~/ReelForge/bin/reelforge stats on
+          ~/ReelForge/bin/reelforge move ~/Apps/ReelForge --yes
+          test ! -e ~/ReelForge
+          ~/Apps/ReelForge/.venv/bin/python -c "import sys, numpy; assert 'Apps/ReelForge/tools/python' in sys.base_prefix, sys.base_prefix"
+          readlink ~/.local/bin/reelforge | grep -q "Apps/ReelForge/bin/reelforge"
+          reelforge stats | tee "$RUNNER_TEMP/stats.txt"
+          grep -q "Background stats: on" "$RUNNER_TEMP/stats.txt"
+          if [ "$RUNNER_OS" = macOS ]; then f=~/Applications/ReelForge.app/Contents/Resources/ReelForge.command; else f=~/.local/share/applications/reelforge.desktop; fi
+          grep -q "Apps/ReelForge" "$f"
+          cat ~/Apps/ReelForge/dashboard/data/moved.json
+          reelforge move --yes
+          test -f ~/ReelForge/studio/__init__.py
+          test ! -e ~/Apps/ReelForge
+          reelforge stats | grep -q "Background stats: on"
+          reelforge stats off
       # Blender renders with the graphics card (Metal on a Mac). GitHub's Intel Macs are virtual machines with no
       # Metal, so there it can only build the scene; a real Intel Mac has a Metal card. Linux draws without a screen
       # through Xvfb and Mesa, slowly.
@@ -233,3 +252,41 @@ jobs:
           if ((Get-Content (Join-Path $old "dashboard\data\stats.db")) -ne "my stats") { throw "the update touched the stats" }
           if (-not (Test-Path (Join-Path $old "unins000.exe"))) { throw "the update removed the uninstaller" }
           Get-Content (Join-Path $old "dashboard\data\updated.json")
+      - name: A ReelForge kept somewhere else is found, and the install line makes no second copy
+        shell: powershell
+        run: |
+          # Not the old installer's copy from the step before: the install line would update that one in place
+          Remove-Item -Force "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{39D29FF3-A243-4140-8CD2-E69CC877A496}_is1"
+          $env:REELFORGE_NO_SETUP = "1"   # if it did install, setup would wait for answers
+          $there = Join-Path $env:RUNNER_TEMP "fresh\ReelForge"
+          $path = [Environment]::GetEnvironmentVariable("Path", "User")
+          [Environment]::SetEnvironmentVariable("Path", "$path;$there\bin", "User")
+          try {
+            $out = irm "$env:RELEASE/install.ps1" | iex 6>&1 | Out-String
+            Write-Host $out
+            if ($out -notmatch "already on this computer") { throw "it didn't say where ReelForge is" }
+            if (Test-Path (Join-Path $env:USERPROFILE "ReelForge")) { throw "it made a second copy" }
+          } finally { [Environment]::SetEnvironmentVariable("Path", $path, "User") }
+      - name: Moving a copy into its own folder (a small window does it once ReelForge has closed)
+        shell: powershell
+        run: |
+          $from = Join-Path $env:RUNNER_TEMP "desk\ReelForge"
+          $to = Join-Path $env:RUNNER_TEMP "home\ReelForge"
+          Copy-Item -Recurse (Join-Path $env:RUNNER_TEMP "fresh\ReelForge") $from
+          python -m venv (Join-Path $from ".venv")
+          $py = Join-Path $from ".venv\Scripts\python.exe"
+          & $py -m pip install --disable-pip-version-check -q -r (Join-Path $from "requirements.txt")
+          $env:STUDIO_DRY_SYSTEM = ""
+          $env:PYTHONUTF8 = "1"
+          & $py (Join-Path $from "bin\reelforge.py") command on
+          & $py (Join-Path $from "bin\reelforge.py") stats on
+          & $py (Join-Path $from "bin\reelforge.py") move $to --yes
+          foreach ($i in 1..120) { if (Test-Path (Join-Path $to "dashboard\data\moved.json")) { break }; Start-Sleep 1 }
+          Get-Content (Join-Path $to "dashboard\data\moved.json")
+          if (Test-Path $from) { throw "the old folder is still there" }
+          $userPath = [Environment]::GetEnvironmentVariable("Path", "User") -split ";"
+          if ($userPath -notcontains "$to\bin" -or $userPath -contains "$from\bin") { throw "the reelforge command didn't follow it: $userPath" }
+          $task = Get-ScheduledTask -TaskName "ReelForge stats"
+          if ($task.Actions[0].Execute -ne "$to\.venv\Scripts\pythonw.exe" -or $task.Actions[0].Arguments -notlike "*$to\dashboard\refresh.pyw*") { throw "the hourly job didn't follow it: $($task.Actions[0].Execute) $($task.Actions[0].Arguments)" }
+          & (Join-Path $to ".venv\Scripts\python.exe") (Join-Path $to "bin\reelforge.py") stats off
+          & (Join-Path $to ".venv\Scripts\python.exe") (Join-Path $to "bin\reelforge.py") command off

@@ -236,7 +236,8 @@ export function CheckList(
 }
 
 /** Yes or no: Space or Enter (or a click) flips it. */
-export function Switch(p: FieldBase & { value: boolean; onChange: (value: boolean) => void }) {
+/** A yes/no switch. labels: what it says when on and when off (Yes and No unless given). */
+export function Switch(p: FieldBase & { value: boolean; onChange: (value: boolean) => void; labels?: [string, string] }) {
   const theme = useTheme()
   const { ref, focused, focus } = useFocus(p.id, {
     autoFocus: p.autoFocus,
@@ -264,7 +265,7 @@ export function Switch(p: FieldBase & { value: boolean; onChange: (value: boolea
         <span fg={p.value ? track : theme.input}>{p.value ? "▐█▌" : "━━━"}</span>
       </text>
       <text fg={p.value ? theme.good : theme.muted} attributes={focused ? TextAttributes.BOLD | TextAttributes.UNDERLINE : TextAttributes.BOLD}>
-        {p.value ? "Yes" : "No"}
+        {(p.labels ?? ["Yes", "No"])[p.value ? 0 : 1]}
       </text>
     </box>
   )

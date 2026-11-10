@@ -60,6 +60,16 @@ def files() -> dict[str, bytes]:
             f"{KIT_NAME}.json": (json.dumps(fragment(), indent=2, ensure_ascii=False) + "\n").encode("utf-8")}
 
 
+def ours() -> bool:
+    """Windows Terminal's ReelForge profile is there and opens this folder's ReelForge (not another copy's)."""
+    try:
+        data = json.loads((folder() / f"{KIT_NAME}.json").read_text(encoding="utf-8"))
+        where = str(data["profiles"][0].get("startingDirectory") or "")
+    except (OSError, ValueError, KeyError, IndexError, TypeError, AttributeError):
+        return False
+    return bool(where) and os.path.normcase(os.path.normpath(where)) == os.path.normcase(os.path.normpath(str(P.ROOT)))
+
+
 def _write(where: Path, files: dict[str, bytes]) -> None:
     """Write the files with PowerShell rather than ReelForge's own Python. Python from the Microsoft Store runs as a
     packaged app, and Windows quietly keeps the folders a packaged app makes in AppData in that app's private copy,

@@ -76,10 +76,10 @@ QUESTIONS: list[Q] = [
     # ---- you
     Q("creator", "you", "What should your AI call you?", help="Your first name or nickname. Optional.",
       placeholder="Sam"),
-    Q("assistant", "you", "Which AI will make your videos?", "choice", default="claude",
-      help="It needs to run commands on this computer: Claude Code (the Claude desktop app's Code tab, or the "
-           "claude command) or OpenAI's Codex CLI.",
-      options=[("claude", "Claude Code (recommended)"), ("codex", "Codex"), ("both", "Both")]),
+    Q("assistant", "you", "Which AI will make your videos?", "multi", required=True,  # no default: neither is favoured
+      help="Pick one or both. They run commands on this computer: Claude Code is the Claude desktop app's Code tab "
+           "or the claude command, Codex is OpenAI's Codex CLI.",
+      options=[("claude", "Claude Code"), ("codex", "Codex")]),
 
     # ---- channel
     Q("channel_name", "channel", "What's your channel called?", required=True, placeholder="Night Physics",
@@ -166,13 +166,20 @@ QUESTIONS: list[Q] = [
 # Answers older versions saved that nothing reads now: saving the answers drops them. ("quality" was how hard your AI
 # should work: that's your AI app's to decide, as the Settings tab's FAQ says.)
 RETIRED = ("ultracode", "quality")
+# Answers older versions saved that read differently now: since 2.2.0 you tick one AI or both, so an older one-word
+# answer is that one ticked, and "Both" (a choice until 2.1.1) is both of them.
+RENAMED = {"assistant": {"claude": ["claude"], "codex": ["codex"], "both": ["claude", "codex"]}}
 
 BY_KEY = {q.key: q for q in QUESTIONS}
 
 
 def defaults_for(answers: dict) -> dict:
-    """Fill every visible question that has no answer with its default."""
+    """Fill every visible question that has no answer with its default (an answer a newer version renamed becomes the
+    new one first)."""
     out = dict(answers)
+    for key, renamed in RENAMED.items():
+        if isinstance(out.get(key), str) and out[key] in renamed:
+            out[key] = renamed[out[key]]
     for q in QUESTIONS:
         if q.key not in out and q.visible(out):
             d = q.default_for(out)

@@ -1,11 +1,13 @@
 // The Settings tab, drawn without a terminal with its real Python side, on demo data and on a channel set up in a
-// scratch folder: what it shows, the tab order (moved with a click and the arrows, a drag or the keyboard, and kept for
-// the next window), and the danger zone's dialogs, which do nothing until the channel's name is typed (and nothing at
-// all in the demo).
+// scratch folder: what it shows (Copy prompt for your AI by the channel's answers), the tab order (moved with a click
+// and the arrows, a drag or the keyboard, and kept for
+// the next window), the Background refresh switch (it flips at once, then shows what the computer did) and Restart
+// (exit code 75, for the launcher), and the danger zone's dialogs, which do nothing until the channel's name is typed
+// (and nothing at all in the demo).
 
 import { TextAttributes } from "@opentui/core"
 import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { headless, type Headless } from "../scripts/headless"
@@ -17,10 +19,11 @@ import { toasts } from "../src/ui/Panels"
 
 const PRELOAD = { REELFORGE_BRIDGE_PRELOAD: join(ROOT, "scripts", "shots_preload.py") }
 const BIN = process.platform === "win32" ? "Recycle Bin" : "Trash" // what dashboard/desktop.py calls it here
+const FILES = process.platform === "win32" ? "Explorer" : process.platform === "darwin" ? "Finder" : "the file manager" // and this
 setDefaultTimeout(30_000)
 let open: Headless | null = null
 
-async function window(size: [number, number] = [150, 72]): Promise<Headless> {
+async function window(size: [number, number] = [150, 76]): Promise<Headless> {
   open = await headless("dashboard", { demo: true, only_demos: true, tab: "settings" }, size[0], size[1], PRELOAD)
   await open.settle(3000)
   return open
@@ -62,9 +65,23 @@ describe("the Settings tab", () => {
     const h = await window()
     const f = frame(h)
     if (process.env.SHOW) console.log(f)
-    for (const text of ["THIS CHANNEL", "FAQ", "▸ Which model does my AI use, and how hard does it think?", "▸ Something isn't working.", "ON THIS COMPUTER", "DANGER ZONE", "Factory reset…", "Uninstall…", "Change your answers"])
+    for (const text of ["THIS CHANNEL", "FAQ", "▸ Which model does my AI use, and how hard does it think?", "▸ Something isn't working.", "ON THIS COMPUTER", "DANGER ZONE", "Factory reset…", "Uninstall…", "Change your answers", "Copy prompt for your AI"])
       expect(f).toContain(text)
     for (const gone of ["REASONING", "Max", "High", "Fast", "the standard"]) expect(f).not.toContain(gone)
+  })
+
+  test("Copy prompt for your AI sits by Change your answers, and copies nothing in the demo", async () => {
+    for (const size of [[150, 76], [100, 40]] as [number, number][]) {
+      const h = await window(size)
+      const change = find(h, "Change your answers")!
+      const copy = find(h, "Copy prompt for your AI")!
+      expect(copy[1] - change[1]).toBeLessThanOrEqual(2) // beside it, or on the row under it in a narrow window
+      await clickText(h, "Copy prompt for your AI", 2)
+      expect(frame(h).replace(/\s+/g, " ")).toContain("In your own ReelForge, this copies the prompt")
+      await open?.close()
+      open = null
+      toasts.clear()
+    }
   })
 
   test("Settings and Updates are the last two tabs, so 6 opens it and 7 Updates", async () => {
@@ -98,14 +115,14 @@ describe("the Settings tab", () => {
     await clickText(h, "How do I make a video?", 3)
     let f = frame(h)
     expect(f).toContain("▾ How do I make a video?")
-    expect(f).toContain("Then say make my first video")
+    expect(f).toContain("After that, make today's videos")
     const lines = f.split("\n")
     const at = (text: string) => lines.findIndex((l) => l.includes(text))
-    expect(at("Then say make my first video")).toBeGreaterThan(at("How do I make a video?"))
-    expect(at("Then say make my first video")).toBeLessThan(at("My AI doesn't know about my channel."))
+    expect(at("After that, make today's videos")).toBeGreaterThan(at("How do I make a video?"))
+    expect(at("After that, make today's videos")).toBeLessThan(at("My AI doesn't know about my channel."))
     await clickText(h, "Does ReelForge post for me?", 3)
     f = frame(h)
-    expect(f).not.toContain("Then say make my first video")
+    expect(f).not.toContain("After that, make today's videos")
     expect(f).toContain("▾ Does ReelForge post for me?")
     expect(f).toContain("ReelForge never posts, uploads or sends anything")
     await clickText(h, "Does ReelForge post for me?", 3)
@@ -150,6 +167,37 @@ describe("the Settings tab", () => {
       expect(frame(h)).toContain("THIS CHANNEL")
     }
     expect(frame(h)).toContain("FAQ  click a question for its answer")
+  })
+
+  test("on this computer: Background refresh has an On/Off switch, and Restart a button under the rest", async () => {
+    const h = await window()
+    const lines = frame(h).split("\n")
+    const at = (text: string) => lines.findIndex((l) => l.includes(text))
+    expect(lines[at("Background refresh")]).toContain("━━━▐█▌ On")
+    expect(lines[at("Background refresh") + 1]).toContain("on: your stats update every hour, even with ReelForge closed")
+    expect(frame(h)).not.toContain("Hourly stats read")
+    expect(at("Background refresh")).toBeGreaterThan(at("ON THIS COMPUTER"))
+    expect(at("Restart ReelForge")).toBeGreaterThan(at("ReelForge's icon"))
+    expect(at("Restart ReelForge")).toBeLessThan(at("PROFILES"))
+    expect(lines[at("Restart ReelForge")]).toMatch(/Restart ReelForge +┃? *▐ +Restart +▌/)
+    expect(lines[at("Restart ReelForge") + 1]).toContain("closes ReelForge and opens it again")
+    // the demo changes nothing: a click on the switch says so, and it stays on
+    const [x, y] = find(h, "━━━▐█▌ On")!
+    await h.t.mockMouse.click(x + 4, y)
+    await h.settle(500)
+    expect(frame(h)).toContain("Demo mode: nothing is changed.")
+    expect(frame(h)).toContain("━━━▐█▌ On")
+    expect(h.exits).toEqual([])
+  })
+
+  test("Restart closes the window and asks the launcher to open ReelForge again", async () => {
+    const h = await window()
+    const [, y] = find(h, "Restart ReelForge")!
+    const row = frame(h).split("\n")[y]!
+    const x = [...row.slice(0, row.lastIndexOf("Restart"))].length // the button, at the right of the row
+    await h.t.mockMouse.click(x + 2, y)
+    for (let i = 0; i < 25 && !h.exits.length; i++) await h.settle(200)
+    expect(h.exits).toEqual([{ code: 75, result: { restart: true } }]) // the launcher starts ReelForge again on 75
   })
 
   test("the demo resets and uninstalls nothing: no dialog opens", async () => {
@@ -307,7 +355,7 @@ describe("the danger zone on a channel that's set up", () => {
 
   async function settings(): Promise<Headless> {
     tmp = mkdtempSync(join(tmpdir(), "reelforge-settings-"))
-    open = await headless("dashboard", { tab: "settings" }, 150, 64, {
+    open = await headless("dashboard", { tab: "settings" }, 150, 68, {
       REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "settings_preload.py"),
       REELFORGE_TEST_ROOT: tmp,
     })
@@ -385,6 +433,83 @@ describe("the danger zone on a channel that's set up", () => {
     await closed(h)
     expect(asked()).toMatchObject({ do: "uninstall", keep: false })
     expect(h.exits.map((e) => e.code)).toEqual([75])
+  })
+
+  test("Move puts ReelForge in a folder of its own: the dialog says from where to where, then the launcher does it", async () => {
+    const h = await settings()
+    expect(frame(h)).toContain("ReelForge's folder")
+    await clickText(h, "Move…")
+    await until(h, "MOVE REELFORGE")
+    const f = frame(h)
+    for (const text of ["Moves ReelForge into a folder of its own", "  from  ", "  to    ", "-home", "nothing is copied"])
+      expect(f).toContain(text)
+    await clickText(h, "Cancel")
+    await h.settle(500)
+    expect(frame(h)).not.toContain("MOVE REELFORGE")
+    expect(asked()).toBeNull()
+    await clickText(h, "Move…")
+    await until(h, "MOVE REELFORGE")
+    await clickText(h, "Move ReelForge")
+    await closed(h)
+    expect(asked()?.do).toBe("move")
+    expect(asked()?.to).toMatch(/-home[\\/]ReelForge$/)
+    expect(h.exits.map((e) => e.code)).toEqual([75]) // the launcher starts the move as it starts ReelForge again
+    expect(existsSync(join(tmp, "my-studio", "answers.json"))).toBe(true) // nothing moved by the window itself
+  })
+
+  test(`Open in ${FILES} beside ReelForge's folder opens that folder`, async () => {
+    const h = await settings()
+    const opened = join(tmp, "opened.txt") // what the made-up open_folder was given (ui/test/settings_preload.py)
+    await clickText(h, `Open in ${FILES}`)
+    for (let i = 0; i < 25 && !existsSync(opened); i++) await h.settle(200)
+    expect(readFileSync(opened, "utf-8")).toBe(realpathSync.native(tmp))
+    expect(frame(h)).toContain("Move…") // still beside it, since this ReelForge isn't in a folder of its own
+    expect(h.exits).toEqual([])
+  })
+})
+
+describe("Background refresh on a channel that's set up", () => {
+  let tmp = ""
+  afterEach(async () => {
+    await open?.close()
+    open = null
+    toasts.clear()
+    if (tmp) rmSync(tmp, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 })
+    tmp = ""
+  })
+
+  const job = () => readFileSync(join(tmp, "job.txt"), "utf-8") // the made-up hourly job (ui/test/job_preload.py)
+
+  async function until(h: Headless, text: string) {
+    for (let i = 0; i < 25 && !frame(h).includes(text); i++) await h.settle(200)
+    expect(frame(h)).toContain(text)
+  }
+
+  test("the switch flips at once, says it's turning off until the hourly read is off, then turns it on again", async () => {
+    tmp = mkdtempSync(join(tmpdir(), "reelforge-job-"))
+    const h = (open = await headless("dashboard", { tab: "settings" }, 150, 64, {
+      REELFORGE_BRIDGE_PRELOAD: join(ROOT, "ui", "test", "job_preload.py"),
+      REELFORGE_TEST_ROOT: tmp,
+    }))
+    await until(h, "━━━▐█▌ On")
+    expect(frame(h)).toContain("on: your stats update every hour, even with ReelForge closed")
+    const [x, y] = find(h, "━━━▐█▌ On")!
+    await h.t.mockMouse.click(x + 4, y)
+    await h.settle(150)
+    expect(frame(h)).toContain("▐█▌━━━ Off") // at once, while the computer is still turning it off
+    expect(frame(h)).toContain("turning it off…")
+    await until(h, "off: your stats update only while ReelForge is open")
+    expect(job()).toBe("off")
+    expect(frame(h)).toContain("▐█▌━━━ Off")
+    expect(frame(h)).toContain("Background stats are off.")
+    toasts.clear()
+    h.t.mockInput.pressKey("RETURN") // the switch has the keyboard since the click
+    await h.settle(150)
+    expect(frame(h)).toContain("━━━▐█▌ On")
+    expect(frame(h)).toContain("turning it on…")
+    await until(h, "on: your stats update every hour, even with ReelForge closed")
+    expect(job()).toBe("on")
+    expect(frame(h)).not.toContain("turning it")
   })
 })
 

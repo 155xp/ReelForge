@@ -30,7 +30,8 @@ class WriteAll(unittest.TestCase):
 
     def test_created_date_when_the_answers_file_is_the_input(self):
         # Onboarding in the chat writes my-studio/answers.json, then reads that same file back in: no date yet.
-        answers = {"channel_name": "Test Channel", "about": "What-if videos with real science.", "creator": "Sam"}
+        answers = {"channel_name": "Test Channel", "about": "What-if videos with real science.", "creator": "Sam",
+                   "assistant": "claude"}
         P.MY_STUDIO.mkdir()
         P.ANSWERS.write_text(json.dumps(answers), encoding="utf-8")
         generate.write_all(answers)
@@ -45,13 +46,13 @@ class WriteAll(unittest.TestCase):
         # What 1.0.5 saved: its Quality step's answer (Max was its default) and "Use ultracode for video runs?"; 1.0.6
         # kept the first. Your AI app decides how hard it works now (the Settings tab's FAQ), so neither is kept.
         answers = {"channel_name": "Test Channel", "about": "What-if videos with real science.", "creator": "Sam",
-                   "quality": "max", "ultracode": True}
+                   "assistant": "claude", "quality": "max", "ultracode": True}
         generate.write_all(answers)
         saved = json.loads(P.ANSWERS.read_text(encoding="utf-8"))
         self.assertNotIn("ultracode", saved)
         self.assertNotIn("quality", saved)
         settings = P.SETTINGS.read_text(encoding="utf-8")
-        self.assertEqual(tomllib.loads(settings)["ai"], {"assistant": "claude"})
+        self.assertEqual(tomllib.loads(settings)["ai"], {"assistant": ["claude"]})
         for text in (settings, (P.ROOT / "CLAUDE.md").read_text(encoding="utf-8")):
             self.assertNotIn("ultracode", text.lower())
             self.assertNotIn("reasons:", text)
@@ -69,8 +70,8 @@ class ClaudeSettings(unittest.TestCase):
         self.addCleanup(patch.stop)
         self.path = Path(tmp.name) / ".claude" / "settings.local.json"
 
-    def write(self, assistant="claude"):
-        return generate.write_claude_settings({"ai": {"assistant": assistant}})
+    def write(self, *assistant: str):
+        return generate.write_claude_settings({"ai": {"assistant": list(assistant or ["claude"])}})
 
     def read(self):
         return json.loads(self.path.read_text(encoding="utf-8"))
@@ -103,8 +104,8 @@ class ClaudeSettings(unittest.TestCase):
     def test_codex_gets_none(self):
         self.assertIsNone(self.write("codex"))
         self.assertFalse(self.path.exists())
-        self.write("both")
-        self.assertTrue(self.path.exists())
+        self.write("codex", "claude")  # Claude Code and Codex: Claude Code's start, as for Claude Code alone
+        self.assertEqual(self.read(), {"model": "opus", "effortLevel": "high"})
 
 if __name__ == "__main__":
     unittest.main()

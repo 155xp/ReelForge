@@ -120,6 +120,34 @@ def enable() -> str:
     return "Type reelforge in any terminal to open ReelForge."
 
 
+def follow(old: Path) -> str:
+    """The ReelForge folder moved here from old (studio/move.py): the reelforge command opens it here now. On Windows
+    the old folder's entry on your PATH becomes this one's, where it was; elsewhere the link to the old folder goes and
+    a new one is made. Returns a sentence saying what happened."""
+    if P.test_copy() or _dry():
+        return enable()
+    if P.WINDOWS:
+        value, kind = _win_user_path()
+        entries = [e for e in value.split(";") if e.strip()]
+        gone = _norm(str(Path(old) / "bin"))
+        kept: list[str] = []
+        for e in [str(BIN) if _norm(e) == gone else e for e in entries]:
+            if _norm(e) not in {_norm(k) for k in kept}:
+                kept.append(e)
+        if _norm(str(BIN)) not in {_norm(k) for k in kept}:
+            kept.append(str(BIN))
+        if kept != entries:
+            _win_set_user_path(";".join(kept), kind)
+        return "Type reelforge in any new terminal window to open ReelForge."
+    link = _link()
+    try:
+        if link.is_symlink() and _norm(os.readlink(link)) == _norm(str(Path(old) / "bin" / "reelforge")):
+            link.unlink()
+    except OSError:
+        pass
+    return enable()
+
+
 def disable() -> str:
     if P.test_copy():
         return "Left alone in a test copy: it never changes the reelforge command."

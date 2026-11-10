@@ -40,7 +40,7 @@ def write_claude_settings(s: dict) -> Path | None:
     never shared): Opus at high effort, for whichever of the two the file doesn't name already. Other keys already in
     the file (permissions and the like) are kept. An effort is the effortLevel key or the CLAUDE_CODE_EFFORT_LEVEL
     variable (max effort needs that: effortLevel only goes up to xhigh). None when there's nothing to add."""
-    if s["ai"]["assistant"] not in ("claude", "both"):
+    if "claude" not in s["ai"]["assistant"]:
         return None
     path = P.ROOT / ".claude" / "settings.local.json"
     data: dict = {}
@@ -134,7 +134,7 @@ def settings_from(a: dict) -> dict:
         },
         "schedule": {"per_day": per_day, "per_week": per_week, "post_times": a.get("post_times", "").strip(),
                      "timezone": a.get("timezone", "").strip()},
-        "ai": {"assistant": a.get("assistant", "claude")},
+        "ai": {"assistant": S.assistants(a.get("assistant"))},
     }
 
 
@@ -183,8 +183,8 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
     who = creator or "the creator"
     win = P.WINDOWS
     sep = "\\" if win else "/"
-    first = s["captions"]["tiktok_first_tag"]
     n_tags = s["captions"]["max_hashtags"]
+    first = s["captions"]["tiktok_first_tag"] if n_tags > 0 else ""
     platforms = [{"key": p, "name": S.PLATFORM_NAMES[p], "handle": s["platforms"]["handles"].get(p, "")}
                  for p in s["platforms"]["enabled"]]
     rules = {
@@ -193,6 +193,9 @@ def context(a: dict, s: dict, assistant: str, profile=None) -> dict:
         "youtube": "YouTube: the caption is the title, the hashtags are the description",
         "x": "X: the caption only, no hashtags" if not s["captions"]["hashtags_on_x"] else "X: caption + hashtags",
     }
+    if n_tags == 0:
+        rules = {p: f"{S.PLATFORM_NAMES[p]}: the caption only, no hashtags" for p in S.PLATFORMS}
+        rules["youtube"] = "YouTube: the caption is the title, no hashtags in the description"
     per_day, per_week = s["schedule"]["per_day"], s["schedule"]["per_week"]
     cadence = _cadence(s)
     lufs = s["sound"]["target_lufs"]

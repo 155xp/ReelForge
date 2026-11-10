@@ -36,8 +36,10 @@ START = {
 1. Setup. The install line starts it for you; to run it again, double-click setup.bat. It lists what ReelForge
    still needs (Python packages, Blender, ffmpeg, the sound effects, the reelforge command), sets it all up in this
    folder once you say yes, then starts a short interview about your channel.
-2. Open this folder in Claude Code (the Claude desktop app's Code tab, then Open folder...) or run codex here,
-   and say: "make my first video".
+2. Setup's last screen has the prompt for your AI, with a Copy button. Paste it into Claude Code (the Claude
+   desktop app's Code tab), Codex or any AI that can work with files on your computer: it has this folder's path
+   in it, so there's nothing to drag in, and your AI makes your first video. (Copy prompt for your AI, on
+   ReelForge's Settings tab, copies it again any time.)
 3. Open ReelForge (double-click ReelForge.bat, or type reelforge in a terminal) and go to Publish to post it.
 
 Keep this folder somewhere with a short path, e.g. C:\\Users\\<you>\\ReelForge. Full guide: README.md
@@ -48,8 +50,10 @@ Keep this folder somewhere with a short path, e.g. C:\\Users\\<you>\\ReelForge. 
    double-click "Set up ReelForge.command"). It lists what ReelForge still needs (Python if you haven't got it,
    Blender, ffmpeg, the sound effects, the reelforge command and ReelForge in your Applications folder), puts it all
    in this folder once you say yes, then starts a short interview about your channel.
-2. Open this folder in Claude Code (the Claude desktop app's Code tab, then Open folder...) or run codex here,
-   and say: "make my first video".
+2. Setup's last screen has the prompt for your AI, with a Copy button. Paste it into Claude Code (the Claude
+   desktop app's Code tab), Codex or any AI that can work with files on your computer: it has this folder's path
+   in it, so there's nothing to drag in, and your AI makes your first video. (Copy prompt for your AI, on
+   ReelForge's Settings tab, copies it again any time.)
 3. Open ReelForge (from Applications, Launchpad or Spotlight, or type reelforge in Terminal) and go to Publish
    to post it.
 
@@ -61,7 +65,10 @@ Full guide: README.md
    lists what ReelForge still needs (Python if you haven't got a recent one, Blender, ffmpeg, the sound effects, the
    reelforge command and ReelForge in your app menu), puts it all in this folder once you say yes, then starts a
    short interview about your channel.
-2. Run claude or codex in this folder and say: "make my first video".
+2. Setup's last screen has the prompt for your AI, with a Copy button. Paste it into Claude Code (claude in a
+   terminal), Codex or any AI that can work with files on your computer: it has this folder's path in it, so
+   there's nothing to drag in, and your AI makes your first video. (Copy prompt for your AI, on ReelForge's
+   Settings tab, copies it again any time.)
 3. Open ReelForge (from your app menu, or type reelforge) and go to Publish to post it.
 
 Full guide: README.md
