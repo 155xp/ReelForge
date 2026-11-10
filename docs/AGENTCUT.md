@@ -201,3 +201,8 @@ cover, changing audio or replacing a file requires QA and a fresh review. Runnin
 QA alone cannot reuse an older approval. Existing completed videos are preserved;
 legacy reviews without a `Review-SHA256` line need one fresh review before another
 delivery. Approval authorizes this local handoff only, never automatic publishing.
+
+No upload extension is included or required. Any future extension must be optional,
+recommended with a Skip option, and leave manual posting available. Installing it
+or approving an edit does not authorize automatic publishing; posting requires
+explicit user authorization.

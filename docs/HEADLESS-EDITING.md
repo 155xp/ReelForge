@@ -18,7 +18,7 @@ cover changing an existing edit, including timeline operations, snapshots and un
 This covers both footage edits and graphic explainers alongside Blender's scenes.
 
 The project uses [Apache-2.0](https://github.com/heygen-com/hyperframes/blob/main/LICENSE).
-Local rendering needs Node.js 22+, ffmpeg/ffprobe and a headless Chrome binary;
+Local rendering needs stable Node.js 22.12.0 or newer, ffmpeg/ffprobe and a headless Chrome binary;
 it does not require HeyGen credentials or a cloud renderer. We install an exact
 version and npm dependency lock under `tools/agentcut/`, disable telemetry and
 update checks in the adapter, and expose local editing commands. ReelForge's
