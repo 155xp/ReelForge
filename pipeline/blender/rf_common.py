@@ -1,5 +1,6 @@
 """Shared Blender helpers for the pipeline (runs inside Blender 4.5). Imported everywhere as `rf`."""
 import math
+import os
 
 import bmesh
 import bpy
@@ -32,12 +33,19 @@ def setup_render(scene, spec, build_dir):
     scene.render.fps = fps
     scene.frame_start = 1
     scene.frame_end = int(round(spec["render_until"] * fps))
-    for engine in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
-        try:
-            scene.render.engine = engine
-            break
-        except TypeError:
-            continue
+    if os.environ.get("STUDIO_BLENDER_CPU") == "1":
+        # Explicit fallback for machines without a usable GPU (including hosted
+        # Intel Macs). Never change the default renderer based on host detection.
+        scene.render.engine = "CYCLES"
+        scene.cycles.device = "CPU"
+        scene.cycles.samples = spec.get("render", {}).get("samples", 16)
+    else:
+        for engine in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
+            try:
+                scene.render.engine = engine
+                break
+            except TypeError:
+                continue
     scene.render.resolution_x = 1080
     scene.render.resolution_y = 1920
     scene.render.resolution_percentage = 100

@@ -372,7 +372,8 @@ def write_all(answers: dict, profile=None) -> list[Path]:
 
 def write_guides(profile=None, *, saved_settings: bool = False) -> list[Path]:
     """A profile's CLAUDE.md and AGENTS.md again from its saved answers, nothing else: the first profile's list the
-    other channels, so they follow when a channel is added or removed. Nothing for a profile not set up yet."""
+    other channels, so they follow when a channel is added or removed. Updates use saved_settings to honor manual
+    settings and account edits. Nothing for a profile not set up yet."""
     w = _where(profile)
     try:
         a, problems = validate(json.loads(w.answers.read_text(encoding="utf-8")))

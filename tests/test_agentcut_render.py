@@ -224,10 +224,20 @@ window.__timelines={main:tl};</script></body></html>'''.replace('__SECONDS__', s
                 self.assertEqual((video["width"], video["height"]), (1080, 1920))
                 self.assertEqual(int(video["nb_read_frames"]), FPS * SECONDS)
                 self.assertAlmostEqual(float(info["format"]["duration"]), SECONDS, delta=0.1)
-                for index, source, source_index in ((CUT_FRAME - 1, sources[0], CUT_FRAME + FPS - 1), (CUT_FRAME, sources[1], 2 * FPS)):
-                    self.assertLess(float(np.abs(self.frame(final, index)[:450] -
-                                                 self.frame(source, source_index)[:450]).mean()), 9.0,
+                # Compose consumes the retained JPEG frames. Compare against those exact
+                # inputs, avoiding the extra YUV/JPEG colour conversion in a direct
+                # original-source comparison. The source trims were checked above.
+                boundary_frames = {}
+                for index in (CUT_FRAME - 1, CUT_FRAME):
+                    with Image.open(frames / f"f_{index + 1:04d}.jpg") as image:
+                        boundary_frames[index] = np.asarray(image.convert("RGB").resize((360, 640)), dtype=float)[:450]
+                for index in (CUT_FRAME - 1, CUT_FRAME):
+                    actual = self.frame(final, index)[:450]
+                    self.assertLess(float(np.abs(actual - boundary_frames[index]).mean()), 9.0,
                                     f"final output cut is incorrect at frame {index}")
+                    opposite = CUT_FRAME if index == CUT_FRAME - 1 else CUT_FRAME - 1
+                    self.assertGreater(float(np.abs(actual - boundary_frames[opposite]).mean()), 40.0,
+                                       "the two sides of the cut must remain distinguishable")
                 audio = self.audio(final)
                 measured = [self.assert_audio_transition(audio, *transition)
                             for transition in ((4, 440, 880), (HALF, 880, 660), (HALF + 5, 660, 1320))]

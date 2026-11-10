@@ -13,7 +13,7 @@ How the new version goes in depends on how this copy got here:
 Your own things are never touched: my-studio/, episodes/, completed videos/, research/, tools/, .venv/, the window's
 packages (ui/node_modules: the update installs what the new version's window needs), the downloaded sounds, the
 dashboard's data, settings and videos, your other channels' profiles (profiles/), and CLAUDE.md / AGENTS.md
-(onboarding rewrites those from your answers, every profile's, so they get the new version's instructions). After an update the dashboard exits with code 75,
+(the update refreshes those from each profile's saved settings, so they get the new version's instructions). After an update the dashboard exits with code 75,
 which tells the reelforge launcher to start it again.
 """
 
@@ -342,8 +342,8 @@ def _venv_python(root: Path) -> str:
 
 
 def _after(root: Path, requirements_before: str, progress: Progress, log: Callable[[str], None]) -> None:
-    """New Python packages if the update needs them, the window's (Bun and OpenTUI, studio/ui.py), then CLAUDE.md /
-    AGENTS.md rewritten from your answers."""
+    """New Python packages if needed, the window's (Bun and OpenTUI), then agent instructions refreshed without
+    replacing settings or accounts from older onboarding answers."""
     py = _venv_python(root)
     if _hash(root / "requirements.txt") != requirements_before:
         progress("Installing new Python packages", 0, 0)
@@ -365,7 +365,8 @@ def _after(root: Path, requirements_before: str, progress: Progress, log: Callab
         res = subprocess.run([py, "-m", "studio", "channel", "--regenerate", "--preserve-settings"], capture_output=True, text=True,
                              cwd=root, env={**env, "PYTHONUTF8": "1"})
         if res.returncode != 0:
-            log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run: reelforge channel --regenerate")
+            log("Updated, but rewriting CLAUDE.md / AGENTS.md failed; run: "
+                "reelforge channel --regenerate --preserve-settings")
 
 
 def _marker(root: Path) -> Path:

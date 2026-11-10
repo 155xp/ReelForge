@@ -192,6 +192,9 @@ jobs:
           reelforge stats off
       # Exercise the existing Blender path without installing the optional AgentCut editor.
       - name: A test render (Blender builds the example scene and renders a frame)
+        env:
+          # Hosted Intel's virtual GPU crashes Eevee; require the full-size Cycles CPU path instead.
+          STUDIO_BLENDER_CPU: ${{ matrix.os == 'macos-15-intel' && '1' || '0' }}
         run: |
           cd ~/ReelForge
           if [ "$RUNNER_OS" = macOS ]; then system_profiler SPDisplaysDataType | sed -n '1,20p'; fi

@@ -90,7 +90,7 @@ def snapshot(root):
             rel = p.relative_to(root).as_posix()
             if "__pycache__" in p.relative_to(root).parts:
                 continue
-            if "my-studio" in p.parts and (p.name in {"studio.toml", "answers.json", "channel-bible.md"}
+            if "my-studio" in p.parts and (p.name in {"studio.toml", "answers.json"}
                                           or "backups" in p.parts):
                 continue
             if p.name in {"AGENTS.md", "CLAUDE.md", "config.toml", "updated.json", "last-opened.txt"}:
@@ -130,6 +130,7 @@ for profile, name in ((profiles.main(), 'First channel'), (profiles.create('Seco
                         'assistant':['codex'], 'background_stats':False,
                         'handle_tiktok':'@upgrade_fixture', 'handle_youtube':'@upgrade_fixture'}, profile)
     (profile.my_studio / 'user-notes.md').write_text('My handwritten channel notes must stay byte-for-byte.\n')
+    profile.bible.write_text(profile.bible.read_text() + '\nCustom research notes and source credits: preserve exactly.\n')
     profile.config.write_text(dashboard_config.set_keys(profile.config.read_text(), {'':{'refresh_minutes':0}}))
     # These documented hand edits deliberately differ from the saved onboarding
     # answers. The actual old updater must not overwrite them during regeneration.

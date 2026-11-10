@@ -27,6 +27,14 @@ ReelForge folder.
 GPU (an RTX 3090 does a 67 s video in 10-25 minutes); slower GPUs take longer. On a Mac, Blender renders with Metal:
 Apple Silicon is quick, an Intel Mac much slower.
 
+For a machine without a usable GPU, explicitly set `STUDIO_BLENDER_CPU=1` before
+the `build` step to use Cycles on the CPU. For example, on macOS/Linux:
+`STUDIO_BLENDER_CPU=1 python -m studio doctor --render-test`. This renders the same
+scene at 1080×1920 using the episode's sample count; it can be much slower and the
+lighting can differ from Eevee. The renderer is saved in `build/scene.blend`, so
+rebuild the scene and remove old frames when switching modes. Ordinary builds
+continue to use Eevee. AgentCut does not use this option.
+
 ## Make an episode
 
 For headless edits from local footage and images, choose the optional **AgentCut** backend:

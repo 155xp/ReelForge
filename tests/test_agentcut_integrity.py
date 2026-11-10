@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 from studio import agentcut_sources as sources
-from test_agentcut import pipeline_module
+from tests.test_agentcut import pipeline_module
 
 
 class SourceAndRenderIntegrity(unittest.TestCase):

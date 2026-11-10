@@ -194,7 +194,8 @@ def onboard(argv: list[str], *, preserve_settings: bool = False) -> int:
 
 def regenerate(*, preserve_settings: bool = False) -> int:
     """Every profile's files again from its saved answers (after an update, so they get the new version's
-    instructions): the first one last, so its notes list the others as they are now."""
+    instructions): the first one last, so its notes list the others as they are now. Updates preserve settings
+    and refresh only instructions; an explicit channel regeneration can apply edited answers."""
     from . import generate
 
     done = 0
