@@ -1,25 +1,26 @@
 ## What's new in 2.3.0
 
-- **Optional AgentCut editing for local footage**, powered by pinned HyperFrames 0.8.214. Choose it per channel or
-  episode. Existing channels and episodes keep using Blender unless you choose AgentCut.
-- **Opening and updating ReelForge still needs no Node, npm, optional editor, or upload extension.** Installing
-  AgentCut separately needs stable Node.js 22.12.0 or newer and npm. Failed or cancelled installations leave the
-  existing app usable, and retries preserve a working editor until its replacement is ready.
-- **Reviews are tied to what you actually reviewed:** the video, cover, captions, settings, facts and local media.
-  Changed content requires fresh QA and a new review with the current `Review-SHA256` receipt. Existing completed
-  videos stay available; an older review needs refreshing only before another delivery.
-- **Source and render checks follow linked local media and verify the rendered MP4 and every expected frame.**
-  Remote assets and unsupported playlist dependencies must be downloaded or exported to self-contained local files.
-- **Updates preserve hand-edited settings and connected-account handles**, along with profiles, statistics,
-  source footage, completed videos and channel notes.
-- **Native Mac verification on Apple Silicon and Intel:** real editor installation, 62-second edits, trimmed
-  footage and audio, fonts, spaced paths, overlays, captions, timing, audio sync, loudness, QA, approval and delivery.
-  Upgrade tests use the actual published v2.2.1 Mac package and disposable user data. Blender's normal GPU path is
-  tested on Apple Silicon; Intel runners without a usable GPU use the explicit full-resolution CPU option
-  (`STUDIO_BLENDER_CPU=1`, followed by a scene rebuild). The default Blender renderer is unchanged.
-
-Posting remains manual. No upload extension is included or required. Any future extension must be optional with
-a Skip option; installing it or approving an edit never authorizes automatic publishing.
+- **Optional AgentCut edits local footage.** Choose pinned HyperFrames 0.8.214 per channel or episode.
+  - Existing channels and episodes keep using Blender unless you choose AgentCut.
+- **Opening and updating the app needs no optional tools.** Node, npm, AgentCut and an upload extension are not required.
+  - Installing AgentCut separately needs stable Node.js 22.12.0 or newer and npm.
+  - Failed or cancelled installs leave the app usable; retries preserve a working editor until its replacement is ready.
+- **Approval identifies what you reviewed.** It covers the video, cover, captions, settings, facts and local media.
+  - Changed content needs fresh QA and a new review with the current Review-SHA256 receipt.
+  - Completed videos stay available. Older reviews need refreshing only before another delivery.
+- **Local media and rendered files are verified.** Checks follow linked media and verify the MP4 and every expected frame.
+  - Remote assets and unsupported playlists must be downloaded or exported to self-contained local files.
+- **Updates preserve your data.** Profiles, accounts, statistics, source footage, completed videos and channel notes stay in place.
+  - Hand-edited settings and connected-account handles are preserved when agent instructions are refreshed.
+- **Native Mac tests cover both architectures.** Apple Silicon and Intel install the editor and render 62-second edits.
+  - Tests cover trims, audio sync, fonts, spaced paths, overlays, captions, timing, loudness, QA, approval and delivery.
+  - Upgrade tests use the actual published v2.2.1 Mac package with disposable user data.
+  - Blender's normal GPU path is tested on Apple Silicon; Intel runners without a usable GPU use full-resolution CPU rendering.
+- **Blender's default renderer is unchanged.** An explicit CPU option supports machines without a usable GPU.
+  - Set STUDIO_BLENDER_CPU=1, then rebuild the scene. Cycles CPU lighting differs from Eevee; review the result.
+- **Posting remains manual.** No upload extension is included or required.
+  - Any future extension must be optional and recommended with a Skip option, while keeping manual posting available.
+  - Installing an extension or approving an edit never authorizes automatic publishing.
 
 ## What's new in 2.2.1
 
